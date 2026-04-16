@@ -9,9 +9,18 @@ declare module "hono" {
 
 /**
  * requireAuth — verifies the Supabase JWT from Authorization: Bearer <token>.
- * Attaches userId to Hono context. Rejects with 401 if missing or invalid.
+ *
+ * Bypass mode: when Supabase is not configured (SUPABASE_URL not set), all
+ * requests are allowed and userId is set to "anon". This lets the API run
+ * without Supabase for local dev and free deployments.
  */
 export const requireAuth = createMiddleware(async (c, next) => {
+  // Bypass: Supabase not configured
+  if (!supabase) {
+    c.set("userId", "anon");
+    return next();
+  }
+
   const authHeader = c.req.header("Authorization");
   if (!authHeader?.startsWith("Bearer ")) {
     return c.json({ error: "Missing Authorization header" }, 401);

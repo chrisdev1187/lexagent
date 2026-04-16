@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { ANTHROPIC_ENDPOINT, COURTLISTENER_BASE, CAP_BASE, GOVINFO_BASE, getAnthropicKey, setAnthropicKey } from "../lib/api";
 
 // ── API helper: checks .ok AND data.error, throws with clear message ───────
@@ -2701,6 +2701,11 @@ function VaultPanel({caseData,settings,onUpdateCase,isMobile,notify}) {
             <Btn onClick={analyze} disabled={loading||!docs.length||!query.trim()} icon="search">{loading?"Analyzing…":"Analyze"}</Btn>
           </div>
           {!docs.length&&<div style={{fontSize:11,color:T.amber,marginTop:6}}>⚠ Add documents to the vault first</div>}
+          {!!docs.length&&!!import.meta.env.VITE_API_URL&&(
+            <div style={{fontSize:11,color:T.amber,marginTop:6,lineHeight:1.5}}>
+              ⚠ <strong>Free provider mode:</strong> Document content cannot be forwarded to free LLM providers. The AI will answer based on your text query and case context only — it cannot read the uploaded files. For full document analysis, configure a direct Anthropic API key in Settings.
+            </div>
+          )}
         </div>
         <div className="scroll-y" style={{flex:1,padding:isMobile?14:"20px 24px"}}>
           {loading&&<div style={{display:"flex",flexDirection:"column",alignItems:"center",padding:"40px 20px",gap:12}}><Spinner size={28}/><div style={{fontSize:13,color:T.textSub}}>Analyzing {Math.min(docs.length,5)} document(s)…</div></div>}
@@ -2987,7 +2992,7 @@ function AdminPanel({settings,onSave,logs,cases,isMobile,notify}) {
           <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:s.highQualityDraft?`${T.violet}12`:T.panel2,border:`1px solid ${s.highQualityDraft?T.violet:T.border}`,borderRadius:6,cursor:"pointer",marginBottom:4}}
             onClick={()=>f("highQualityDraft")(!s.highQualityDraft)}>
             <div style={{width:34,height:18,borderRadius:9,background:s.highQualityDraft?T.violet:T.panel,border:`1px solid ${s.highQualityDraft?T.violet:T.border}`,position:"relative",flexShrink:0,transition:"all 0.2s"}}>
-              <div style={{position:"absolute",top:2,left:s.highQualityDraft?16:2,width:14,height:14,borderRadius:7,background:WHITE,transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.3)"}}/>
+              <div style={{position:"absolute",top:2,left:s.highQualityDraft?16:2,width:14,height:14,borderRadius:7,background:"white",transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.3)"}}/>
             </div>
             <div>
               <div style={{fontSize:12,color:s.highQualityDraft?T.violet:T.text,fontWeight:600}}>High Quality Drafting (Opus 4.6)</div>
@@ -3594,6 +3599,8 @@ function OnboardingWizard({onComplete}) {
   const [apiKey,setApiKey] = useState("");
   const [testing,setTesting] = useState(false);
   const [testOk,setTestOk] = useState(null); // true|false|null
+  // When VITE_API_URL is set, the backend handles the LLM — no client key needed
+  const backendReady = !!import.meta.env.VITE_API_URL;
 
   const AREA_OPTIONS = ["Criminal Defense","Civil Litigation","Corporate / M&A","Employment","Family Law","IP / Patent","Real Estate","Immigration","Personal Injury","Bankruptcy","Securities","Constitutional"];
 
@@ -3698,32 +3705,47 @@ function OnboardingWizard({onComplete}) {
           <div style={{animation:"scale-in 0.25s ease"}}>
             <div style={{marginBottom:24}}>
               <div className="serif" style={{fontSize:24,color:T.text,marginBottom:6,fontStyle:"italic"}}>Connect ARES</div>
-              <div style={{fontSize:13,color:T.textSub,lineHeight:1.6}}>ARES requires an Anthropic API key. Your key is stored locally and never leaves your device.</div>
+              {backendReady
+                ? <div style={{fontSize:13,color:T.textSub,lineHeight:1.6}}>ARES is powered by your backend — no API key required. Click Launch to begin.</div>
+                : <div style={{fontSize:13,color:T.textSub,lineHeight:1.6}}>ARES requires an Anthropic API key. Your key is stored locally and never leaves your device.</div>
+              }
             </div>
-            <div style={{marginBottom:16}}>
-              <label style={{fontSize:10,color:T.textSub,fontFamily:"'JetBrains Mono',monospace",letterSpacing:"0.08em",display:"block",marginBottom:6}}>ANTHROPIC API KEY</label>
-              <div style={{display:"flex",gap:8}}>
-                <input value={apiKey} onChange={e=>setApiKey(e.target.value)} placeholder="sk-ant-api03-…"
-                  type="password"
-                  style={{flex:1,background:T.surface,border:`1px solid ${testOk===true?T.emerald:testOk===false?T.crimson:T.border}`,borderRadius:7,color:T.text,padding:"11px 14px",fontSize:13}} className="gold-focus"/>
-                <Btn variant="ghost" size="sm" onClick={testKey} disabled={testing||!apiKey.trim()}>
-                  {testing?"…":testOk===true?"✓ OK":"Test"}
-                </Btn>
+            {!backendReady&&(
+              <>
+                <div style={{marginBottom:16}}>
+                  <label style={{fontSize:10,color:T.textSub,fontFamily:"'JetBrains Mono',monospace",letterSpacing:"0.08em",display:"block",marginBottom:6}}>ANTHROPIC API KEY</label>
+                  <div style={{display:"flex",gap:8}}>
+                    <input value={apiKey} onChange={e=>setApiKey(e.target.value)} placeholder="sk-ant-api03-…"
+                      type="password"
+                      style={{flex:1,background:T.surface,border:`1px solid ${testOk===true?T.emerald:testOk===false?T.crimson:T.border}`,borderRadius:7,color:T.text,padding:"11px 14px",fontSize:13}} className="gold-focus"/>
+                    <Btn variant="ghost" size="sm" onClick={testKey} disabled={testing||!apiKey.trim()}>
+                      {testing?"…":testOk===true?"✓ OK":"Test"}
+                    </Btn>
+                  </div>
+                  {testOk===true&&<div style={{fontSize:11,color:T.emerald,marginTop:6}}>✓ Connected — ARES is ready to launch</div>}
+                  {testOk===false&&<div style={{fontSize:11,color:T.crimson,marginTop:6}}>✗ Invalid key — check console.anthropic.com</div>}
+                </div>
+                <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:8,padding:"12px 14px",marginBottom:24}}>
+                  <div style={{fontSize:11,color:T.textMuted,lineHeight:1.7}}>
+                    <strong style={{color:T.textSub}}>Get your key:</strong> Visit{" "}
+                    <span style={{color:T.cobalt,fontFamily:"'JetBrains Mono',monospace"}}>console.anthropic.com</span>
+                    {" "}→ API Keys → Create Key. Typical usage: $5–20/month for active legal research.
+                  </div>
+                </div>
+              </>
+            )}
+            {backendReady&&(
+              <div style={{background:T.surface,border:`1px solid ${T.emeraldFaint||T.emerald+"22"}`,borderRadius:8,padding:"12px 14px",marginBottom:24,display:"flex",alignItems:"center",gap:10}}>
+                <div style={{width:8,height:8,borderRadius:"50%",background:T.emerald,flexShrink:0}}/>
+                <div style={{fontSize:11,color:T.textSub,lineHeight:1.6}}>
+                  Backend proxy active — AI calls are routed securely through your server.
+                </div>
               </div>
-              {testOk===true&&<div style={{fontSize:11,color:T.emerald,marginTop:6}}>✓ Connected — ARES is ready to launch</div>}
-              {testOk===false&&<div style={{fontSize:11,color:T.crimson,marginTop:6}}>✗ Invalid key — check console.anthropic.com</div>}
-            </div>
-            <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:8,padding:"12px 14px",marginBottom:24}}>
-              <div style={{fontSize:11,color:T.textMuted,lineHeight:1.7}}>
-                <strong style={{color:T.textSub}}>Get your key:</strong> Visit{" "}
-                <span style={{color:T.cobalt,fontFamily:"'JetBrains Mono',monospace"}}>console.anthropic.com</span>
-                {" "}→ API Keys → Create Key. Typical usage: $5–20/month for active legal research.
-              </div>
-            </div>
+            )}
             <div style={{display:"flex",gap:8}}>
               <Btn variant="ghost" size="lg" onClick={()=>setStep(1)}>← Back</Btn>
               <Btn variant="primary" size="lg" full onClick={()=>onComplete(firmName,apiKey,selectedAreas,false)}>
-                {apiKey.trim()?"Launch ARES →":"Skip & Launch →"}
+                {backendReady||apiKey.trim()?"Launch ARES →":"Skip & Launch →"}
               </Btn>
             </div>
             <div style={{display:"flex",justifyContent:"center",gap:5,marginTop:20}}>
@@ -3734,6 +3756,48 @@ function OnboardingWizard({onComplete}) {
       </div>
     </div>
   );
+}
+
+// ── Panel Error Boundary ────────────────────────────────────────────────────
+// Prevents a single panel crash from blacking out the entire content area.
+// Wraps renderContent() on both desktop and mobile layouts.
+class PanelErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+  componentDidCatch(error, info) {
+    console.error("[LexAgent] Panel render error:", error, info?.componentStack);
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{
+          display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
+          height:"100%",gap:12,padding:24,textAlign:"center"
+        }}>
+          <div style={{fontSize:28}}>⚠️</div>
+          <div style={{fontSize:14,fontWeight:600,color:T.text}}>Panel failed to render</div>
+          <div style={{fontSize:12,color:T.textSub,maxWidth:320,lineHeight:1.5}}>
+            {this.state.error.message || "Unknown error"}
+          </div>
+          <button
+            onClick={()=>this.setState({error:null})}
+            style={{
+              marginTop:8,padding:"8px 16px",background:T.gold,border:"none",
+              borderRadius:6,color:"#050200",fontSize:12,fontWeight:600,cursor:"pointer"
+            }}
+          >
+            Try Again
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 // ── Main App v5 ────────────────────────────────────────────────────────────
@@ -3798,8 +3862,8 @@ export default function LexAgent() {
         }
       }catch(e){console.warn("Shared matters load failed:",e);}
       setLoaded(true);
-      // Show onboarding if fresh install (no matters and no API key configured)
-      if((!c||!c.length)&&!mergedSettings.anthropicKey) setShowOnboarding(true);
+      // Show onboarding if fresh install (no matters, no API key, and no backend proxy)
+      if((!c||!c.length)&&!mergedSettings.anthropicKey&&!import.meta.env.VITE_API_URL) setShowOnboarding(true);
     })();
   },[]);
 
@@ -4150,7 +4214,7 @@ export default function LexAgent() {
                 </div>
               )}
 
-              <div style={{flex:1,overflow:"hidden",padding:16}}>{renderContent()}</div>
+              <div style={{flex:1,overflow:"hidden",padding:16}}><PanelErrorBoundary>{renderContent()}</PanelErrorBoundary></div>
             </div>
           </div>
         ):(
@@ -4177,7 +4241,7 @@ export default function LexAgent() {
             {/* ── Content area with swipe navigation ── */}
             <div style={{flex:1,overflow:"hidden",padding:isMobile?10:16}}
               onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
-              {renderContent()}
+              <PanelErrorBoundary>{renderContent()}</PanelErrorBoundary>
             </div>
 
             {/* ── Mobile Bottom Nav — context-aware, scrollable ── */}

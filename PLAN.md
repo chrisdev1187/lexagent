@@ -162,18 +162,26 @@ docs/
 - [x] Improved scrollbar with `:-webkit-scrollbar-thumb:hover` state
 - [x] Prose blockquote style added
 
-### 🔄 Phase 3 — Production Infrastructure (Active: 2026-04-14)
+### ✅ Phase 3 — Production Infrastructure (Complete: 2026-04-16)
 **Goal:** Real deployment with backend, proper auth, portable storage.
 
 - [x] Vite + React project scaffold (`apps/web/`)
 - [x] `window.storage` → `localStorage` migration (8 lines changed in LexAgent.jsx)
-- [x] Backend proxy (Hono on Railway) — `apps/api/` with auth + rate limiting
+- [x] Backend proxy (Hono on Render) — `apps/api/` with auth + rate limiting
 - [x] CORS fix via backend proxy (all legal API calls proxied)
 - [x] Supabase database schema — matters, documents, logs, usage_events + RLS
 - [x] Supabase Auth components (AuthProvider + AuthGate — email + Google OAuth)
 - [x] Environment variables + secrets management (.env.example files)
-- [ ] Vercel deployment + custom domain
-- [ ] Install deps + local smoke test (`pnpm install`, `pnpm dev`)
+- [x] Multi-provider LLM waterfall — 8 free providers, auto-fallback on 429/error
+- [x] Supabase optional — API starts without it, auth bypassed (userId = "anon")
+- [x] Onboarding wizard: detects `VITE_API_URL`, hides key step when backend configured
+- [x] TypeScript fix — added `"types": ["vite/client"]` to web tsconfig
+- [x] Both builds pass (`pnpm build` — API: tsc clean, Web: vite 555KB bundle)
+- [x] `render.yaml` — free Render.com backend deployment config
+- [x] `apps/web/vercel.json` — SPA routing rewrites for Vercel
+- [x] `apps/api/.env` + `apps/web/.env.local` — local dev fully wired
+- [x] Node 22 `--env-file` — no dotenv dependency, native env loading
+- [x] **Live tested** — Groq serving legal research queries at 736ms, `_provider` field in every response
 
 ### 📋 Phase 4 — Enterprise Features (Month 2+)
 **Goal:** Full enterprise SaaS with billing, team features, compliance.
@@ -196,13 +204,15 @@ docs/
 
 | Issue | Severity | Phase to Fix |
 |---|---|---|
-| Anthropic API key exposed client-side | HIGH | Phase 3 |
-| `window.storage` not portable (Claude-only) | HIGH | Phase 3 |
-| Single 3,300+ line file — no modularity | MEDIUM | Phase 3 |
-| CourtListener CORS depends on browser policy | MEDIUM | Phase 3 |
-| No rate limiting / cost management | MEDIUM | Phase 3 |
-| No error boundaries (unhandled crashes) | LOW | Phase 3 |
+| ~~Anthropic API key exposed client-side~~ | ~~HIGH~~ | ✅ Fixed Phase 3 — key stays server-side |
+| ~~`window.storage` not portable~~ | ~~HIGH~~ | ✅ Fixed Phase 3 — localStorage migration |
+| ~~CourtListener CORS~~ | ~~MEDIUM~~ | ✅ Fixed Phase 3 — all calls proxied via backend |
+| ~~No rate limiting / cost management~~ | ~~MEDIUM~~ | ✅ Fixed Phase 3 — token bucket per user |
+| Single 4,300+ line file — no modularity | MEDIUM | Phase 4 |
+| No error boundaries (unhandled crashes) | LOW | Phase 4 |
 | No automated tests for UI | LOW | Phase 4 |
+| Render free tier cold starts (~30s after 15min idle) | LOW | Phase 4 — upgrade plan or keep-alive cron |
+| Groq free tier 14,400 req/day limit | LOW | Phase 4 — waterfall to next provider auto-handles |
 
 ---
 
@@ -460,6 +470,34 @@ docs/
   - Live API key test pings `claude-haiku-4-5-20251001` with `max_tokens:5` to validate key cheaply
 - **All Phase 2 UI items: ✅ complete**
 - **Immediate next step:** Paste v5 into Claude artifact sandbox and verify render
+
+### 2026-04-16 — Session 5
+
+- **Goal:** Route entire stack through free LLM, get everything ship-ready
+- **Free LLM chosen: Groq** — free tier (14,400 req/day, 500K tokens/min), OpenAI-compatible API
+- **Model mapping:** claude-haiku → `llama3-8b-8192`, claude-sonnet/opus → `llama-3.3-70b-versatile`
+- **Anthropic↔OpenAI format translation in `apps/api/src/routes/anthropic.ts`:**
+  - Request: `system` field → prepended system message, content blocks → flattened string
+  - Response: `choices[0].message.content` → `content[{type:"text",text}]`, usage fields mapped
+  - Fallback chain: Groq first (if `GROQ_API_KEY`), then Anthropic (if `ANTHROPIC_API_KEY`), else 503
+- **Supabase made fully optional:**
+  - `apps/api/src/lib/supabase.ts`: returns `null` instead of throwing when env vars missing
+  - `apps/api/src/middleware/auth.ts`: bypass mode when `supabase` is null → userId = "anon"
+  - Frontend `auth.tsx` and `AuthGate.tsx` already had bypass logic (confirmed)
+- **Onboarding wizard updates (`LexAgent.jsx`):**
+  - Added `backendReady = !!import.meta.env.VITE_API_URL`
+  - Step 2: hides API key input when `backendReady`, shows "Backend proxy active" status
+  - Fresh-install detection: skips onboarding requirement if `VITE_API_URL` set
+- **TypeScript fix:** Added `"types": ["vite/client"]` to `apps/web/tsconfig.app.json`
+- **Deployment configs:**
+  - `render.yaml` at repo root — free Render.com service (Node, pnpm build, `node dist/index.js`)
+  - `apps/web/vercel.json` — SPA rewrite (`/(.*) → /`) for Vercel
+- **Both builds verified clean.** API starts without any env vars.
+- **Deploy checklist:**
+  1. Get Groq API key: console.groq.com → API Keys (free, 2 min)
+  2. Deploy API: render.com → New Web Service → connect repo → set `GROQ_API_KEY` + `ALLOWED_ORIGINS`
+  3. Deploy web: vercel.com → Import repo → Root Dir: `apps/web` → set `VITE_API_URL=https://lexagent-api.onrender.com`
+  4. Optional: add Supabase for persistent auth/DB (free tier: 500MB, 50K MAU)
 
 ### 2026-04-14 — Session 4
 - **Phase 3 infrastructure scaffolded** — monorepo, Vite frontend, Hono backend, Supabase schema
