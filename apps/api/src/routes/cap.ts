@@ -8,17 +8,11 @@ const CAP_BASE = "https://api.case.law/v1";
 export const capRouter = new Hono();
 capRouter.use("/*", requireAuth, rateLimit("legal", legalRpm));
 
-// Generic GET passthrough to Harvard CAP
-capRouter.get("/*", async (c) => {
-  const path = c.req.path.replace(/^\/api\/cap/, "");
-  const query = c.req.query();
-  const params = new URLSearchParams(query).toString();
-  const url = `${CAP_BASE}${path}${params ? `?${params}` : ""}`;
-
-  const res = await fetch(url, { headers: { Accept: "application/json" } });
-  const data = await res.text();
-  return new Response(data, {
-    status: res.status,
-    headers: { "Content-Type": res.headers.get("Content-Type") ?? "application/json" },
-  });
+// Harvard CAP API was decommissioned in 2024 — all requests return 301 → docs page.
+// Return a clean 410 Gone so the frontend can handle gracefully instead of rendering HTML.
+capRouter.get("/*", (c) => {
+  return c.json({
+    error: "Harvard Caselaw Access Project API decommissioned",
+    message: "api.case.law shut down in 2024. Use CourtListener (/api/courtlistener) for case law search.",
+  }, 410);
 });

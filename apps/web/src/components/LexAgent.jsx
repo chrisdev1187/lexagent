@@ -1112,7 +1112,7 @@ function ResearchPanel({caseData,settings,onUpdateCase,onLog,isMobile,notify}) {
 
     const dataSources = [];
     if(settings.courtListenerToken) dataSources.push("CourtListener Direct API (9M opinions, 18M citations, judge profiles)");
-    dataSources.push("Harvard Caselaw Access Project (6.7M cases, 1658–2020, always active)");
+    // Harvard CAP API decommissioned 2024 — CourtListener covers this data
     if(settings.govInfoKey) {
       dataSources.push("GovInfo API (US Code, CFR, Federal Register — official GPO source)");
       dataSources.push("Congress.gov API (bills, amendments, committee reports, voting records)");
@@ -3319,7 +3319,7 @@ function AdminPanel({settings,onSave,logs,cases,isMobile,notify}) {
             {[
               {label:"CourtListener",sub:"9M opinions · 18M citations",active:!!s.courtListenerToken,note:"Token required"},
               {label:"CL Judge DB",sub:"16,000+ judges · disclosures",active:!!s.courtListenerToken,note:"Uses CL token"},
-              {label:"Harvard CAP",sub:"6.7M cases · 1658–2020",active:true,note:"Always free"},
+              {label:"Harvard CAP",sub:"API decommissioned 2024",active:false,note:"Replaced by CourtListener"},
               {label:"GovInfo",sub:"US Code · CFR · Fed Register",active:!!s.govInfoKey,note:"api.data.gov key"},
               {label:"Congress.gov",sub:"Bills · amendments · votes",active:!!s.govInfoKey,note:"Uses same key"},
               {label:"Regulations.gov",sub:"Federal rulemaking · dockets",active:!!s.govInfoKey,note:"Uses same key"},
@@ -3426,7 +3426,6 @@ function AdminPanel({settings,onSave,logs,cases,isMobile,notify}) {
             {/* Always-active sources */}
             <div style={{display:"flex",flexDirection:"column",gap:6}}>
               {[
-                {label:"Harvard Caselaw Access Project",sub:"6.7M cases · 360 years · automatic on every search"},
                 {label:"eCFR — Electronic Code of Federal Regulations",sub:"Live current regulations · always up to date"},
                 {label:"SEC EDGAR",sub:"Corporate filings: 10-K, 10-Q, 8-K · full-text search"},
                 {label:"USPTO PatentsView",sub:"Full patent text · IP case research"},
