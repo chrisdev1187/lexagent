@@ -3403,6 +3403,55 @@ function AdminPanel({settings,onSave,logs,cases,isMobile,notify}) {
   const totalVerified = cases.reduce((a,c)=>(a+(c.allVerifications||[]).filter(v=>v.status==="verified").length),0);
   const totalFailed = cases.reduce((a,c)=>(a+(c.allVerifications||[]).filter(v=>v.status==="not_found").length),0);
 
+  // ── Telemetry system ────────────────────────────────────────────────────
+  const [pingResults, setPingResults] = useState({});
+  const [pingingAll, setPingingAll] = useState(false);
+
+  async function runPing(name, fn) {
+    setPingResults(p=>({...p,[name]:{status:"pending"}}));
+    const t0 = Date.now();
+    try {
+      await fn();
+      setPingResults(p=>({...p,[name]:{status:"ok",latency:Date.now()-t0}}));
+    } catch(e) {
+      setPingResults(p=>({...p,[name]:{status:"error",latency:Date.now()-t0,error:e.message.slice(0,60)}}));
+    }
+  }
+
+  async function pingAll() {
+    setPingingAll(true);
+    const apiBase = import.meta.env.VITE_API_URL||"";
+    await Promise.allSettled([
+      runPing("ARES Backend", ()=>fetch(apiBase+"/health").then(r=>{if(!r.ok)throw new Error(`HTTP ${r.status}`)})),
+      runPing("CourtListener", ()=>courtListenerSearchDirect("contract",null,s.courtListenerToken||null)),
+      runPing("eCFR", ()=>ecfrSearch("employment")),
+      runPing("EDGAR", ()=>edgarSearch("annual")),
+      runPing("USPTO", ()=>usptoSearch("software")),
+      runPing("GovInfo", ()=>govInfoStatuteLookup("commerce",s.govInfoKey||"DEMO_KEY")),
+      runPing("Congress", ()=>congressSearch("appropriations")),
+      runPing("OpenStates", s.openStatesKey?()=>openstatesSearch("budget",s.openStatesKey):()=>Promise.reject(new Error("No key set"))),
+      s.anthropicKey
+        ? runPing("Anthropic API", ()=>fetch("https://api.anthropic.com/v1/models",{headers:{"x-api-key":s.anthropicKey,"anthropic-version":"2023-06-01"}}).then(r=>{if(!r.ok)throw new Error(`HTTP ${r.status}`)}))
+        : runPing("Anthropic API", ()=>Promise.reject(new Error("No API key set"))),
+    ]);
+    setPingingAll(false);
+  }
+
+  function PingBadge({name,onTest}) {
+    const r = pingResults[name];
+    return (
+      <div style={{display:"flex",alignItems:"center",gap:5,flexShrink:0}}>
+        {r?.status==="pending"&&<span style={{fontSize:9,color:T.amber,fontFamily:"'JetBrains Mono',monospace"}}>TESTING…</span>}
+        {r?.status==="ok"&&<span style={{fontSize:9,color:T.emerald,fontFamily:"'JetBrains Mono',monospace"}}>✓ {r.latency}ms</span>}
+        {r?.status==="error"&&<span style={{fontSize:9,color:T.crimson,fontFamily:"'JetBrains Mono',monospace",maxWidth:120,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}} title={r.error}>✗ {r.error}</span>}
+        <button onClick={onTest} disabled={r?.status==="pending"}
+          style={{fontSize:9,padding:"2px 7px",borderRadius:4,border:`1px solid ${T.border}`,background:T.panel2,color:T.textSub,cursor:"pointer",fontFamily:"'JetBrains Mono',monospace",flexShrink:0}}>
+          {r?.status==="pending"?"…":"Test"}
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="scroll-y" style={{height:"100%",maxWidth:860}}>
       <div style={{marginBottom:isMobile?16:24}}>
@@ -3465,7 +3514,34 @@ function AdminPanel({settings,onSave,logs,cases,isMobile,notify}) {
             {v:"claude-haiku-4-5-20251001",l:"Claude Haiku 4.5 · Anthropic (paid — fastest Claude)"},
           ]}/>
           <div style={{fontSize:10,color:T.textMuted,marginBottom:12,marginTop:-8}}>
-            Auto uses free providers (no API key needed). Claude models require ANTHROPIC_API_KEY and are billed per token — use for quality testing only.
+            Auto uses free providers (no API key needed). Claude models require your Anthropic API key below — billed per token.
+          </div>
+          {/* Anthropic API key — user-provided, stored in browser vault */}
+          <div style={{background:T.panel2,border:`1px solid ${s.anthropicKey?`${T.violet}60`:T.goldDim}`,borderRadius:7,padding:12,marginBottom:14}}>
+            <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:7}}>
+              <div style={{width:6,height:6,borderRadius:"50%",background:s.anthropicKey?T.violet:T.textMuted,flexShrink:0}}/>
+              <span style={{fontSize:10,color:T.textSub,fontFamily:"'JetBrains Mono',monospace",letterSpacing:"0.07em",textTransform:"uppercase",flex:1}}>Anthropic API Key</span>
+              {s.anthropicKey&&<span style={{fontSize:9,color:T.violet,fontFamily:"'JetBrains Mono',monospace"}}>● ACTIVE — Claude models unlocked</span>}
+            </div>
+            <div style={{display:"flex",gap:6}}>
+              <input type="password" value={s.anthropicKey||""} onChange={e=>f("anthropicKey")(e.target.value)}
+                placeholder="sk-ant-... — get from console.anthropic.com"
+                style={{flex:1,background:T.bg2,border:`1px solid ${s.anthropicKey?T.violet:T.border}`,borderRadius:6,color:T.text,padding:"8px 12px",fontSize:12,fontFamily:"'JetBrains Mono',monospace"}}
+                className="gold-focus"/>
+              {s.anthropicKey&&<button onClick={()=>f("anthropicKey")("")}
+                style={{padding:"0 10px",background:T.crimsonFaint,border:`1px solid ${T.crimson}40`,borderRadius:6,color:T.crimson,fontSize:11,cursor:"pointer",fontFamily:"'JetBrains Mono',monospace",flexShrink:0}}>Clear</button>}
+            </div>
+            <div style={{fontSize:10,color:T.textMuted,marginTop:5,lineHeight:1.5}}>
+              Your key is stored in your browser only — never sent to our servers. Each user provides their own key.
+              {!s.anthropicKey&&<span> Until set, Claude models are unavailable — free waterfall still runs.</span>}
+            </div>
+            {['claude-sonnet-4-6','claude-opus-4-7','claude-haiku-4-5-20251001'].map(m=>(
+              <div key={m} style={{display:"flex",alignItems:"center",gap:6,marginTop:5,padding:"4px 8px",background:T.bg2,borderRadius:5,border:`1px solid ${T.border}`}}>
+                <div style={{width:5,height:5,borderRadius:"50%",background:s.anthropicKey?T.violet:T.textMuted,flexShrink:0}}/>
+                <span style={{fontSize:10,color:s.anthropicKey?T.text:T.textMuted,flex:1}}>{m==="claude-sonnet-4-6"?"Claude Sonnet 4.6 — best quality/speed":m==="claude-opus-4-7"?"Claude Opus 4.7 — highest quality, slower":"Claude Haiku 4.5 — fastest, lowest cost"}</span>
+                <span style={{fontSize:9,fontFamily:"'JetBrains Mono',monospace",color:s.anthropicKey?T.violet:T.textMuted}}>{s.anthropicKey?"AVAILABLE":"LOCKED"}</span>
+              </div>
+            ))}
           </div>
           <div style={{marginBottom:14}}>
             <div style={{fontSize:10,color:T.textSub,marginBottom:5,fontFamily:"'JetBrains Mono',monospace",letterSpacing:"0.07em",textTransform:"uppercase"}}>Temperature: {s.temperature.toFixed(1)}</div>
@@ -3495,29 +3571,62 @@ function AdminPanel({settings,onSave,logs,cases,isMobile,notify}) {
             The more you connect, the higher the output quality — moving from "AI recall" to genuine primary-source retrieval.
           </div>
 
-          {/* Status overview */}
-          <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr 1fr":"repeat(5,1fr)",gap:10,marginBottom:16}}>
-            {[
-              {label:"CourtListener",sub:"9M opinions · 18M citations",active:!!s.courtListenerToken,note:"Token required"},
-              {label:"CL Judge DB",sub:"16,000+ judges · disclosures",active:!!s.courtListenerToken,note:"Uses CL token"},
-              {label:"Harvard CAP",sub:"API decommissioned 2024",active:false,note:"Replaced by CourtListener"},
-              {label:"GovInfo",sub:"US Code · CFR · Fed Register",active:!!s.govInfoKey,note:"api.data.gov key"},
-              {label:"Congress.gov",sub:"Bills · amendments · votes",active:!!s.govInfoKey,note:"Uses same key"},
-              {label:"Regulations.gov",sub:"Federal rulemaking · dockets",active:!!s.govInfoKey,note:"Uses same key"},
-              {label:"eCFR",sub:"Live federal regulations",active:true,note:"Always free"},
-              {label:"SEC EDGAR",sub:"10-K · 10-Q · 8-K filings",active:true,note:"Always free"},
-              {label:"USPTO Patents",sub:"Full patent text · IP research",active:true,note:"Always free"},
-              {label:"OpenStates",sub:"50-state legislation · bills",active:!!s.openStatesKey,note:"Free key required"},
-            ].map(db=>(
-              <div key={db.label} style={{padding:"10px 12px",background:db.active?`${T.cobalt}10`:T.panel2,border:`1px solid ${db.active?T.cobalt:T.border}`,borderRadius:6}}>
-                <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
-                  <div style={{width:7,height:7,borderRadius:"50%",background:db.active?T.cobalt:T.textMuted,flexShrink:0}}/>
-                  <span style={{fontSize:11,color:db.active?T.cobalt:T.textSub,fontWeight:600}}>{db.label}</span>
-                </div>
-                <div style={{fontSize:9,color:T.textMuted,lineHeight:1.4}}>{db.sub}</div>
-                <div style={{fontSize:9,color:db.active?T.emerald:T.textMuted,marginTop:3,fontFamily:"'JetBrains Mono',monospace"}}>{db.active?"● ACTIVE":"○ "+db.note}</div>
+          {/* ── Telemetry — live API ping panel ── */}
+          <div style={{background:T.panel2,border:`1px solid ${T.border}`,borderRadius:8,padding:14,marginBottom:16}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <div style={{width:7,height:7,borderRadius:"50%",background:pingingAll?T.amber:T.cobalt,animation:pingingAll?"pulse 1s infinite":""}}/>
+                <span style={{fontSize:11,color:T.cobalt,fontWeight:600,fontFamily:"'JetBrains Mono',monospace",letterSpacing:"0.05em"}}>LIVE CONNECTIVITY TELEMETRY</span>
               </div>
-            ))}
+              <Btn variant="ghost" size="sm" onClick={pingAll} disabled={pingingAll}>{pingingAll?"Testing all…":"Ping All"}</Btn>
+            </div>
+
+            {/* Backend + Anthropic row */}
+            <div style={{marginBottom:10}}>
+              <div style={{fontSize:9,color:T.textMuted,fontFamily:"'JetBrains Mono',monospace",letterSpacing:"0.07em",textTransform:"uppercase",marginBottom:5}}>INFRASTRUCTURE</div>
+              <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                {[
+                  {name:"ARES Backend",sub:"Render API — /health",color:T.gold,onTest:()=>runPing("ARES Backend",()=>{const b=import.meta.env.VITE_API_URL||"";return fetch(b+"/health").then(r=>{if(!r.ok)throw new Error(`HTTP ${r.status}`)})})},
+                  {name:"Anthropic API",sub:s.anthropicKey?"Claude models — direct API":"No key set — enter key in Model Config",color:T.violet,onTest:()=>runPing("Anthropic API",s.anthropicKey?()=>fetch("https://api.anthropic.com/v1/models",{headers:{"x-api-key":s.anthropicKey,"anthropic-version":"2023-06-01"}}).then(r=>{if(!r.ok)throw new Error(`HTTP ${r.status}`)}):()=>Promise.reject(new Error("No API key set")))},
+                ].map(row=>(
+                  <div key={row.name} style={{display:"flex",alignItems:"center",gap:10,padding:"7px 10px",background:T.bg2,border:`1px solid ${T.border}`,borderRadius:6}}>
+                    <div style={{width:6,height:6,borderRadius:"50%",background:row.color,flexShrink:0}}/>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:11,color:T.text,fontWeight:500}}>{row.name}</div>
+                      <div style={{fontSize:9,color:T.textMuted}}>{row.sub}</div>
+                    </div>
+                    <PingBadge name={row.name} onTest={row.onTest}/>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Legal databases */}
+            <div style={{fontSize:9,color:T.textMuted,fontFamily:"'JetBrains Mono',monospace",letterSpacing:"0.07em",textTransform:"uppercase",marginBottom:5}}>LEGAL DATABASES</div>
+            <div style={{display:"flex",flexDirection:"column",gap:4}}>
+              {[
+                {name:"CourtListener",sub:"9M opinions · 18M citations · 16K judges",color:T.cobalt,keyLabel:s.courtListenerToken?"Token set":"No token — read-only fallback",onTest:()=>runPing("CourtListener",()=>courtListenerSearchDirect("contract",null,s.courtListenerToken||null))},
+                {name:"eCFR",sub:"Live Electronic Code of Federal Regulations — free",color:T.emerald,keyLabel:"Always free",onTest:()=>runPing("eCFR",()=>ecfrSearch("employment"))},
+                {name:"EDGAR",sub:"SEC corporate filings — 10-K, 10-Q, 8-K — free",color:T.emerald,keyLabel:"Always free",onTest:()=>runPing("EDGAR",()=>edgarSearch("annual"))},
+                {name:"USPTO",sub:"Patent full text · IP case research — free",color:T.emerald,keyLabel:"Always free",onTest:()=>runPing("USPTO",()=>usptoSearch("software"))},
+                {name:"GovInfo",sub:"US Code · CFR · Federal Register",color:T.amber,keyLabel:s.govInfoKey?"Key set":"DEMO_KEY (rate-limited)",onTest:()=>runPing("GovInfo",()=>govInfoStatuteLookup("commerce",s.govInfoKey||"DEMO_KEY"))},
+                {name:"Congress",sub:"Bills · amendments · votes",color:T.amber,keyLabel:s.govInfoKey?"Uses api.data.gov key":"DEMO_KEY (rate-limited)",onTest:()=>runPing("Congress",()=>congressSearch("appropriations"))},
+                {name:"OpenStates",sub:"50-state legislation · bills · legislators",color:T.violet,keyLabel:s.openStatesKey?"Key set":"No key — set in API Vault below",onTest:()=>runPing("OpenStates",s.openStatesKey?()=>openstatesSearch("budget",s.openStatesKey):()=>Promise.reject(new Error("No OpenStates key set")))},
+              ].map(row=>{
+                const r = pingResults[row.name];
+                const dotColor = r?.status==="ok"?T.emerald:r?.status==="error"?T.crimson:row.color;
+                return (
+                  <div key={row.name} style={{display:"flex",alignItems:"center",gap:10,padding:"7px 10px",background:T.bg2,border:`1px solid ${r?.status==="ok"?`${T.emerald}40`:r?.status==="error"?`${T.crimson}30`:T.border}`,borderRadius:6,transition:"border-color 0.3s"}}>
+                    <div style={{width:6,height:6,borderRadius:"50%",background:dotColor,flexShrink:0,transition:"background 0.3s"}}/>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:11,color:T.text,fontWeight:500}}>{row.name}</div>
+                      <div style={{fontSize:9,color:T.textMuted}}>{row.sub} · <span style={{color:row.color}}>{row.keyLabel}</span></div>
+                    </div>
+                    <PingBadge name={row.name} onTest={row.onTest}/>
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           {/* ── API Key Vault ── */}
@@ -3604,22 +3713,11 @@ function AdminPanel({settings,onSave,logs,cases,isMobile,notify}) {
               <div style={{fontSize:10,color:T.textMuted,marginTop:4}}>State bills, legislators, votes across all 50 states · <span style={{color:T.violet,cursor:"pointer"}} onClick={()=>window.open&&window.open("https://openstates.org/accounts/register/")}>Get free key →</span></div>
             </div>
 
-            {/* Always-active sources */}
-            <div style={{display:"flex",flexDirection:"column",gap:6}}>
-              {[
-                {label:"eCFR — Electronic Code of Federal Regulations",sub:"Live current regulations · always up to date"},
-                {label:"SEC EDGAR",sub:"Corporate filings: 10-K, 10-Q, 8-K · full-text search"},
-                {label:"USPTO PatentsView",sub:"Full patent text · IP case research"},
-              ].map(src=>(
-                <div key={src.label} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 10px",background:T.emeraldFaint,border:`1px solid ${T.emerald}30`,borderRadius:6}}>
-                  <div style={{width:6,height:6,borderRadius:"50%",background:T.emerald,flexShrink:0}}/>
-                  <div style={{flex:1}}>
-                    <div style={{fontSize:11,color:T.emerald,fontWeight:600}}>{src.label}</div>
-                    <div style={{fontSize:10,color:T.textMuted}}>{src.sub}</div>
-                  </div>
-                  <div style={{fontSize:9,color:T.emerald,fontFamily:"'JetBrains Mono',monospace",flexShrink:0}}>● FREE</div>
-                </div>
-              ))}
+            {/* Always-active note */}
+            <div style={{padding:"8px 12px",background:T.emeraldFaint,border:`1px solid ${T.emerald}30`,borderRadius:6,marginTop:4}}>
+              <div style={{fontSize:10,color:T.emerald,lineHeight:1.6}}>
+                <strong>Always active (no key needed):</strong> eCFR · SEC EDGAR · USPTO PatentsView — use Telemetry above to verify connectivity.
+              </div>
             </div>
           </div>
         </Panel>
