@@ -3384,18 +3384,21 @@ function AdminPanel({settings,onSave,logs,cases,isMobile,notify}) {
         <Panel style={{padding:18}}>
           <SectionHeader label="Model Configuration"/>
           <Field label="AI Provider / Model" value={s.model} onChange={f("model")} as="select" opts={[
-            {v:"auto",       l:"Auto — Waterfall (9 providers · always-on failover)"},
-            {v:"groq",       l:"Groq — Llama 3.3 70B · fastest"},
-            {v:"cerebras",   l:"Cerebras — Llama 3.3 70B · ultra-fast chip"},
-            {v:"gemini",     l:"Gemini 2.0 Flash · Google multimodal"},
-            {v:"xai",        l:"xAI — Grok-3 Mini · reasoning"},
-            {v:"mistral",    l:"Mistral Small · EU privacy"},
-            {v:"sambanova",  l:"SambaNova — Llama 3.3 70B"},
-            {v:"openrouter", l:"OpenRouter — Llama 3.3 70B"},
-            {v:"nvidia",     l:"NVIDIA — Llama 3.3 70B"},
+            {v:"auto",                    l:"Auto — Waterfall (9 free providers · always-on)"},
+            {v:"groq",                    l:"Groq — Llama 3.3 70B · fastest free"},
+            {v:"cerebras",                l:"Cerebras — Llama 3.3 70B · ultra-fast chip"},
+            {v:"gemini",                  l:"Gemini 2.0 Flash · Google multimodal"},
+            {v:"xai",                     l:"xAI — Grok-3 Mini · reasoning"},
+            {v:"mistral",                 l:"Mistral Small · EU privacy"},
+            {v:"sambanova",               l:"SambaNova — Llama 3.3 70B"},
+            {v:"openrouter",              l:"OpenRouter — Llama 3.3 70B"},
+            {v:"nvidia",                  l:"NVIDIA — Llama 3.3 70B"},
+            {v:"claude-sonnet-4-6",       l:"Claude Sonnet 4.6 · Anthropic (paid — testing)"},
+            {v:"claude-opus-4-7",         l:"Claude Opus 4.7 · Anthropic (paid — highest quality)"},
+            {v:"claude-haiku-4-5-20251001",l:"Claude Haiku 4.5 · Anthropic (paid — fastest Claude)"},
           ]}/>
           <div style={{fontSize:10,color:T.textMuted,marginBottom:12,marginTop:-8}}>
-            Auto mode tries Groq first and falls back through all 9 providers — best for reliability. Pick a specific provider to always use that one (falls back if rate-limited).
+            Auto uses free providers (no API key needed). Claude models require ANTHROPIC_API_KEY and are billed per token — use for quality testing only.
           </div>
           <div style={{marginBottom:14}}>
             <div style={{fontSize:10,color:T.textSub,marginBottom:5,fontFamily:"'JetBrains Mono',monospace",letterSpacing:"0.07em",textTransform:"uppercase"}}>Temperature: {s.temperature.toFixed(1)}</div>

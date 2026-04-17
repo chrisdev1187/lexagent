@@ -195,10 +195,58 @@ docs/
 - [x] Harvard CAP decommission handled — backend returns 410, replaced with CourtListener historical search
 - [x] 9-provider LLM waterfall with preferred-provider routing (admin model selector)
 - [x] All 6 new APIs wired into frontend (fetch functions + UI buttons + system prompt + dataSources context)
-- [x] lib/api.ts exports 7 base URLs (COURTLISTENER, GOVINFO, CONGRESS, ECFR, REGULATIONS, EDGAR, USPTO, OPENSTATES)
+- [x] lib/api.ts exports 8 base URLs (COURTLISTENER, GOVINFO, CONGRESS, ECFR, REGULATIONS, EDGAR, USPTO, OPENSTATES)
+- [x] Model selector: 9 free providers + Claude Sonnet 4.6 / Opus 4.7 / Haiku 4.5 (paid, for testing)
+- [x] .env.example updated — all keys documented with signup URLs
 - [x] Production: https://lexagent-ochre.vercel.app | API: https://lexagent-0o5u.onrender.com
 
-### 📋 Phase 4 — Enterprise Features (Month 2+)
+### 🔄 Phase 3.5 — System Hardening (Current — must complete before Phase 4)
+**Goal:** System must be 100% reliable before enterprise features. No shortcuts.
+
+#### ❌ RAG Pre-fetch (TOP PRIORITY — not started)
+The AI currently *lists* data sources in the system prompt but does NOT actually query them before answering.
+Real RAG = query databases first → inject results as context → THEN call AI.
+
+**Plan:**
+- In `handleSend()`, before the AI call, run parallel pre-fetches based on query intent detection:
+  - Legal question → `courtListenerSearchDirect()` (always) + `govInfoStatuteLookup()` (if key set)
+  - Regulatory question → `ecfrSearch()` + `regulationsSearch()` (if key set)
+  - Corporate/securities → `edgarSearch()`
+  - Patent/IP → `usptoSearch()`
+  - State legislation → `openstatesSearch()` (if key set)
+  - Historical precedent → `courtListenerHistoricalSearch()`
+- Inject results as a structured `DATABASE CONTEXT` block in the system prompt
+- AI then cites real retrieved cases instead of hallucinating from training memory
+- This eliminates the #1 hallucination vector and is the core Harvey AI differentiator
+
+**Files to change:** `apps/web/src/components/LexAgent.jsx` — `handleSend()` function (~line 1106)
+
+#### ❌ Admin API Key Ping Tests (not started)
+Admin settings panel has no way to verify if entered keys actually work.
+- Add "Test" buttons next to CourtListener token, DATA_GOV_KEY, OpenStates key
+- Ping each API with a minimal query, show green ✓ / red ✗ + latency
+
+#### ❌ eCFR / Congress search results → precedents sidebar (not started)
+Currently EDGAR and CourtListener results get added to the precedents sidebar.
+eCFR and Congress results are shown in chat but not added to sidebar.
+Fix: map eCFR/Congress results to the precedents shape and call `onUpdateCase`.
+
+#### ❌ Error handling for empty provider responses (not started)
+In `anthropic.ts` `tryProviders()`, if a provider returns `choices[0].message.content = ""`
+(valid HTTP 200 but empty content), we silently return an empty string.
+Fix: treat empty content as a provider failure and continue the waterfall.
+
+#### ❌ Render cold-start warning (not started)
+Render free tier spins down after 15min of inactivity — first request takes ~8-12s.
+Fix: add a "warming up..." skeleton state in the UI when the first request takes >3s.
+Or: add a keep-alive ping from the frontend every 10 minutes.
+
+#### ❌ Missing Supabase persistence in production (not started)
+Currently all matters/cases are stored in localStorage only.
+If user clears browser storage, all work is lost. Supabase schema exists but isn't wired.
+Blocked on: Supabase project credentials — need SUPABASE_URL + SUPABASE_SERVICE_KEY in Render env.
+
+### 📋 Phase 4 — Enterprise Features (After Phase 3.5 complete)
 **Goal:** Full enterprise SaaS with billing, team features, compliance.
 
 - [ ] Multi-tenant firm accounts
