@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { ANTHROPIC_ENDPOINT, COURTLISTENER_BASE, CAP_BASE, GOVINFO_BASE, getAnthropicKey, setAnthropicKey } from "../lib/api";
+import { ANTHROPIC_ENDPOINT, COURTLISTENER_BASE, GOVINFO_BASE, CONGRESS_BASE, ECFR_BASE, EDGAR_BASE, USPTO_BASE, OPENSTATES_BASE, getAnthropicKey, setAnthropicKey } from "../lib/api";
 import * as pdfjsLib from "pdfjs-dist";
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
 
@@ -245,27 +245,115 @@ ${pos||"No positions on record"}
 `.trim();
 }
 
-// ── Harvard Caselaw Access Project API ────────────────────────────────────
-// 6.7M cases, 1658–2020, fully free, no auth required
-// Supplements CourtListener for historical precedents
-async function harvardCAPSearch(query, jurisdiction) {
-  const jParam = jurisdiction && !["Other State","Federal – SCOTUS","Federal – Circuit","Federal – District"].includes(jurisdiction)
-    ? `&jurisdiction=${encodeURIComponent(jurisdiction.toLowerCase().split("–")[0].trim())}`
-    : "";
-  const url = `${CAP_BASE}/cases/?search=${encodeURIComponent(query)}&full_case=false&page_size=5${jParam}`;
-  const res = await fetch(url, { headers: { "Accept": "application/json" } });
-  if (!res.ok) throw new Error(`Harvard CAP ${res.status}`);
+// ── CourtListener Historical Search (replaces decommissioned Harvard CAP) ─
+// Harvard CAP (api.case.law) shut down in 2024. CourtListener has 9M+ opinions
+// covering the same historical range back to the 1800s.
+async function courtListenerHistoricalSearch(query, jurisdiction, token) {
+  const jParam = jurisdiction && jurisdiction !== "Other State" ? `&court=${encodeURIComponent(jurisdiction.toLowerCase().replace(/[^a-z]/g,""))}` : "";
+  const url = `${COURTLISTENER_BASE}/search/?q=${encodeURIComponent(query)}&type=o&order_by=score+desc&filed_before=2000-01-01${jParam}`;
+  const headers = { "Accept": "application/json" };
+  if (token) headers["Authorization"] = `Token ${token}`;
+  const res = await fetch(url, { headers });
+  if (!res.ok) throw new Error(`CourtListener historical search ${res.status}`);
   const data = await res.json();
-  return (data.results || []).slice(0, 5).map(c => ({
-    name: c.name || c.name_abbreviation || "Unknown",
-    citation: c.citations?.[0]?.cite || "",
-    court: c.court?.name || "",
-    year: c.decision_date?.slice(0,4) || "",
-    url: c.frontend_url || "",
-    snippet: c.preview || "",
-    source: "harvard_cap",
+  return (data.results || []).slice(0, 5).map(r => ({
+    name: r.caseName || r.caseNameFull || "Unknown",
+    citation: (r.citation || [])[0] || "",
+    court: r.court || "",
+    year: r.dateFiled?.slice(0,4) || "",
+    url: r.absolute_url || "",
+    snippet: r.snippet?.replace(/<[^>]+>/g,"").slice(0,200) || "",
+    source: "courtlistener_historical",
     confidence: "High",
-    note: "Harvard Law Library — 360yr archive"
+    note: "CourtListener historical archive (pre-2000)"
+  }));
+}
+
+// ── Congress.gov API ───────────────────────────────────────────────────────
+// Bills, amendments, committee reports, voting records — requires DATA_GOV_KEY
+async function congressSearch(query) {
+  const url = `${CONGRESS_BASE}/search?q=${encodeURIComponent(JSON.stringify({ query }))}&limit=5`;
+  const res = await fetch(url, { headers: { Accept: "application/json" } });
+  if (!res.ok) throw new Error(`Congress.gov ${res.status}`);
+  const data = await res.json();
+  return (data.results || []).slice(0, 5).map(r => ({
+    title: r.title || "",
+    congress: r.congress || "",
+    type: r.type || "",
+    url: r.url || "",
+    source: "congress",
+  }));
+}
+
+// ── eCFR API ───────────────────────────────────────────────────────────────
+// Live Electronic Code of Federal Regulations — free, no key
+async function ecfrSearch(query) {
+  const url = `${ECFR_BASE}/search?query=${encodeURIComponent(query)}&per_page=5`;
+  const res = await fetch(url, { headers: { Accept: "application/json" } });
+  if (!res.ok) throw new Error(`eCFR ${res.status}`);
+  const data = await res.json();
+  return (data.results || []).slice(0, 5).map(r => ({
+    title: r.headings?.title || r.label_string || "",
+    section: r.label_string || "",
+    excerpt: r.full_text_excerpt?.replace(/<[^>]+>/g,"").slice(0,200) || "",
+    source: "ecfr",
+  }));
+}
+
+// ── SEC EDGAR Full-Text Search ─────────────────────────────────────────────
+// Corporate filings: 10-K, 10-Q, 8-K, proxy statements
+async function edgarSearch(query) {
+  const url = `${EDGAR_BASE}/search?q=${encodeURIComponent(query)}&dateRange=custom&startdt=2018-01-01&forms=10-K,10-Q,8-K`;
+  const res = await fetch(url, { headers: { Accept: "application/json" } });
+  if (!res.ok) throw new Error(`EDGAR ${res.status}`);
+  const data = await res.json();
+  const hits = data.hits?.hits || [];
+  return hits.slice(0, 5).map(h => ({
+    company: h._source?.entity_name || h._source?.company_name || "",
+    form: h._source?.file_type || "",
+    filed: h._source?.file_date || "",
+    excerpt: (h.highlight?.["file.content"]?.[0] || "").replace(/<[^>]+>/g,"").slice(0,200),
+    url: h._source?.file_link || "",
+    source: "edgar",
+  }));
+}
+
+// ── USPTO PatentsView API ──────────────────────────────────────────────────
+// Patent full-text, assignees, inventors — free
+async function usptoSearch(query) {
+  const params = new URLSearchParams({
+    q: JSON.stringify({ _contains: { patent_abstract: query } }),
+    f: JSON.stringify(["patent_id","patent_title","patent_date","patent_abstract"]),
+    o: JSON.stringify({ page: 0, per_page: 5 }),
+  });
+  const url = `${USPTO_BASE}/patents/query?${params}`;
+  const res = await fetch(url, { headers: { Accept: "application/json" } });
+  if (!res.ok) throw new Error(`USPTO ${res.status}`);
+  const data = await res.json();
+  return (data.patents || []).slice(0, 5).map(p => ({
+    title: p.patent_title || "",
+    id: p.patent_id || "",
+    date: p.patent_date || "",
+    excerpt: (p.patent_abstract || "").slice(0, 200),
+    source: "uspto",
+  }));
+}
+
+// ── OpenStates API ─────────────────────────────────────────────────────────
+// 50-state legislation, bills, legislators — requires openStatesKey
+async function openstatesSearch(query, openStatesKey) {
+  if (!openStatesKey) return [];
+  const url = `${OPENSTATES_BASE}/bills?search=${encodeURIComponent(query)}&per_page=5`;
+  const res = await fetch(url, { headers: { Accept: "application/json", "X-API-KEY": openStatesKey } });
+  if (!res.ok) throw new Error(`OpenStates ${res.status}`);
+  const data = await res.json();
+  return (data.results || []).slice(0, 5).map(r => ({
+    title: r.title || "",
+    identifier: r.identifier || "",
+    state: r.jurisdiction?.name || "",
+    status: r.latest_action?.description || "",
+    url: r.openstates_url || "",
+    source: "openstates",
   }));
 }
 
@@ -330,10 +418,16 @@ const extractPdfText = async (file) => {
 const DEFAULT_SYSTEM = `You are ARES — Autonomous Research & Evidence System — an elite legal AI backed by multiple authoritative legal databases. You produce attorney-grade output indistinguishable from work product of a senior associate at a top-tier litigation firm.
 
 DATA SOURCES AVAILABLE (use in priority order):
-1. CourtListener Direct API — 9M+ opinions, 18M+ citations, real-time (when token configured)
-2. Harvard Caselaw Access Project — 6.7M cases, 1658–2020, fully authoritative
+1. CourtListener Direct API — 9M+ opinions, 18M+ citations, judge profiles (when token configured)
+2. CourtListener Historical — Pre-2000 precedents back to 1800s
 3. GovInfo API — Official US Code, CFR, Federal Register (when configured)
-4. Web search — Google Scholar Legal, CourtListener.com, official court sites
+4. Congress.gov — Bills, amendments, committee reports, voting records (when configured)
+5. Regulations.gov — Federal rulemaking, public comments, agency dockets (when configured)
+6. eCFR — Live Electronic Code of Federal Regulations (always active)
+7. SEC EDGAR — Corporate filings: 10-K, 10-Q, 8-K (always active)
+8. USPTO PatentsView — Patent full-text, IP research (always active)
+9. OpenStates — 50-state legislation and bills (when configured)
+10. Web search — Google Scholar Legal, CourtListener.com, official court sites
 
 CRITICAL ANTI-HALLUCINATION RULES:
 1. NEVER cite a case from memory alone. Every citation must be found through search or provided database context.
@@ -1348,28 +1442,45 @@ function ResearchPanel({caseData,settings,onUpdateCase,onLog,isMobile,notify}) {
                 🏛 CL Direct
               </button>
             )}
-            {/* Harvard CAP search — 6.7M cases, 1658–2020, always free */}
+            {/* Historical CL search (pre-2000) */}
             <button onClick={async()=>{
               if(!input.trim()) return;
               setLoading(true);
               try{
-                const results = await harvardCAPSearch(input, caseData.jurisdiction);
+                const results = await courtListenerHistoricalSearch(input, caseData.jurisdiction, settings.courtListenerToken);
                 if(!results.length) throw new Error("No results — try different search terms");
-                const precs = results.map(r=>({name:r.name,citation:r.citation,court:r.court,year:r.year,holding:r.snippet,confidence:"High",source:"harvard_cap"}));
+                const precs = results.map(r=>({name:r.name,citation:r.citation,court:r.court,year:r.year,holding:r.snippet,confidence:"High",source:"courtlistener_historical"}));
                 onUpdateCase(prev=>{
                   const existing = prev.precedents||[];
                   const merged = [...existing,...precs.filter(p=>!existing.find(e=>e.citation===p.citation))];
                   return {...prev,precedents:merged};
                 });
-                setMsgs(m=>[...m,{role:"assistant",id:genId(),ts:Date.now(),content:`## Harvard Caselaw Access Project Results\n\n**Query:** ${input}\n\n${results.map((r,i)=>`### ${i+1}. ${r.name}\n**Citation:** ${r.citation}  \n**Court:** ${r.court} · ${r.year}  \n${r.snippet||""}\n[View on CAP](${r.url})\n`).join("\n---\n")}\n\n*${results.length} cases from Harvard Law Library (6.7M cases, 1658–2020). Added to precedents.*`}]);
+                setMsgs(m=>[...m,{role:"assistant",id:genId(),ts:Date.now(),content:`## Historical Case Search (pre-2000)\n\n**Query:** ${input}\n\n${results.map((r,i)=>`### ${i+1}. ${r.name}\n**Citation:** ${r.citation}  \n**Court:** ${r.court} · ${r.year}  \n${r.snippet||""}\n[View on CourtListener](https://www.courtlistener.com${r.url})\n`).join("\n---\n")}\n\n*${results.length} historical cases retrieved from CourtListener (pre-2000 archive). Added to precedents.*`}]);
               }catch(e){
-                notify?.error("Harvard CAP Failed", e.message||"Database query error", "Harvard Caselaw Access Project");
-                setMsgs(m=>[...m,{role:"assistant",id:genId(),ts:Date.now(),content:`⚠ Harvard CAP error: ${e.message}`}]);
+                notify?.error("Historical Search Failed", e.message||"Database query error", "CourtListener Historical");
+                setMsgs(m=>[...m,{role:"assistant",id:genId(),ts:Date.now(),content:`⚠ Historical search error: ${e.message}`}]);
               }
               setLoading(false);
             }}
               style={{fontSize:10,color:T.violet,background:T.violetFaint,border:`1px solid ${T.violet}40`,borderRadius:4,padding:"4px 9px",cursor:"pointer",whiteSpace:"nowrap",fontFamily:"'JetBrains Mono',monospace",flexShrink:0}}>
-              🎓 Harvard CAP
+              📜 Historical
+            </button>
+            {/* EDGAR corporate filings search */}
+            <button onClick={async()=>{
+              if(!input.trim()) return;
+              setLoading(true);
+              try{
+                const results = await edgarSearch(input);
+                if(!results.length) throw new Error("No filings found — try a company name or legal term");
+                setMsgs(m=>[...m,{role:"assistant",id:genId(),ts:Date.now(),content:`## SEC EDGAR Filing Search\n\n**Query:** ${input}\n\n${results.map((r,i)=>`### ${i+1}. ${r.company} — ${r.form}\n**Filed:** ${r.filed}  \n${r.excerpt||""}${r.url?`\n[View Filing](${r.url})`:""}\n`).join("\n---\n")}\n\n*${results.length} SEC filings retrieved from EDGAR full-text search.*`}]);
+              }catch(e){
+                notify?.error("EDGAR Search Failed", e.message||"Filing search error", "SEC EDGAR");
+                setMsgs(m=>[...m,{role:"assistant",id:genId(),ts:Date.now(),content:`⚠ EDGAR error: ${e.message}`}]);
+              }
+              setLoading(false);
+            }}
+              style={{fontSize:10,color:T.amber,background:T.amberFaint,border:`1px solid ${T.amber}40`,borderRadius:4,padding:"4px 9px",cursor:"pointer",whiteSpace:"nowrap",fontFamily:"'JetBrains Mono',monospace",flexShrink:0}}>
+              📊 EDGAR
             </button>
           </div>
 

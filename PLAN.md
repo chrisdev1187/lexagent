@@ -1,8 +1,8 @@
 # LexAgent — Master Project Plan
 
-> **Last updated:** 2026-04-14 (Session 4)  
-> **Current phase:** Phase 3 — Production Infrastructure  
-> **Status:** Monorepo scaffolded, Hono backend + Supabase schema complete — install deps + configure env to run
+> **Last updated:** 2026-04-17 (Session 6)  
+> **Current phase:** Phase 3 Complete / Phase 4 Prep  
+> **Status:** Fully deployed — Vercel frontend + Render backend + 10 API integrations live
 
 ---
 
@@ -39,12 +39,21 @@ docs/
 - **Deploy:** Claude artifact link
 
 ### Live Integrations
-| Service | Data | Auth |
-|---|---|---|
-| Anthropic API | Claude Sonnet 4.6 + Opus 4.6 + web search | API key (client-side) |
-| CourtListener API | 9M opinions, 18M citations, 16K+ judges | Optional token |
-| Harvard Caselaw Access Project | 6.7M cases, 1658–2020 | None (free) |
-| GovInfo API | US Code, CFR, Federal Register | Optional key |
+| Service | Data | Auth | Status |
+|---|---|---|---|
+| Anthropic API (9-provider waterfall) | Groq/Cerebras/SambaNova/OpenRouter/NVIDIA/xAI/Mistral/Gemini×2 | Server-side env keys | ✅ Active |
+| CourtListener API | 9M opinions, 18M citations, 16K+ judges | Optional token (CL_TOKEN) | ✅ Active |
+| CourtListener Historical | Pre-2000 precedents back to 1800s | Same token (optional) | ✅ Active |
+| GovInfo API | US Code, CFR, Federal Register | DATA_GOV_KEY | ✅ Active |
+| Congress.gov API | Bills, amendments, committee reports, voting records | DATA_GOV_KEY (same key) | ✅ Active |
+| Regulations.gov API | Federal rulemaking, public comments, agency dockets | DATA_GOV_KEY (same key) | ✅ Active |
+| eCFR API | Live Electronic Code of Federal Regulations | None (free) | ✅ Always active |
+| SEC EDGAR | Corporate filings: 10-K, 10-Q, 8-K | None (free) | ✅ Always active |
+| USPTO PatentsView | Patent full-text, IP research | None (free) | ✅ Always active |
+| OpenStates API | 50-state legislation, bills, legislators | OPENSTATES_KEY | ✅ Active |
+| ~~Harvard Caselaw Access Project~~ | ~~6.7M cases, 1658–2020~~ | — | ❌ Decommissioned 2024 |
+
+**Note:** Harvard CAP (api.case.law) shut down in 2024. Backend returns 410 Gone. Historical precedent search now routed to CourtListener (pre-2000 filter).
 
 ### Feature Tabs (11 total)
 | Tab | Feature | Status |
@@ -70,7 +79,7 @@ docs/
 | Hallucination Shield + citation verify | ✅ Live | ❌ | ❌ | Partial |
 | Judge profiling (16K+ judges) | ✅ | ❌ | ❌ | ❌ |
 | CourtListener direct integration | ✅ | ❌ | ❌ | ❌ |
-| Harvard CAP (360yr archive) | ✅ | ❌ | ❌ | ❌ |
+| Historical search (CourtListener pre-2000) | ✅ | ❌ | ❌ | ❌ |
 | SOL calculator | ✅ | ❌ | ❌ | ❌ |
 | Conflict checker | ✅ | ❌ | ✅ | ❌ |
 | Document upload + analysis | ✅ | ✅ | ✅ | ✅ |
@@ -162,7 +171,7 @@ docs/
 - [x] Improved scrollbar with `:-webkit-scrollbar-thumb:hover` state
 - [x] Prose blockquote style added
 
-### ✅ Phase 3 — Production Infrastructure (Complete: 2026-04-16)
+### ✅ Phase 3 — Production Infrastructure (Complete: 2026-04-17)
 **Goal:** Real deployment with backend, proper auth, portable storage.
 
 - [x] Vite + React project scaffold (`apps/web/`)
@@ -182,6 +191,12 @@ docs/
 - [x] `apps/api/.env` + `apps/web/.env.local` — local dev fully wired
 - [x] Node 22 `--env-file` — no dotenv dependency, native env loading
 - [x] **Live tested** — Groq serving legal research queries at 736ms, `_provider` field in every response
+- [x] 10 API integrations wired: CourtListener, GovInfo, Congress.gov, eCFR, regulations.gov, EDGAR, USPTO, OpenStates
+- [x] Harvard CAP decommission handled — backend returns 410, replaced with CourtListener historical search
+- [x] 9-provider LLM waterfall with preferred-provider routing (admin model selector)
+- [x] All 6 new APIs wired into frontend (fetch functions + UI buttons + system prompt + dataSources context)
+- [x] lib/api.ts exports 7 base URLs (COURTLISTENER, GOVINFO, CONGRESS, ECFR, REGULATIONS, EDGAR, USPTO, OPENSTATES)
+- [x] Production: https://lexagent-ochre.vercel.app | API: https://lexagent-0o5u.onrender.com
 
 ### 📋 Phase 4 — Enterprise Features (Month 2+)
 **Goal:** Full enterprise SaaS with billing, team features, compliance.

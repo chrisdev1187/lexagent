@@ -75,3 +75,33 @@ export const CAP_BASE = API_URL
 export const GOVINFO_BASE = API_URL
   ? `${API_URL}/api/govinfo`
   : "https://api.govinfo.gov";
+
+// ── Congress.gov proxy ─────────────────────────────────────────────────────
+export const CONGRESS_BASE = API_URL
+  ? `${API_URL}/api/congress`
+  : "https://api.congress.gov/v3";
+
+// ── eCFR proxy ─────────────────────────────────────────────────────────────
+export const ECFR_BASE = API_URL
+  ? `${API_URL}/api/ecfr`
+  : "https://www.ecfr.gov/api/versioner/v1";
+
+// ── Regulations.gov proxy ──────────────────────────────────────────────────
+export const REGULATIONS_BASE = API_URL
+  ? `${API_URL}/api/regulations`
+  : "https://api.regulations.gov/v4";
+
+// ── SEC EDGAR proxy ────────────────────────────────────────────────────────
+export const EDGAR_BASE = API_URL
+  ? `${API_URL}/api/edgar`
+  : "https://data.sec.gov";
+
+// ── USPTO PatentsView proxy ────────────────────────────────────────────────
+export const USPTO_BASE = API_URL
+  ? `${API_URL}/api/uspto`
+  : "https://api.patentsview.org";
+
+// ── OpenStates proxy ───────────────────────────────────────────────────────
+export const OPENSTATES_BASE = API_URL
+  ? `${API_URL}/api/openstates`
+  : "https://v3.openstates.org";
