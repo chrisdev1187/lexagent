@@ -445,7 +445,7 @@ DATA SOURCES AVAILABLE (use in priority order):
 
 CRITICAL ANTI-HALLUCINATION RULES:
 1. NEVER cite a case from memory alone. Every citation must be found through search or provided database context.
-2. When given STRUCTURED DATABASE CONTEXT (marked "FROM COURTLISTENER DATABASE" or "FROM HARVARD CAP"), treat that as authoritative — it comes from primary sources.
+2. When given STRUCTURED DATABASE CONTEXT (marked "FROM COURTLISTENER DATABASE" or "PRE-FETCHED DATABASE CONTEXT"), treat that as authoritative — it comes from primary sources.
 3. Every citation must include: Case Name, Volume Reporter Page (Court Year)
 4. If you cannot find a case through available sources, say so explicitly. Never fabricate.
 5. Mark confidence: [VERIFIED] = found in real database, [UNCONFIRMED] = found via web search only.
@@ -1233,7 +1233,7 @@ function ResearchPanel({caseData,settings,onUpdateCase,onLog,isMobile,notify}) {
     if(settings.openStatesKey) dataSources.push("OpenStates API (50-state legislation, bills, legislators)");
     dataSources.push("Web search (Google Scholar Legal, CourtListener.com)");
 
-    const sysBase = `${settings.systemPrompt}\n\nACTIVE MATTER:\nTitle: ${caseData.title}\nType: ${caseData.caseType}\nJurisdiction: ${caseData.jurisdiction}\nFacts: ${caseData.facts||"Not provided"}\nJudge: ${caseData.judge||"Not specified"}\n\nACTIVE DATA SOURCES (in priority order):\n${dataSources.map((s,i)=>`${i+1}. ${s}`).join("\n")}\n\nPrecedents found so far: ${(caseData.precedents||[]).map(p=>`${p.name} (${p.citation})`).join("; ")||"None"}\n\nIMPORTANT: When you find cases, append JSON:\n<prec>[{"name":"...","citation":"...","court":"...","year":"...","outcome":"...","holding":"...","confidence":"High|Medium|Low"}]</prec>\n\nMANDATORY: After every case citation in your response, append exactly one tag:\n  [DB] = found in CourtListener or Harvard CAP database\n  [WEB] = found via web search this session\n  [MEM] = from training memory only — must be independently verified\nExample: United States v. Weimert, 819 F.3d 351 (7th Cir. 2016) [MEM]`;
+    const sysBase = `${settings.systemPrompt}\n\nACTIVE MATTER:\nTitle: ${caseData.title}\nType: ${caseData.caseType}\nJurisdiction: ${caseData.jurisdiction}\nFacts: ${caseData.facts||"Not provided"}\nJudge: ${caseData.judge||"Not specified"}\n\nACTIVE DATA SOURCES (in priority order):\n${dataSources.map((s,i)=>`${i+1}. ${s}`).join("\n")}\n\nPrecedents found so far: ${(caseData.precedents||[]).map(p=>`${p.name} (${p.citation})`).join("; ")||"None"}\n\nIMPORTANT: When you find cases, append JSON:\n<prec>[{"name":"...","citation":"...","court":"...","year":"...","outcome":"...","holding":"...","confidence":"High|Medium|Low"}]</prec>\n\nMANDATORY: After every case citation in your response, append exactly one tag:\n  [DB] = found in CourtListener or legal database (pre-fetched)\n  [WEB] = found via web search this session\n  [MEM] = from training memory only — must be independently verified\nExample: United States v. Weimert, 819 F.3d 351 (7th Cir. 2016) [MEM]`;
 
     // ── RAG Pre-fetch: query live databases before AI call ──────────────────
     const intents = detectQueryIntent(q);
@@ -4145,7 +4145,7 @@ function OnboardingWizard({onComplete}) {
               {[
                 {icon:"shield",color:T.emerald,title:"Hallucination Shield",desc:"Every citation verified against 9M+ case opinions"},
                 {icon:"judge",color:T.violet,title:"Judge Intelligence",desc:"Ruling tendencies for 16,000+ federal judges"},
-                {icon:"search",color:T.cobalt,title:"Live Legal Research",desc:"CourtListener + Harvard CAP + web search"},
+                {icon:"search",color:T.cobalt,title:"Live Legal Research",desc:"CourtListener + 7 legal databases + web search"},
               ].map(f=>(
                 <div key={f.title} style={{display:"flex",gap:12,alignItems:"flex-start",background:T.surface,border:`1px solid ${T.border}`,borderRadius:10,padding:"12px 14px"}}>
                   <div style={{width:34,height:34,borderRadius:9,background:`${f.color}18`,border:`1px solid ${f.color}30`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
