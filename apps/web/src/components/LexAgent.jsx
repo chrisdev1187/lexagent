@@ -377,6 +377,20 @@ async function govInfoStatuteLookup(query, govInfoKey) {
   }));
 }
 
+// ── RAG intent detection ───────────────────────────────────────────────────
+function detectQueryIntent(query) {
+  const q = query.toLowerCase();
+  const intents = [];
+  if (/\b(case|court|ruled|verdict|plaintiff|defendant|sued|holding|circuit|appeal|judge|opinion|precedent|vs?\.|litigation|lawsuit|judgment|criminal|civil|tort)\b/.test(q)) intents.push("caselaw");
+  if (/\b(regulation|regulatory|cfr|federal register|\brule\b|agency|compliance|epa|fda|osha|rulemaking|statute|code of federal|administrative)\b/.test(q)) intents.push("regulatory");
+  if (/\b(\bsec\b|edgar|securities|corporate|10-k|10-q|8-k|annual report|shareholder|merger|acquisition|ipo|disclosure|filing)\b/.test(q)) intents.push("corporate");
+  if (/\b(patent|intellectual property|trademark|copyright|invention|inventor|assignee|infringement|ip\b)\b/.test(q)) intents.push("patent");
+  if (/\b(state law|state legislature|state bill|state senate|state statute|state assembly|state legislation)\b/.test(q)) intents.push("state");
+  if (/\b(historical|landmark|19th|early|founding|original|1800s|1900s|classic case|old case)\b/.test(q)) intents.push("historical");
+  if (!intents.length) intents.push("caselaw");
+  return intents;
+}
+
 // ── Smart verifier: tries CourtListener direct first, falls back to Claude AI
 async function smartVerify(citations, settings) {
   if (settings.courtListenerToken) {
@@ -1180,6 +1194,7 @@ function ResearchPanel({caseData,settings,onUpdateCase,onLog,isMobile,notify}) {
   const [msgs,setMsgs] = useState([]);
   const [input,setInput] = useState("");
   const [loading,setLoading] = useState(false);
+  const [ragPhase,setRagPhase] = useState(""); // "querying" | ""
   const [verifying,setVerifying] = useState(false);
   const [lastVerifications,setLastVerifications] = useState([]);
   const [copied,setCopied] = useState(null);
@@ -1218,7 +1233,59 @@ function ResearchPanel({caseData,settings,onUpdateCase,onLog,isMobile,notify}) {
     if(settings.openStatesKey) dataSources.push("OpenStates API (50-state legislation, bills, legislators)");
     dataSources.push("Web search (Google Scholar Legal, CourtListener.com)");
 
-    const sys = `${settings.systemPrompt}\n\nACTIVE MATTER:\nTitle: ${caseData.title}\nType: ${caseData.caseType}\nJurisdiction: ${caseData.jurisdiction}\nFacts: ${caseData.facts||"Not provided"}\nJudge: ${caseData.judge||"Not specified"}\n\nACTIVE DATA SOURCES (in priority order):\n${dataSources.map((s,i)=>`${i+1}. ${s}`).join("\n")}\n\nPrecedents found so far: ${(caseData.precedents||[]).map(p=>`${p.name} (${p.citation})`).join("; ")||"None"}\n\nIMPORTANT: When you find cases, append JSON:\n<prec>[{"name":"...","citation":"...","court":"...","year":"...","outcome":"...","holding":"...","confidence":"High|Medium|Low"}]</prec>\n\nMANDATORY: After every case citation in your response, append exactly one tag:\n  [DB] = found in CourtListener or Harvard CAP database\n  [WEB] = found via web search this session\n  [MEM] = from training memory only — must be independently verified\nExample: United States v. Weimert, 819 F.3d 351 (7th Cir. 2016) [MEM]`;
+    const sysBase = `${settings.systemPrompt}\n\nACTIVE MATTER:\nTitle: ${caseData.title}\nType: ${caseData.caseType}\nJurisdiction: ${caseData.jurisdiction}\nFacts: ${caseData.facts||"Not provided"}\nJudge: ${caseData.judge||"Not specified"}\n\nACTIVE DATA SOURCES (in priority order):\n${dataSources.map((s,i)=>`${i+1}. ${s}`).join("\n")}\n\nPrecedents found so far: ${(caseData.precedents||[]).map(p=>`${p.name} (${p.citation})`).join("; ")||"None"}\n\nIMPORTANT: When you find cases, append JSON:\n<prec>[{"name":"...","citation":"...","court":"...","year":"...","outcome":"...","holding":"...","confidence":"High|Medium|Low"}]</prec>\n\nMANDATORY: After every case citation in your response, append exactly one tag:\n  [DB] = found in CourtListener or Harvard CAP database\n  [WEB] = found via web search this session\n  [MEM] = from training memory only — must be independently verified\nExample: United States v. Weimert, 819 F.3d 351 (7th Cir. 2016) [MEM]`;
+
+    // ── RAG Pre-fetch: query live databases before AI call ──────────────────
+    const intents = detectQueryIntent(q);
+    setRagPhase("querying");
+    const ragTasks = [];
+    if (intents.includes("caselaw") && settings.courtListenerToken)
+      ragTasks.push(courtListenerSearchDirect(q, caseData.jurisdiction, settings.courtListenerToken).catch(()=>[]));
+    if (intents.includes("historical"))
+      ragTasks.push(courtListenerHistoricalSearch(q, caseData.jurisdiction, settings.courtListenerToken).catch(()=>[]));
+    if (intents.includes("regulatory") && settings.govInfoKey)
+      ragTasks.push(govInfoStatuteLookup(q, settings.govInfoKey).catch(()=>[]));
+    if (intents.includes("regulatory"))
+      ragTasks.push(ecfrSearch(q).catch(()=>[]));
+    if (intents.includes("regulatory") && settings.govInfoKey)
+      ragTasks.push(congressSearch(q).catch(()=>[]));
+    if (intents.includes("corporate"))
+      ragTasks.push(edgarSearch(q).catch(()=>[]));
+    if (intents.includes("patent"))
+      ragTasks.push(usptoSearch(q).catch(()=>[]));
+    if (intents.includes("state") && settings.openStatesKey)
+      ragTasks.push(openstatesSearch(q, settings.openStatesKey).catch(()=>[]));
+
+    const ragSettled = await Promise.allSettled(ragTasks);
+    const ragData = ragSettled.map(r=>r.status==="fulfilled"?r.value:[]).filter(r=>r.length>0);
+
+    let ragContext = "";
+    if (ragData.length) {
+      const sections = ragData.map(results => {
+        const s = results[0]?.source;
+        if (s==="courtlistener_direct")
+          return "=== CASE LAW (CourtListener — live database) ===\n"+results.map(r=>`• ${r.name}${r.citation?` (${r.citation})`:""} — ${r.court} ${r.year}${r.snippet?`\n  ${r.snippet}`:""}`).join("\n");
+        if (s==="courtlistener_historical")
+          return "=== HISTORICAL CASES (CourtListener pre-2000) ===\n"+results.map(r=>`• ${r.name}${r.citation?` (${r.citation})`:""} — ${r.court} ${r.year}${r.snippet?`\n  ${r.snippet}`:""}`).join("\n");
+        if (s==="ecfr")
+          return "=== CFR REGULATIONS (eCFR — live) ===\n"+results.map(r=>`• ${r.title} — ${r.section}\n  ${r.excerpt}`).join("\n");
+        if (s==="govinfo")
+          return "=== STATUTES (GovInfo/US Code) ===\n"+results.map(r=>`• ${r.title} (${r.citation}) — ${r.collection}\n  ${r.excerpt}`).join("\n");
+        if (s==="congress")
+          return "=== FEDERAL LEGISLATION (Congress.gov) ===\n"+results.map(r=>`• ${r.title} — ${r.type} (Congress ${r.congress})`).join("\n");
+        if (s==="edgar")
+          return "=== SEC EDGAR FILINGS ===\n"+results.map(r=>`• ${r.company} — ${r.form} (${r.filed})\n  ${r.excerpt}`).join("\n");
+        if (s==="uspto")
+          return "=== USPTO PATENTS ===\n"+results.map(r=>`• ${r.title} (${r.id}) — ${r.date}\n  ${r.excerpt}`).join("\n");
+        if (s==="openstates")
+          return "=== STATE LEGISLATION (OpenStates) ===\n"+results.map(r=>`• ${r.title} (${r.identifier}) — ${r.state}\n  ${r.status}`).join("\n");
+        return "";
+      }).filter(Boolean);
+      ragContext = `\n\n=== PRE-FETCHED DATABASE CONTEXT ===\nThe following was retrieved live from legal databases for: "${q}"\nCite these directly — they are verified database records, tag them [DB].\n\n${sections.join("\n\n")}\n=== END DATABASE CONTEXT ===`;
+    }
+    setRagPhase("");
+    const sys = sysBase + ragContext;
+    // ── End RAG Pre-fetch ───────────────────────────────────────────────────
 
     // Build conversation history — Claude API requires first message to be user role
     // The welcome message is role:"assistant" so we must strip any leading assistant messages
@@ -1313,7 +1380,7 @@ function ResearchPanel({caseData,settings,onUpdateCase,onLog,isMobile,notify}) {
       setVerifying(false);
     }
     setLoading(false);
-  },[input,msgs,loading,caseData,settings,onUpdateCase,onLog]);
+  },[input,msgs,loading,ragPhase,caseData,settings,onUpdateCase,onLog]);
 
   const onKey = e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}};
   const copy = (c,id)=>{navigator.clipboard.writeText(c);setCopied(id);setTimeout(()=>setCopied(null),1800);};
@@ -1384,7 +1451,7 @@ function ResearchPanel({caseData,settings,onUpdateCase,onLog,isMobile,notify}) {
                   {[0,1,2].map(i=><div key={i} style={{width:4,height:4,borderRadius:"50%",background:T.cobalt,animation:`dotBounce 1.2s ${i*0.15}s infinite ease-in-out`}}/>)}
                 </div>
                 <div style={{fontSize:10,color:T.textMuted,fontFamily:"'JetBrains Mono',monospace"}}>
-                  {settings.webSearch?"Searching web + legal databases…":"Querying legal knowledge base…"}
+                  {ragPhase==="querying"?"Querying live legal databases…":settings.webSearch?"Searching web + legal databases…":"Generating response…"}
                 </div>
               </div>
             </div>
