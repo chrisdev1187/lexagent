@@ -6,6 +6,12 @@ import { anthropicRouter } from "./routes/anthropic.js";
 import { courtlistenerRouter } from "./routes/courtlistener.js";
 import { capRouter } from "./routes/cap.js";
 import { govinfoRouter } from "./routes/govinfo.js";
+import { congressRouter } from "./routes/congress.js";
+import { ecfrRouter } from "./routes/ecfr.js";
+import { regulationsRouter } from "./routes/regulations.js";
+import { edgarRouter } from "./routes/edgar.js";
+import { usptoRouter } from "./routes/uspto.js";
+import { openstatesRouter } from "./routes/openstates.js";
 
 const allowedOrigins = (process.env.ALLOWED_ORIGINS ?? "http://localhost:3000")
   .split(",")
@@ -39,6 +45,12 @@ app.route("/api/anthropic", anthropicRouter);
 app.route("/api/courtlistener", courtlistenerRouter);
 app.route("/api/cap", capRouter);
 app.route("/api/govinfo", govinfoRouter);
+app.route("/api/congress", congressRouter);
+app.route("/api/ecfr", ecfrRouter);
+app.route("/api/regulations", regulationsRouter);
+app.route("/api/edgar", edgarRouter);
+app.route("/api/uspto", usptoRouter);
+app.route("/api/openstates", openstatesRouter);
 
 // ── Start ─────────────────────────────────────────────────────────────────
 const port = Number(process.env.PORT ?? 8080);

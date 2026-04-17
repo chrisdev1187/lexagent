@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { ANTHROPIC_ENDPOINT, COURTLISTENER_BASE, CAP_BASE, GOVINFO_BASE, getAnthropicKey, setAnthropicKey } from "../lib/api";
+import * as pdfjsLib from "pdfjs-dist";
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
 
 // ── API helper: checks .ok AND data.error, throws with clear message ───────
 async function safeFetch(url, options={}) {
@@ -304,6 +306,26 @@ const readFileAsBase64 = file => new Promise((resolve, reject) => {
   r.readAsDataURL(file);
 });
 
+// Browser-side PDF text extraction via PDF.js
+// Returns { text: string, chars: number } or { text: null, chars: 0 } for image-only PDFs
+const extractPdfText = async (file) => {
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const pages = [];
+    for (let i = 1; i <= Math.min(pdf.numPages, 50); i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      const pageText = content.items.map(item => item.str).join(" ");
+      pages.push(pageText);
+    }
+    const text = pages.join("\n\n").trim();
+    return { text: text || null, chars: text.length };
+  } catch {
+    return { text: null, chars: 0 };
+  }
+};
+
 // ── Default Settings ───────────────────────────────────────────────────────
 const DEFAULT_SYSTEM = `You are ARES — Autonomous Research & Evidence System — an elite legal AI backed by multiple authoritative legal databases. You produce attorney-grade output indistinguishable from work product of a senior associate at a top-tier litigation firm.
 
@@ -364,14 +386,14 @@ Likely no. The 2nd Circuit requires proof that the defendant knew the representa
 
 const DEFAULT_SETTINGS = {
   systemPrompt: DEFAULT_SYSTEM,
-  model: "claude-sonnet-4-6",
+  model: "auto",
   temperature: 0.2,
   maxTokens: 2500,
   webSearch: true,
   autoVerify: true,
-  highQualityDraft: false, // Use Opus 4.6 for document drafting (slower, higher quality)
   courtListenerToken: "", // Free: courtlistener.com/register
-  govInfoKey: "", // Free: api.data.gov — US Code, CFR, Federal Register
+  govInfoKey: "",         // api.data.gov — covers GovInfo + Congress.gov + regulations.gov
+  openStatesKey: "",      // openstates.org — 50-state legislation
 };
 
 // ── Utils ──────────────────────────────────────────────────────────────────
@@ -768,7 +790,7 @@ const Field = ({label,value,onChange,type="text",as,opts,rows=3,mono,placeholder
         style={{width:"100%",background:T.bg2,border:`1px solid ${T.border}`,borderRadius:6,color:T.text,padding:"9px 12px",fontSize:mono?11:13,fontFamily:mono?"'JetBrains Mono',monospace":"inherit",lineHeight:1.65,...sx}} className="gold-focus"/>
     :as==="select"?<select value={value} onChange={e=>onChange(e.target.value)}
         style={{width:"100%",background:T.bg2,border:`1px solid ${T.border}`,borderRadius:6,color:T.text,padding:"9px 12px",fontSize:13,...sx}} className="gold-focus">
-        {opts.map(o=><option key={o} value={o}>{o}</option>)}
+        {opts.map(o=>typeof o==="object"?<option key={o.v} value={o.v}>{o.l}</option>:<option key={o} value={o}>{o}</option>)}
       </select>
     :<input type={type} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder}
         style={{width:"100%",background:T.bg2,border:`1px solid ${T.border}`,borderRadius:6,color:T.text,padding:"9px 12px",fontSize:13,...sx}} className="gold-focus"/>
@@ -985,6 +1007,13 @@ function CitationAuditPanel({caseData,settings,onUpdateCase,isMobile,notify}) {
             ))}
           </div>
         </div>
+        {!settings?.courtListenerToken&&(
+          <div style={{background:`${T.amber}15`,border:`1px solid ${T.amber}50`,borderRadius:6,padding:"8px 12px",marginTop:10}}>
+            <span style={{fontSize:11,color:T.amber,lineHeight:1.5}}>
+              <strong>AI Estimate Mode</strong> — Citations verified against model knowledge only. Add a free CourtListener token in Settings for database-backed verification (18M+ cases).
+            </span>
+          </div>
+        )}
         <Divider my={12}/>
         <div style={{fontSize:11,color:T.textMuted,lineHeight:1.65,marginBottom:10}}>
           <strong style={{color:T.platinum}}>Legal Liability Notice:</strong> Courts are sanctioning attorneys $100K+ for hallucinated citations. This audit trail is your evidence that you performed due diligence. All citations marked "NOT FOUND" must be independently verified before filing with any court.
@@ -1024,6 +1053,10 @@ function CitationAuditPanel({caseData,settings,onUpdateCase,isMobile,notify}) {
                           <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:5,flexWrap:"wrap"}}>
                             <span style={{fontFamily:"'JetBrains Mono',monospace",fontSize:12,color:T.text,fontWeight:600}}>{v.citation}</span>
                             <Badge color={group.color} size="xs">{v.status.replace("_"," ")}</Badge>
+                            {v.url||settings?.courtListenerToken
+                              ? <Badge color={T.emerald} size="xs">DB</Badge>
+                              : <Badge color={T.amber} size="xs">AI</Badge>
+                            }
                           </div>
                           {v.caseName&&<div style={{fontSize:13,color:T.platinum,fontWeight:500,marginBottom:3}}>{v.caseName}</div>}
                           <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
@@ -1078,12 +1111,20 @@ function ResearchPanel({caseData,settings,onUpdateCase,onLog,isMobile,notify}) {
     setInput(""); setLoading(true);
 
     const dataSources = [];
-    if(settings.courtListenerToken) dataSources.push("CourtListener Direct API (9M opinions, 18M citations)");
-    dataSources.push("Harvard Caselaw Access Project (6.7M cases, 1658-2020, always active)");
-    if(settings.govInfoKey) dataSources.push("GovInfo API (US Code, CFR, Federal Register)");
-    dataSources.push("Web search (Google Scholar Legal, courtlistener.com)");
+    if(settings.courtListenerToken) dataSources.push("CourtListener Direct API (9M opinions, 18M citations, judge profiles)");
+    dataSources.push("Harvard Caselaw Access Project (6.7M cases, 1658–2020, always active)");
+    if(settings.govInfoKey) {
+      dataSources.push("GovInfo API (US Code, CFR, Federal Register — official GPO source)");
+      dataSources.push("Congress.gov API (bills, amendments, committee reports, voting records)");
+      dataSources.push("Regulations.gov API (federal rulemaking, public comments, agency dockets)");
+    }
+    dataSources.push("eCFR API (live Electronic Code of Federal Regulations — always active)");
+    dataSources.push("SEC EDGAR (corporate filings: 10-K, 10-Q, 8-K — always active)");
+    dataSources.push("USPTO PatentsView (patent full-text, IP case research — always active)");
+    if(settings.openStatesKey) dataSources.push("OpenStates API (50-state legislation, bills, legislators)");
+    dataSources.push("Web search (Google Scholar Legal, CourtListener.com)");
 
-    const sys = `${settings.systemPrompt}\n\nACTIVE MATTER:\nTitle: ${caseData.title}\nType: ${caseData.caseType}\nJurisdiction: ${caseData.jurisdiction}\nFacts: ${caseData.facts||"Not provided"}\nJudge: ${caseData.judge||"Not specified"}\n\nACTIVE DATA SOURCES (in priority order):\n${dataSources.map((s,i)=>`${i+1}. ${s}`).join("\n")}\n\nPrecedents found so far: ${(caseData.precedents||[]).map(p=>`${p.name} (${p.citation})`).join("; ")||"None"}\n\nIMPORTANT: When you find cases, append JSON:\n<prec>[{"name":"...","citation":"...","court":"...","year":"...","outcome":"...","holding":"...","confidence":"High|Medium|Low"}]</prec>`;
+    const sys = `${settings.systemPrompt}\n\nACTIVE MATTER:\nTitle: ${caseData.title}\nType: ${caseData.caseType}\nJurisdiction: ${caseData.jurisdiction}\nFacts: ${caseData.facts||"Not provided"}\nJudge: ${caseData.judge||"Not specified"}\n\nACTIVE DATA SOURCES (in priority order):\n${dataSources.map((s,i)=>`${i+1}. ${s}`).join("\n")}\n\nPrecedents found so far: ${(caseData.precedents||[]).map(p=>`${p.name} (${p.citation})`).join("; ")||"None"}\n\nIMPORTANT: When you find cases, append JSON:\n<prec>[{"name":"...","citation":"...","court":"...","year":"...","outcome":"...","holding":"...","confidence":"High|Medium|Low"}]</prec>\n\nMANDATORY: After every case citation in your response, append exactly one tag:\n  [DB] = found in CourtListener or Harvard CAP database\n  [WEB] = found via web search this session\n  [MEM] = from training memory only — must be independently verified\nExample: United States v. Weimert, 819 F.3d 351 (7th Cir. 2016) [MEM]`;
 
     // Build conversation history — Claude API requires first message to be user role
     // The welcome message is role:"assistant" so we must strip any leading assistant messages
@@ -1106,17 +1147,34 @@ function ResearchPanel({caseData,settings,onUpdateCase,onLog,isMobile,notify}) {
       const text = (data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("")||"No response.";
 
       const pm = text.match(/<prec>(\[[\s\S]*?\])<\/prec>/);
+      let parsedPrecs = [];
       if(pm){try{
-        const np = JSON.parse(pm[1]);
+        parsedPrecs = JSON.parse(pm[1]);
         // Functional update — always merges against latest precedents, not stale caseData snapshot
         onUpdateCase(prev => {
           const existingPrecs = prev.precedents || [];
-          const merged = [...existingPrecs, ...np.filter(n=>!existingPrecs.find(p=>p.citation===n.citation))];
+          const merged = [...existingPrecs, ...parsedPrecs.filter(n=>!existingPrecs.find(p=>p.citation===n.citation))];
           return {...prev, precedents: merged};
         });
       }catch{}}
 
       const clean = text.replace(/<prec>[\s\S]*?<\/prec>/g,"").trim();
+
+      // Fallback: if no <prec> tags found (LLaMA ignores the instruction), auto-extract citations from response text
+      if(!parsedPrecs.length){
+        const autoFound = extractCitations(clean);
+        if(autoFound.length){
+          const autoPrecs = autoFound.map(c=>({
+            name:c.raw.split(",")[0].trim(),citation:c.raw,court:"",year:"",
+            outcome:"",holding:"",confidence:"Medium",source:"auto_extracted"
+          }));
+          onUpdateCase(prev=>{
+            const existingPrecs = prev.precedents||[];
+            const merged=[...existingPrecs,...autoPrecs.filter(n=>!existingPrecs.find(p=>p.citation===n.citation))];
+            return {...prev,precedents:merged};
+          });
+        }
+      }
       const aMsg = {role:"assistant",id:genId(),ts:Date.now(),content:clean};
       setMsgs(m=>[...m,aMsg]);
       setUploadedDocs([]);
@@ -1382,7 +1440,7 @@ function ResearchPanel({caseData,settings,onUpdateCase,onLog,isMobile,notify}) {
 function DraftPanel({caseData,settings,onLog,isMobile,notify}) {
   const DTYPES = [
     {id:"memo",label:"Research Memo",icon:"search",desc:"Issue analysis with citations"},
-    {id:"motion_dismiss",label:"Motion to Dismiss",icon:"shield",desc:"12(b)(6) or 12(b)(1)"},
+    {id:"motion_dismiss",label:"Motion to Dismiss",icon:"shield",desc:"Criminal 12(b)(3)(B) or Civil 12(b)(6)"},
     {id:"summary_judgment",label:"Summary Judgment",icon:"scale",desc:"No genuine dispute of fact"},
     {id:"demand",label:"Demand Letter",icon:"draft",desc:"Pre-litigation demand"},
     {id:"opening",label:"Opening Statement",icon:"notes",desc:"Trial opening narrative"},
@@ -1402,6 +1460,15 @@ function DraftPanel({caseData,settings,onLog,isMobile,notify}) {
     if(!type||loading) return;
     setLoading(true); setDraft("");
     const dt = DTYPES.find(d=>d.id===type);
+    // Detect criminal vs civil to select the correct motion to dismiss rule
+    const isCriminalCase = /criminal|felony|misdemeanor|indictment|charge|wire fraud|securities fraud|drug|assault|robbery|conspiracy|federal prosecution/i.test(caseData.caseType||"");
+    const mtdRule = isCriminalCase
+      ? "Fed. R. Crim. P. 12(b)(3)(B) (failure to state an offense) or 12(b)(3)(A) (defect in indictment)"
+      : "Fed. R. Civ. P. 12(b)(6) (failure to state a claim) or 12(b)(1) (lack of subject matter jurisdiction)";
+    const jxLower = (caseData.jurisdiction||"").toLowerCase();
+    const mtdLocalRule = (jxLower.includes("sdny")||jxLower.includes("southern district of new york"))
+      ? "SDNY Local Rule 7.1" : "applicable local rules";
+
     const DOC_STRUCTURE = {
       motion_dismiss:`REQUIRED SECTIONS (use these exact headers in order):
 # [COURT NAME AND DIVISION]
@@ -1410,6 +1477,7 @@ function DraftPanel({caseData,settings,onLog,isMobile,notify}) {
 ## INTRODUCTION
 ## STATEMENT OF FACTS
 ## LEGAL STANDARD
+Pursuant to ${mtdRule} and ${mtdLocalRule}, [party] moves to dismiss because [grounds]. Under this standard, [applicable legal standard text].
 ## ARGUMENT
 ### I. [First Legal Argument]
 ### II. [Second Legal Argument]
@@ -1616,7 +1684,7 @@ Now write the complete ${dt.label}, starting with the caption. The REQUIRED ENDI
     const groundedPrompt = prompt + groundedCitations;
 
     try{
-      const draftModel = settings.highQualityDraft ? "claude-opus-4-6" : settings.model;
+      const draftModel = settings.model;
       const body = {model:draftModel,max_tokens:Math.max(settings.maxTokens,6000),system:settings.systemPrompt,messages:[{role:"user",content:groundedPrompt}]};
       if(settings.webSearch && !groundedCitations) body.tools=[{type:"web_search_20260209",name:"web_search"}];
       const data = await safeFetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
@@ -1769,11 +1837,37 @@ function StrategyPanel({caseData,settings,onUpdateCase,onLog,isMobile,notify}) {
       // Robust JSON extraction — works even if model adds preamble text
       const jsonMatch = raw.match(/\{[\s\S]*\}/);
       if(!jsonMatch) throw new Error("No JSON object found in strategy response");
-      const parsed = JSON.parse(jsonMatch[0]);
+      const rawParsed = JSON.parse(jsonMatch[0]);
+      // Normalize schema — free models (LLaMA) return simplified keys; fill in full schema
+      const parsed = {
+        overallStrength: rawParsed.overallStrength ?? rawParsed.strengthScore ?? rawParsed.caseStrength ?? 50,
+        settlementProbability: rawParsed.settlementProbability ?? rawParsed.settlementChance ?? 40,
+        riskLevel: rawParsed.riskLevel ?? rawParsed.risk ?? "Medium",
+        summaryAssessment: rawParsed.summaryAssessment ?? rawParsed.summary ?? rawParsed.assessment ?? rawParsed.recommendation ?? "",
+        prosecution: rawParsed.prosecution ?? {
+          theory: rawParsed.prosecutionTheory ?? "",
+          burden: "Beyond a reasonable doubt",
+          keyArguments: rawParsed.prosecutionArguments ?? rawParsed.weaknesses ?? [],
+          evidencePoints: rawParsed.prosecutionEvidence ?? [],
+          weaknesses: rawParsed.weaknesses ?? [],
+          strengthScore: rawParsed.prosecutionStrength ?? 50
+        },
+        defense: rawParsed.defense ?? {
+          theory: rawParsed.defenseTheory ?? "",
+          keyArguments: rawParsed.defenseArguments ?? rawParsed.strengths ?? [],
+          counterMoves: rawParsed.motions ?? rawParsed.counterMoves ?? [],
+          strengths: rawParsed.strengths ?? [],
+          weaknesses: rawParsed.defenseWeaknesses ?? [],
+          strengthScore: rawParsed.defenseStrength ?? 50
+        },
+        keyLegalIssues: rawParsed.keyLegalIssues ?? rawParsed.legalIssues ?? [],
+        immediateActions: rawParsed.immediateActions ?? rawParsed.motions ?? rawParsed.nextSteps ?? [],
+        recommendation: rawParsed.recommendation ?? rawParsed.summaryAssessment ?? ""
+      };
       setStrat(parsed);
       onUpdateCase(prev => ({ ...prev, strategy: parsed }));
       onLog({type:"strategy",caseId:caseData.id,ts:Date.now()});
-      notify?.success("Strategy Analysis Complete", `Risk: ${parsed.riskLevel} · Settlement: ${parsed.settlementProbability}%`, settings.model);
+      notify?.success("Strategy Analysis Complete", `Risk: ${parsed.riskLevel} · Strength: ${parsed.overallStrength}%`, settings.model);
     }catch(e){
       const msg = e.message || "Strategy generation failed";
       setStratError(msg);
@@ -1903,11 +1997,40 @@ function StrategyPanel({caseData,settings,onUpdateCase,onLog,isMobile,notify}) {
 }
 
 // ── Notes Panel ────────────────────────────────────────────────────────────
-function NotesPanel({caseData,onUpdateCase,isMobile,notify}) {
+function NotesPanel({caseData,onUpdateCase,isMobile,notify,settings}) {
   const [notes,setNotes] = useState(caseData.notes||[]);
   const [input,setInput] = useState("");
   const [tag,setTag] = useState("fact");
+  const [analysisLoading,setAnalysisLoading] = useState(false);
+  const [analysis,setAnalysis] = useState(null);
   const TAGS = [{id:"fact",label:"Key Fact",c:T.cobalt},{id:"evidence",label:"Evidence",c:T.emerald},{id:"witness",label:"Witness",c:T.amber},{id:"deadline",label:"Deadline",c:T.crimson},{id:"note",label:"Note",c:T.platDim}];
+
+  const analyzeEvidence = async()=>{
+    const relevantNotes = notes.filter(n=>["evidence","witness","fact"].includes(n.tag));
+    if(!relevantNotes.length){notify?.warn("No Evidence to Analyze","Add evidence, witness, or fact notes first","Evidence AI");return;}
+    setAnalysisLoading(true);
+    try{
+      const noteList = relevantNotes.map(n=>`[${n.tag.toUpperCase()}] ${n.text}`).join("\n");
+      const data = await safeFetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+        model:settings?.model||"claude-sonnet-4-6",max_tokens:1200,
+        system:"You are a senior litigation analyst reviewing case notes for defense strategy.",
+        messages:[{role:"user",content:`Review these case notes for a ${caseData.caseType} matter (${caseData.title}):
+
+${noteList}
+
+Analyze and return ONLY valid JSON:
+{"strongestFacts":["top 3 facts for defense — with tag reference"],"contradictions":["any inconsistencies or contradictions found"],"witnessesToDepose":["3 suggested witnesses to depose and why"],"evidenceGaps":["critical missing evidence or facts"],"keyDefenseTheme":"one sentence defense narrative","analyzedAt":"${new Date().toISOString()}"}`}]
+      })});
+      const raw = (data.content||[]).map(b=>b.text||"").join("");
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
+      if(!jsonMatch) throw new Error("No analysis returned");
+      setAnalysis(JSON.parse(jsonMatch[0]));
+      notify?.success("Evidence Analysis Complete", `${relevantNotes.length} notes analyzed`, "Evidence AI");
+    }catch(e){
+      notify?.error("Evidence Analysis Failed", e.message, "Evidence AI");
+    }
+    setAnalysisLoading(false);
+  };
 
   const add = ()=>{
     if(!input.trim()) return;
@@ -1936,8 +2059,51 @@ function NotesPanel({caseData,onUpdateCase,isMobile,notify}) {
         <div style={{display:"flex",gap:8}}>
           <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&add()} placeholder="Add a key fact, evidence note, witness detail…" style={{flex:1,background:T.bg2,border:`1px solid ${T.border}`,borderRadius:6,color:T.text,padding:"9px 12px",fontSize:13,minHeight:44}} className="gold-focus"/>
           <Btn onClick={add} disabled={!input.trim()} icon="plus">Add</Btn>
+          <Btn variant="ghost" onClick={analyzeEvidence} disabled={analysisLoading||!notes.some(n=>["evidence","witness","fact"].includes(n.tag))} icon="sparkle">{analysisLoading?"Analyzing…":"Analyze"}</Btn>
         </div>
       </Panel>
+
+      {/* Evidence Analysis Panel */}
+      {analysis&&(
+        <Panel style={{padding:16,marginBottom:12,borderColor:`${T.emerald}40`}} className="fade-in">
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+            <SectionHeader label="Evidence Analysis" color={T.emerald}/>
+            <button onClick={()=>setAnalysis(null)} style={{background:"none",border:"none",cursor:"pointer",padding:2}}><Icon n="close" size={12} color={T.textMuted}/></button>
+          </div>
+          {analysis.keyDefenseTheme&&(
+            <div style={{background:`${T.gold}12`,border:`1px solid ${T.gold}40`,borderRadius:6,padding:"8px 12px",marginBottom:12,fontSize:12,color:T.gold,lineHeight:1.6}}>
+              <strong>Defense Theme:</strong> {analysis.keyDefenseTheme}
+            </div>
+          )}
+          <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr",gap:12}}>
+            {analysis.strongestFacts?.length>0&&(
+              <div>
+                <div style={{fontSize:10,color:T.emerald,fontFamily:"'JetBrains Mono',monospace",letterSpacing:"0.07em",marginBottom:6}}>STRONGEST DEFENSE FACTS</div>
+                {analysis.strongestFacts.map((f,i)=><div key={i} style={{fontSize:11,color:T.text,marginBottom:5,paddingLeft:10,borderLeft:`2px solid ${T.emerald}50`}}>· {f}</div>)}
+              </div>
+            )}
+            {analysis.witnessesToDepose?.length>0&&(
+              <div>
+                <div style={{fontSize:10,color:T.amber,fontFamily:"'JetBrains Mono',monospace",letterSpacing:"0.07em",marginBottom:6}}>DEPOSE THESE WITNESSES</div>
+                {analysis.witnessesToDepose.map((w,i)=><div key={i} style={{fontSize:11,color:T.text,marginBottom:5,paddingLeft:10,borderLeft:`2px solid ${T.amber}50`}}>· {w}</div>)}
+              </div>
+            )}
+            {analysis.contradictions?.length>0&&(
+              <div>
+                <div style={{fontSize:10,color:T.crimson,fontFamily:"'JetBrains Mono',monospace",letterSpacing:"0.07em",marginBottom:6}}>CONTRADICTIONS</div>
+                {analysis.contradictions.map((c,i)=><div key={i} style={{fontSize:11,color:T.text,marginBottom:5,paddingLeft:10,borderLeft:`2px solid ${T.crimson}50`}}>⚠ {c}</div>)}
+              </div>
+            )}
+            {analysis.evidenceGaps?.length>0&&(
+              <div>
+                <div style={{fontSize:10,color:T.violet,fontFamily:"'JetBrains Mono',monospace",letterSpacing:"0.07em",marginBottom:6}}>EVIDENCE GAPS</div>
+                {analysis.evidenceGaps.map((g,i)=><div key={i} style={{fontSize:11,color:T.text,marginBottom:5,paddingLeft:10,borderLeft:`2px solid ${T.violet}50`}}>· {g}</div>)}
+              </div>
+            )}
+          </div>
+        </Panel>
+      )}
+
       {notes.length===0&&<div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"50px 20px",gap:10,textAlign:"center"}}><Icon n="notes" size={32} color={T.textMuted}/><div className="serif" style={{fontSize:18,color:T.textMuted,fontStyle:"italic"}}>Evidence & Notes Board</div></div>}
       {TAGS.map(t=>{
         const tn=notes.filter(n=>n.tag===t.id);if(!tn.length)return null;
@@ -2007,17 +2173,17 @@ function JudgePanel({caseData,settings,onUpdateCase,onLog,isMobile,notify}) {
         "politicalAffiliation": "Republican|Democrat|Independent|Unknown",
         "abaRating": "Well Qualified|Qualified|Not Qualified|Unknown",
         "education": "law school and undergraduate",
-        "rulingTendencies": {"prosecution": 50, "defense": 50, "notes": "documented tendencies in criminal/financial cases"},
-        "motionPreferences": ["specific preference 1", "specific preference 2"],
+        "rulingTendencies": {"prosecution": 50, "defense": 50, "notes": "QUALITATIVE description of tendencies — do not invent percentages or statistics without citing a source"},
+        "motionPreferences": ["specific documented preference 1", "specific documented preference 2"],
         "argumentStyle": "how this judge likes oral and written argument presented",
-        "knownFor": "what this judge is most known for in legal community",
+        "knownFor": "what this judge is most known for in legal community — if not in training data, say 'Limited information available'",
         "redFlags": ["thing that draws sanctions or annoys this judge"],
         "winningStrategies": ["concrete strategy 1", "concrete strategy 2"],
-        "recentNotableRulings": ["Case Name (Year) — one line holding"],
+        "recentNotableRulings": ["Full Bluebook citation: Case Name, Vol. Reporter Page (Court Year) — one line holding"],
         "overallBias": "Prosecution-Leaning|Neutral|Defense-Leaning",
         "confidenceLevel": "High|Medium|Low",
         "dataSource": "${judgeContext ? "CourtListener Judge Database + AI Analysis" : "Web Search"}"
-      }\n\nConstraints: rulingTendencies values must be integers 0-100. overallBias must be exactly one of the three options. All arrays need at least 1 item.`;
+      }\n\nCRITICAL CONSTRAINTS: (1) rulingTendencies values must be integers 0-100 representing a qualitative lean, NOT empirical statistics — never state "grants X% of motions" without a citable source. (2) If this judge is NOT in your training data, set confidenceLevel to "Low" and explicitly note "Limited training data — profile is speculative" in the notes field. (3) overallBias must be exactly one of the three options. (4) All arrays need at least 1 item. (5) For recentNotableRulings, only include cases you are confident exist — do not fabricate citations.`;
 
       const body = {model:settings.model,max_tokens:1800,system:settings.systemPrompt,messages:[{role:"user",content:prompt}]};
       if(settings.webSearch && !judgeContext) body.tools=[{type:"web_search_20260209",name:"web_search"}];
@@ -2089,6 +2255,9 @@ function JudgePanel({caseData,settings,onUpdateCase,onLog,isMobile,notify}) {
 
       {intel&&!loading&&(
         <div className="fade-up">
+          <div style={{background:`${T.amber}12`,border:`1px solid ${T.amber}40`,borderRadius:6,padding:"8px 12px",marginBottom:10,fontSize:11,color:T.amber,lineHeight:1.5}}>
+            ⚠ <strong>Profile generated from AI training data.</strong> Sentence ranges, ruling tendencies, and grant rates are qualitative estimates — not statistics. Verify independently via PACER, Westlaw, or Bloomberg Law before relying on this profile for case strategy.
+          </div>
           <Panel style={{padding:18,marginBottom:12}}>
             {/* Profile header */}
             <div style={{display:"flex",gap:18,alignItems:"flex-start",marginBottom:20}}>
@@ -2188,9 +2357,13 @@ function JudgePanel({caseData,settings,onUpdateCase,onLog,isMobile,notify}) {
 }
 
 // ── Deadline Command Center ────────────────────────────────────────────────
-function DeadlinePanel({caseData,onUpdateCase,isMobile,notify}) {
+function DeadlinePanel({caseData,onUpdateCase,isMobile,notify,settings}) {
   const [deadlines,setDeadlines] = useState(caseData.deadlines||[]);
   const [form,setForm] = useState({title:"",date:"",type:"Filing",priority:"High",notes:""});
+  const [suggestLoading,setSuggestLoading] = useState(false);
+  const [suggestions,setSuggestions] = useState([]);
+  const [suggestSelected,setSuggestSelected] = useState({});
+  const [showSuggest,setShowSuggest] = useState(false);
   // Pre-select state from jurisdiction if possible
   const guessState = ()=>{
     const jx = caseData.jurisdiction||"";
@@ -2254,6 +2427,54 @@ Calculate the exact deadline from the incident date. Return ONLY valid JSON:
     setSolLoading(false);
   };
 
+  const autoSuggestDeadlines = async()=>{
+    setSuggestLoading(true);
+    try{
+      const keyDates = [
+        caseData.incidentDate && `Incident/filing date: ${caseData.incidentDate}`,
+        (caseData.deadlines||[]).find(d=>d.title?.toLowerCase().includes("arraign"))?.date && `Arraignment: ${(caseData.deadlines||[]).find(d=>d.title?.toLowerCase().includes("arraign")).date}`,
+        (caseData.deadlines||[]).find(d=>d.title?.toLowerCase().includes("indict"))?.date && `Indictment: ${(caseData.deadlines||[]).find(d=>d.title?.toLowerCase().includes("indict")).date}`,
+      ].filter(Boolean).join("; ") || "No key dates on file — suggest typical deadlines from today";
+
+      const data = await safeFetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+        model:settings?.model||"claude-sonnet-4-6",max_tokens:1200,
+        system:"Return ONLY valid JSON array, no preamble.",
+        messages:[{role:"user",content:`Generate standard procedural deadlines for a ${caseData.caseType} case in ${caseData.jurisdiction}.
+Key case dates: ${keyDates}
+Today's date: ${new Date().toISOString().split("T")[0]}
+
+Include standard deadlines such as: Motion to Dismiss, Discovery cutoff, Speedy Trial Act (if federal criminal), preliminary hearing, bail review, pretrial conference, trial date, and any jurisdiction-specific deadlines.
+For each deadline, cite the governing rule (e.g. Fed. R. Crim. P. 12(c)(3), 18 U.S.C. § 3161(c)(1), SDNY Local Rule 16.1).
+
+Return ONLY a JSON array:
+[{"title":"...","date":"YYYY-MM-DD","type":"Filing|Court Date|Discovery|Deposition|Response Due|Appeal|Other","priority":"Critical|High|Medium|Low","rule":"...","notes":"..."}]`}]
+      })});
+      const raw = (data.content||[]).map(b=>b.text||"").join("");
+      const jsonMatch = raw.match(/\[[\s\S]*\]/);
+      if(!jsonMatch) throw new Error("No suggestions returned");
+      const sugs = JSON.parse(jsonMatch[0]);
+      setSuggestions(sugs);
+      const sel = {};
+      sugs.forEach((_,i)=>{sel[i]=true;});
+      setSuggestSelected(sel);
+      setShowSuggest(true);
+    }catch(e){
+      notify?.error("Auto-Suggest Failed", e.message, "Deadline AI");
+    }
+    setSuggestLoading(false);
+  };
+
+  const addSuggested = ()=>{
+    const toAdd = suggestions.filter((_,i)=>suggestSelected[i]).map(s=>({id:genId(),ts:Date.now(),title:s.title,date:s.date,type:s.type||"Filing",priority:s.priority||"High",notes:(s.rule?`Rule: ${s.rule}. `:"")+( s.notes||"")}));
+    if(!toAdd.length) return;
+    const next = [...deadlines,...toAdd].sort((a,b)=>new Date(a.date)-new Date(b.date));
+    setDeadlines(next);
+    onUpdateCase(prev=>({...prev,deadlines:next}));
+    setShowSuggest(false);
+    setSuggestions([]);
+    notify?.success(`Added ${toAdd.length} deadline(s)`, "From AI auto-suggest", "Deadline AI");
+  };
+
   const today = new Date();
   const upcoming = deadlines.filter(d=>new Date(d.date)>=today);
   const overdue = deadlines.filter(d=>new Date(d.date)<today);
@@ -2301,8 +2522,41 @@ Calculate the exact deadline from the incident date. Return ONLY valid JSON:
             <Field label="Priority" value={form.priority} onChange={ff("priority")} as="select" opts={PRIO}/>
           </div>
           <Field label="Notes (optional)" value={form.notes} onChange={ff("notes")} placeholder="Context or instructions…"/>
-          <Btn onClick={addDeadline} disabled={!form.title.trim()||!form.date} icon="plus">Add Deadline</Btn>
+          <div style={{display:"flex",gap:8}}>
+            <Btn onClick={addDeadline} disabled={!form.title.trim()||!form.date} icon="plus">Add Deadline</Btn>
+            <Btn variant="ghost" onClick={autoSuggestDeadlines} disabled={suggestLoading} icon="sparkle">{suggestLoading?"Generating…":"Auto-Suggest"}</Btn>
+          </div>
         </Panel>
+
+        {/* AI Deadline Suggestion Modal */}
+        {showSuggest&&suggestions.length>0&&(
+          <Panel style={{padding:16,borderColor:`${T.cobalt}40`}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+              <SectionHeader label={`AI Suggested Deadlines (${suggestions.length})`} color={T.cobalt}/>
+              <button onClick={()=>setShowSuggest(false)} style={{background:"none",border:"none",cursor:"pointer",padding:2}}><Icon n="close" size={12} color={T.textMuted}/></button>
+            </div>
+            <div style={{fontSize:11,color:T.textMuted,marginBottom:10}}>Select which deadlines to add:</div>
+            <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:12}}>
+              {suggestions.map((s,i)=>(
+                <label key={i} style={{display:"flex",alignItems:"flex-start",gap:9,padding:"8px 10px",background:suggestSelected[i]?`${T.cobalt}12`:T.panel2,border:`1px solid ${suggestSelected[i]?T.cobalt:T.border}`,borderRadius:6,cursor:"pointer"}}>
+                  <input type="checkbox" checked={!!suggestSelected[i]} onChange={e=>setSuggestSelected(p=>({...p,[i]:e.target.checked}))} style={{marginTop:2,accentColor:T.cobalt}}/>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:12,fontWeight:600,color:T.text}}>{s.title}</div>
+                    <div style={{display:"flex",gap:6,marginTop:3,flexWrap:"wrap"}}>
+                      <Badge color={T.amber} size="xs">{s.date}</Badge>
+                      <Badge color={T.cobalt} size="xs">{s.priority||"High"}</Badge>
+                      {s.rule&&<span style={{fontSize:10,color:T.textMuted,fontFamily:"'JetBrains Mono',monospace"}}>{s.rule}</span>}
+                    </div>
+                  </div>
+                </label>
+              ))}
+            </div>
+            <div style={{display:"flex",gap:8}}>
+              <Btn variant="emerald" size="sm" onClick={addSuggested} disabled={!Object.values(suggestSelected).some(Boolean)}>Add Selected ({Object.values(suggestSelected).filter(Boolean).length})</Btn>
+              <Btn variant="ghost" size="sm" onClick={()=>setShowSuggest(false)}>Cancel</Btn>
+            </div>
+          </Panel>
+        )}
       </div>
 
       {/* Deadline list */}
@@ -2608,10 +2862,16 @@ function VaultPanel({caseData,settings,onUpdateCase,isMobile,notify}) {
 
   const addDocs = async e=>{
     const files = Array.from(e.target.files||[]);
-    const newDocs = await Promise.all(files.map(async f=>({
-      id:genId(),name:f.name,size:f.size,type:f.type||"application/pdf",
-      base64:await readFileAsBase64(f),addedAt:Date.now()
-    })));
+    const newDocs = await Promise.all(files.map(async f=>{
+      const [base64, extracted] = await Promise.all([
+        readFileAsBase64(f),
+        (f.type==="application/pdf"||f.name.endsWith(".pdf")) ? extractPdfText(f) : Promise.resolve({text:null,chars:0})
+      ]);
+      return {
+        id:genId(),name:f.name,size:f.size,type:f.type||"application/pdf",
+        base64,extractedText:extracted.text,extractedChars:extracted.chars,addedAt:Date.now()
+      };
+    }));
     const merged = [...docs,...newDocs];
     setDocs(merged);
     onUpdateCase(prev=>({...prev,vaultDocs:merged.map(d=>({id:d.id,name:d.name,size:d.size,addedAt:d.addedAt}))}));
@@ -2629,10 +2889,21 @@ function VaultPanel({caseData,settings,onUpdateCase,isMobile,notify}) {
     setLoading(true); setResults([]);
     try{
       const q = mode==="extract" ? query : query;
-      // Build message with all documents + question
+      // Build message — prefer extracted text (works with all providers), fall back to base64 for native Anthropic
+      const activeDocs = docs.slice(0,5);
+      const docBlocks = activeDocs.map(d => {
+        if (d.extractedText) {
+          return {type:"text", text:`[Document: ${d.name}]\n\n${d.extractedText.slice(0,12000)}`};
+        }
+        // Image-based or non-PDF: send base64 (only Anthropic native can read it)
+        return {type:"document",source:{type:"base64",media_type:d.type,data:d.base64}};
+      });
+      const imagePdfWarning = activeDocs.some(d=>!d.extractedText&&(d.type==="application/pdf"||d.name?.endsWith(".pdf")))
+        ? "\n\n⚠ One or more PDFs appear to be image-based — text could not be extracted. Analysis may be limited."
+        : "";
       const content = [
-        ...docs.slice(0,5).map(d=>({type:"document",source:{type:"base64",media_type:d.type,data:d.base64}})),
-        {type:"text",text:`You have been given ${Math.min(docs.length,5)} legal document(s)${docs.length>5?` (showing first 5 of ${docs.length})`:""}.\n\nDocument names: ${docs.slice(0,5).map(d=>d.name).join(", ")}\n\nTask: ${q}\n\nMatter context: ${caseData.title} | ${caseData.caseType} | ${caseData.jurisdiction}\n\nAnalyze all documents and provide a comprehensive, structured response. For each document analyzed, clearly label findings by document name.`}
+        ...docBlocks,
+        {type:"text",text:`You have been given ${activeDocs.length} legal document(s)${docs.length>5?` (showing first 5 of ${docs.length})`:""}.\n\nDocument names: ${activeDocs.map(d=>d.name).join(", ")}\n\nTask: ${q}\n\nMatter context: ${caseData.title} | ${caseData.caseType} | ${caseData.jurisdiction}\n\nAnalyze all documents and provide a comprehensive, structured response. For each document analyzed, clearly label findings by document name.${imagePdfWarning}`}
       ];
       const data = await safeFetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
         model:settings.model,max_tokens:settings.maxTokens,system:settings.systemPrompt,
@@ -2666,7 +2937,15 @@ function VaultPanel({caseData,settings,onUpdateCase,isMobile,notify}) {
           {docs.map(d=>(
             <div key={d.id} style={{display:"flex",alignItems:"center",gap:7,padding:"7px 0",borderBottom:`1px solid ${T.border}`}}>
               <Icon n="pdf" size={13} color={T.cobalt}/>
-              <span className="truncate" style={{fontSize:11,color:T.text,flex:1}}>{d.name}</span>
+              <div style={{flex:1,minWidth:0}}>
+                <span className="truncate" style={{fontSize:11,color:T.text,display:"block"}}>{d.name}</span>
+                {d.extractedChars>0
+                  ? <span style={{fontSize:9,color:T.green,fontFamily:"'JetBrains Mono',monospace"}}>{(d.extractedChars/1000).toFixed(1)}k chars extracted</span>
+                  : (d.type==="application/pdf"||d.name?.endsWith(".pdf"))
+                    ? <span style={{fontSize:9,color:T.amber,fontFamily:"'JetBrains Mono',monospace"}}>image PDF — text unavailable</span>
+                    : null
+                }
+              </div>
               <button onClick={()=>removeDoc(d.id)} style={{background:"none",border:"none",padding:2,cursor:"pointer",flexShrink:0}}><Icon n="close" size={10} color={T.textMuted}/></button>
             </div>
           ))}
@@ -2701,9 +2980,14 @@ function VaultPanel({caseData,settings,onUpdateCase,isMobile,notify}) {
             <Btn onClick={analyze} disabled={loading||!docs.length||!query.trim()} icon="search">{loading?"Analyzing…":"Analyze"}</Btn>
           </div>
           {!docs.length&&<div style={{fontSize:11,color:T.amber,marginTop:6}}>⚠ Add documents to the vault first</div>}
-          {!!docs.length&&!!import.meta.env.VITE_API_URL&&(
-            <div style={{fontSize:11,color:T.amber,marginTop:6,lineHeight:1.5}}>
-              ⚠ <strong>Free provider mode:</strong> Document content cannot be forwarded to free LLM providers. The AI will answer based on your text query and case context only — it cannot read the uploaded files. For full document analysis, configure a direct Anthropic API key in Settings.
+          {!!docs.length&&docs.some(d=>d.extractedChars>0)&&(
+            <div style={{fontSize:11,color:T.green,marginTop:6,lineHeight:1.5}}>
+              ✓ Text extracted from {docs.filter(d=>d.extractedChars>0).length} document(s) — AI will read full content.
+            </div>
+          )}
+          {!!docs.length&&docs.some(d=>!d.extractedChars&&(d.type==="application/pdf"||d.name?.endsWith(".pdf")))&&(
+            <div style={{fontSize:11,color:T.amber,marginTop:4,lineHeight:1.5}}>
+              ⚠ <strong>Image-based PDF detected:</strong> Text could not be extracted. For scanned documents, configure a direct Anthropic API key in Settings for native PDF reading.
             </div>
           )}
         </div>
@@ -2988,16 +3272,19 @@ function AdminPanel({settings,onSave,logs,cases,isMobile,notify}) {
       <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr",gap:12,marginBottom:16}}>
         <Panel style={{padding:18}}>
           <SectionHeader label="Model Configuration"/>
-          <Field label="Model (Research & Analysis)" value={s.model} onChange={f("model")} as="select" opts={["claude-sonnet-4-6","claude-opus-4-6"]}/>
-          <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:s.highQualityDraft?`${T.violet}12`:T.panel2,border:`1px solid ${s.highQualityDraft?T.violet:T.border}`,borderRadius:6,cursor:"pointer",marginBottom:4}}
-            onClick={()=>f("highQualityDraft")(!s.highQualityDraft)}>
-            <div style={{width:34,height:18,borderRadius:9,background:s.highQualityDraft?T.violet:T.panel,border:`1px solid ${s.highQualityDraft?T.violet:T.border}`,position:"relative",flexShrink:0,transition:"all 0.2s"}}>
-              <div style={{position:"absolute",top:2,left:s.highQualityDraft?16:2,width:14,height:14,borderRadius:7,background:"white",transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.3)"}}/>
-            </div>
-            <div>
-              <div style={{fontSize:12,color:s.highQualityDraft?T.violet:T.text,fontWeight:600}}>High Quality Drafting (Opus 4.6)</div>
-              <div style={{fontSize:10,color:T.textMuted}}>Uses claude-opus-4-6 for document drafting only. Better legal prose, slower generation.</div>
-            </div>
+          <Field label="AI Provider / Model" value={s.model} onChange={f("model")} as="select" opts={[
+            {v:"auto",       l:"Auto — Waterfall (9 providers · always-on failover)"},
+            {v:"groq",       l:"Groq — Llama 3.3 70B · fastest"},
+            {v:"cerebras",   l:"Cerebras — Llama 3.3 70B · ultra-fast chip"},
+            {v:"gemini",     l:"Gemini 2.0 Flash · Google multimodal"},
+            {v:"xai",        l:"xAI — Grok-3 Mini · reasoning"},
+            {v:"mistral",    l:"Mistral Small · EU privacy"},
+            {v:"sambanova",  l:"SambaNova — Llama 3.3 70B"},
+            {v:"openrouter", l:"OpenRouter — Llama 3.3 70B"},
+            {v:"nvidia",     l:"NVIDIA — Llama 3.3 70B"},
+          ]}/>
+          <div style={{fontSize:10,color:T.textMuted,marginBottom:12,marginTop:-8}}>
+            Auto mode tries Groq first and falls back through all 9 providers — best for reliability. Pick a specific provider to always use that one (falls back if rate-limited).
           </div>
           <div style={{marginBottom:14}}>
             <div style={{fontSize:10,color:T.textSub,marginBottom:5,fontFamily:"'JetBrains Mono',monospace",letterSpacing:"0.07em",textTransform:"uppercase"}}>Temperature: {s.temperature.toFixed(1)}</div>
@@ -3028,12 +3315,18 @@ function AdminPanel({settings,onSave,logs,cases,isMobile,notify}) {
           </div>
 
           {/* Status overview */}
-          <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr 1fr":"repeat(4,1fr)",gap:10,marginBottom:16}}>
+          <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr 1fr":"repeat(5,1fr)",gap:10,marginBottom:16}}>
             {[
               {label:"CourtListener",sub:"9M opinions · 18M citations",active:!!s.courtListenerToken,note:"Token required"},
-              {label:"CL Judge DB",sub:"16,000+ judges · financial disclosures",active:!!s.courtListenerToken,note:"Uses CL token"},
+              {label:"CL Judge DB",sub:"16,000+ judges · disclosures",active:!!s.courtListenerToken,note:"Uses CL token"},
               {label:"Harvard CAP",sub:"6.7M cases · 1658–2020",active:true,note:"Always free"},
-              {label:"GovInfo",sub:"US Code · CFR · Fed Register",active:!!s.govInfoKey,note:"Free API key"},
+              {label:"GovInfo",sub:"US Code · CFR · Fed Register",active:!!s.govInfoKey,note:"api.data.gov key"},
+              {label:"Congress.gov",sub:"Bills · amendments · votes",active:!!s.govInfoKey,note:"Uses same key"},
+              {label:"Regulations.gov",sub:"Federal rulemaking · dockets",active:!!s.govInfoKey,note:"Uses same key"},
+              {label:"eCFR",sub:"Live federal regulations",active:true,note:"Always free"},
+              {label:"SEC EDGAR",sub:"10-K · 10-Q · 8-K filings",active:true,note:"Always free"},
+              {label:"USPTO Patents",sub:"Full patent text · IP research",active:true,note:"Always free"},
+              {label:"OpenStates",sub:"50-state legislation · bills",active:!!s.openStatesKey,note:"Free key required"},
             ].map(db=>(
               <div key={db.label} style={{padding:"10px 12px",background:db.active?`${T.cobalt}10`:T.panel2,border:`1px solid ${db.active?T.cobalt:T.border}`,borderRadius:6}}>
                 <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
@@ -3041,7 +3334,7 @@ function AdminPanel({settings,onSave,logs,cases,isMobile,notify}) {
                   <span style={{fontSize:11,color:db.active?T.cobalt:T.textSub,fontWeight:600}}>{db.label}</span>
                 </div>
                 <div style={{fontSize:9,color:T.textMuted,lineHeight:1.4}}>{db.sub}</div>
-                <div style={{fontSize:9,color:db.active?T.emerald:T.textMuted,marginTop:3,fontFamily:"'JetBrains Mono',monospace"}}>{db.active?"● CONNECTED":"○ "+db.note}</div>
+                <div style={{fontSize:9,color:db.active?T.emerald:T.textMuted,marginTop:3,fontFamily:"'JetBrains Mono',monospace"}}>{db.active?"● ACTIVE":"○ "+db.note}</div>
               </div>
             ))}
           </div>
@@ -3086,36 +3379,67 @@ function AdminPanel({settings,onSave,logs,cases,isMobile,notify}) {
               <div style={{fontSize:10,color:T.textMuted,marginTop:4}}>Unlocks: opinion search, citation verification, judge profiles, financial disclosures · <span style={{color:T.cobalt,cursor:"pointer"}} onClick={()=>window.open&&window.open("https://www.courtlistener.com/register")}>Get free token →</span></div>
             </div>
 
-            {/* GovInfo */}
+            {/* api.data.gov — covers GovInfo + Congress + regulations.gov */}
             <div style={{marginBottom:10}}>
               <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:5}}>
                 <div style={{width:6,height:6,borderRadius:"50%",background:s.govInfoKey?T.amber:T.border,flexShrink:0}}/>
-                <div style={{fontSize:10,color:T.textSub,fontFamily:"'JetBrains Mono',monospace",letterSpacing:"0.07em",textTransform:"uppercase",flex:1}}>GovInfo API Key</div>
-                {s.govInfoKey&&<div style={{fontSize:9,color:T.amber,fontFamily:"'JetBrains Mono',monospace"}}>● CONNECTED · US Code · CFR · Fed Register</div>}
+                <div style={{fontSize:10,color:T.textSub,fontFamily:"'JetBrains Mono',monospace",letterSpacing:"0.07em",textTransform:"uppercase",flex:1}}>api.data.gov Key</div>
+                {s.govInfoKey&&<div style={{fontSize:9,color:T.amber,fontFamily:"'JetBrains Mono',monospace"}}>● CONNECTED · GovInfo · Congress.gov · Regulations.gov</div>}
               </div>
               <div style={{display:"flex",gap:6}}>
                 <input
                   type="password"
                   value={s.govInfoKey||""}
                   onChange={e=>f("govInfoKey")(e.target.value)}
-                  placeholder="Free key from api.data.gov"
+                  placeholder="Free key from api.data.gov/signup — unlocks 3 federal APIs"
                   style={{flex:1,background:T.bg2,border:`1px solid ${s.govInfoKey?T.amber:T.border}`,borderRadius:6,color:T.text,padding:"8px 12px",fontSize:12,fontFamily:"'JetBrains Mono',monospace"}}
                   className="gold-focus"
                 />
                 {s.govInfoKey&&<button onClick={()=>f("govInfoKey")("")}
                   style={{padding:"0 10px",background:T.crimsonFaint,border:`1px solid ${T.crimson}40`,borderRadius:6,color:T.crimson,fontSize:11,cursor:"pointer",fontFamily:"'JetBrains Mono',monospace",flexShrink:0}}>Clear</button>}
               </div>
-              <div style={{fontSize:10,color:T.textMuted,marginTop:4}}>Enables statute lookup: US Code, CFR, Federal Register from official GPO source · <span style={{color:T.amber,cursor:"pointer"}} onClick={()=>window.open&&window.open("https://api.data.gov/signup/")}>Get free key →</span></div>
+              <div style={{fontSize:10,color:T.textMuted,marginTop:4}}>One key unlocks: US Code/CFR/Federal Register (GovInfo) · Bills/amendments/votes (Congress.gov) · Federal rulemaking (Regulations.gov) · <span style={{color:T.amber,cursor:"pointer"}} onClick={()=>window.open&&window.open("https://api.data.gov/signup/")}>Get free key →</span></div>
             </div>
 
-            {/* Harvard CAP — always active, no key */}
-            <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",background:T.emeraldFaint,border:`1px solid ${T.emerald}30`,borderRadius:6}}>
-              <div style={{width:6,height:6,borderRadius:"50%",background:T.emerald,flexShrink:0}}/>
-              <div style={{flex:1}}>
-                <div style={{fontSize:11,color:T.emerald,fontWeight:600}}>Harvard Caselaw Access Project — Always Active</div>
-                <div style={{fontSize:10,color:T.textMuted}}>6.7M cases · 360 years · No key required · Automatic on every search</div>
+            {/* OpenStates */}
+            <div style={{marginBottom:10}}>
+              <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:5}}>
+                <div style={{width:6,height:6,borderRadius:"50%",background:s.openStatesKey?T.violet:T.border,flexShrink:0}}/>
+                <div style={{fontSize:10,color:T.textSub,fontFamily:"'JetBrains Mono',monospace",letterSpacing:"0.07em",textTransform:"uppercase",flex:1}}>OpenStates API Key</div>
+                {s.openStatesKey&&<div style={{fontSize:9,color:T.violet,fontFamily:"'JetBrains Mono',monospace"}}>● CONNECTED · 50-state legislation</div>}
               </div>
-              <div style={{fontSize:9,color:T.emerald,fontFamily:"'JetBrains Mono',monospace",flexShrink:0}}>● FREE</div>
+              <div style={{display:"flex",gap:6}}>
+                <input
+                  type="password"
+                  value={s.openStatesKey||""}
+                  onChange={e=>f("openStatesKey")(e.target.value)}
+                  placeholder="Free key from openstates.org/accounts/register"
+                  style={{flex:1,background:T.bg2,border:`1px solid ${s.openStatesKey?T.violet:T.border}`,borderRadius:6,color:T.text,padding:"8px 12px",fontSize:12,fontFamily:"'JetBrains Mono',monospace"}}
+                  className="gold-focus"
+                />
+                {s.openStatesKey&&<button onClick={()=>f("openStatesKey")("")}
+                  style={{padding:"0 10px",background:T.crimsonFaint,border:`1px solid ${T.crimson}40`,borderRadius:6,color:T.crimson,fontSize:11,cursor:"pointer",fontFamily:"'JetBrains Mono',monospace",flexShrink:0}}>Clear</button>}
+              </div>
+              <div style={{fontSize:10,color:T.textMuted,marginTop:4}}>State bills, legislators, votes across all 50 states · <span style={{color:T.violet,cursor:"pointer"}} onClick={()=>window.open&&window.open("https://openstates.org/accounts/register/")}>Get free key →</span></div>
+            </div>
+
+            {/* Always-active sources */}
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+              {[
+                {label:"Harvard Caselaw Access Project",sub:"6.7M cases · 360 years · automatic on every search"},
+                {label:"eCFR — Electronic Code of Federal Regulations",sub:"Live current regulations · always up to date"},
+                {label:"SEC EDGAR",sub:"Corporate filings: 10-K, 10-Q, 8-K · full-text search"},
+                {label:"USPTO PatentsView",sub:"Full patent text · IP case research"},
+              ].map(src=>(
+                <div key={src.label} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 10px",background:T.emeraldFaint,border:`1px solid ${T.emerald}30`,borderRadius:6}}>
+                  <div style={{width:6,height:6,borderRadius:"50%",background:T.emerald,flexShrink:0}}/>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:11,color:T.emerald,fontWeight:600}}>{src.label}</div>
+                    <div style={{fontSize:10,color:T.textMuted}}>{src.sub}</div>
+                  </div>
+                  <div style={{fontSize:9,color:T.emerald,fontFamily:"'JetBrains Mono',monospace",flexShrink:0}}>● FREE</div>
+                </div>
+              ))}
             </div>
           </div>
         </Panel>
@@ -3971,11 +4295,11 @@ export default function LexAgent() {
     if(tab==="vault")        return <VaultPanel         key={sel.id}   caseData={sel} settings={settings} onUpdateCase={saveCase} isMobile={isMobile} notify={notify}/>;
     if(tab==="strategy")     return <StrategyPanel      key={sel.id}   caseData={sel} settings={settings} onUpdateCase={saveCase} onLog={addLog} isMobile={isMobile} notify={notify}/>;
     if(tab==="judge")        return <JudgePanel         key={sel.id}   caseData={sel} settings={settings} onUpdateCase={saveCase} onLog={addLog} isMobile={isMobile} notify={notify}/>;
-    if(tab==="deadlines")    return <DeadlinePanel      key={sel.id}  caseData={sel} onUpdateCase={saveCase} isMobile={isMobile} notify={notify}/>;
+    if(tab==="deadlines")    return <DeadlinePanel      key={sel.id}  caseData={sel} settings={settings} onUpdateCase={saveCase} isMobile={isMobile} notify={notify}/>;
     if(tab==="timeline")     return <TimelinePanel      key={sel.id}  caseData={sel} settings={settings} onUpdateCase={saveCase} isMobile={isMobile} notify={notify}/>;
     if(tab==="citations")    return <CitationAuditPanel key={sel.id}  caseData={sel} settings={settings} onUpdateCase={saveCase} isMobile={isMobile} notify={notify}/>;
     if(tab==="draft")        return <DraftPanel         key={sel.id}   caseData={sel} settings={settings} onLog={addLog} isMobile={isMobile} notify={notify}/>;
-    if(tab==="notes")        return <NotesPanel         key={sel.id}   caseData={sel} onUpdateCase={saveCase} isMobile={isMobile} notify={notify}/>;
+    if(tab==="notes")        return <NotesPanel         key={sel.id}   caseData={sel} settings={settings} onUpdateCase={saveCase} isMobile={isMobile} notify={notify}/>;
     if(tab==="conflict")     return <ConflictCheckPanel key={sel.id}  cases={cases} caseData={sel} isMobile={isMobile} notify={notify}/>;
     return null;
   };

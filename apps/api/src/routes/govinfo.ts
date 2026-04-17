@@ -3,7 +3,7 @@ import { requireAuth } from "../middleware/auth.js";
 import { rateLimit } from "../middleware/ratelimit.js";
 
 const legalRpm = Number(process.env.LEGAL_RPM ?? 120);
-const GOVINFO_KEY = process.env.GOVINFO_KEY ?? "DEMO_KEY";
+const GOVINFO_KEY = process.env.DATA_GOV_KEY ?? process.env.GOVINFO_KEY ?? "DEMO_KEY";
 const GOVINFO_BASE = "https://api.govinfo.gov";
 
 export const govinfoRouter = new Hono();

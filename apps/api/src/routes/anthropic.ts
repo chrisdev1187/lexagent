@@ -115,6 +115,16 @@ interface ProviderResult {
   outputTokens: number;
 }
 
+/** If requestedModel is a provider name (e.g. "groq", "gemini"), put that provider first */
+function orderedProviders(requestedModel: string): Provider[] {
+  const known = ["groq","cerebras","sambanova","openrouter","nvidia","xai","mistral","gemini","gemini-2"];
+  const pref = known.find(p => requestedModel === p || requestedModel.startsWith(p + "/"));
+  if (!pref) return PROVIDERS;
+  return [...PROVIDERS].sort((a, b) =>
+    a.name === pref ? -1 : b.name === pref ? 1 : 0
+  );
+}
+
 /** Try each provider in order, skip on missing key or rate-limit, return first success */
 async function tryProviders(
   messages: Array<{ role: string; content: string | Array<any> }>,
@@ -131,7 +141,7 @@ async function tryProviders(
 
   const errors: string[] = [];
 
-  for (const provider of PROVIDERS) {
+  for (const provider of orderedProviders(requestedModel)) {
     if (!provider.key) continue;
 
     const headers: Record<string, string> = {
