@@ -66,11 +66,6 @@ export const COURTLISTENER_BASE = API_URL
   ? `${API_URL}/api/courtlistener`
   : "https://www.courtlistener.com/api/rest/v4";
 
-// ── Harvard CAP proxy ──────────────────────────────────────────────────────
-export const CAP_BASE = API_URL
-  ? `${API_URL}/api/cap`
-  : "https://api.case.law/v1";
-
 // ── GovInfo proxy ──────────────────────────────────────────────────────────
 export const GOVINFO_BASE = API_URL
   ? `${API_URL}/api/govinfo`
