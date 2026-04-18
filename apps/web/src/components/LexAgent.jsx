@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { ANTHROPIC_ENDPOINT, COURTLISTENER_BASE, GOVINFO_BASE, CONGRESS_BASE, ECFR_BASE, EDGAR_BASE, USPTO_BASE, OPENSTATES_BASE, getAnthropicKey, setAnthropicKey } from "../lib/api";
+import { useAuth } from "../lib/auth";
+import { loadMatters, upsertMatter, upsertMatters, deleteMatter } from "../lib/db";
 import * as pdfjsLib from "pdfjs-dist";
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
 
@@ -4447,6 +4449,7 @@ class PanelErrorBoundary extends React.Component {
 // ── Main App v5 ────────────────────────────────────────────────────────────
 export default function LexAgent() {
   const {isMobile,isTablet} = useBreakpoint();
+  const { user } = useAuth();
   const [cases,setCases] = useState([]);
   const [sel,setSel] = useState(null);
   const [settings,setSettings] = useState(DEFAULT_SETTINGS);
@@ -4476,15 +4479,41 @@ export default function LexAgent() {
   useEffect(()=>{
     (async()=>{
       const [c,s,l,vault] = await Promise.all([vaultStore.get("lex4-cases"),store.get("lex4-settings"),vaultStore.get("lex4-logs"),vaultStore.get(VAULT_KEY)]);
-      if(c) setCases(c);
-              const mergedSettings = {...DEFAULT_SETTINGS,...(s||{})};
-        if(vault?.courtListenerToken) mergedSettings.courtListenerToken = vault.courtListenerToken;
-        if(vault?.govInfoKey) mergedSettings.govInfoKey = vault.govInfoKey;
-        if(vault?.anthropicKey) mergedSettings.anthropicKey = vault.anthropicKey;
-        setSettings(mergedSettings);
-        // Keep module-level key in sync so safeFetch can inject it for direct calls
-        if(mergedSettings.anthropicKey) setAnthropicKey(mergedSettings.anthropicKey);
+      const localCases = c || [];
+      const mergedSettings = {...DEFAULT_SETTINGS,...(s||{})};
+      if(vault?.courtListenerToken) mergedSettings.courtListenerToken = vault.courtListenerToken;
+      if(vault?.govInfoKey) mergedSettings.govInfoKey = vault.govInfoKey;
+      if(vault?.anthropicKey) mergedSettings.anthropicKey = vault.anthropicKey;
+      setSettings(mergedSettings);
+      if(mergedSettings.anthropicKey) setAnthropicKey(mergedSettings.anthropicKey);
       if(l) setLogs(l);
+
+      // ── Supabase sync: load from cloud when authenticated ──────────────────
+      if(user){
+        try{
+          const cloudCases = await loadMatters(user.id);
+          // Merge: cloud is authoritative; add any localStorage-only matters to cloud
+          const cloudIds = new Set(cloudCases.map(x=>x.id));
+          const localOnly = localCases.filter(x=>!cloudIds.has(x.id));
+          if(localOnly.length){
+            // Migrate localStorage matters up to Supabase silently
+            await upsertMatters(user.id, localOnly).catch(()=>{});
+          }
+          // Merge result: cloud + any local-only that weren't in cloud yet
+          const merged = [...cloudCases, ...localOnly];
+          setCases(merged);
+          // Keep localStorage in sync as cache
+          vaultStore.set("lex4-cases", merged);
+          setLoaded(true);
+          if(!merged.length&&!mergedSettings.anthropicKey&&!import.meta.env.VITE_API_URL) setShowOnboarding(true);
+          return;
+        }catch(e){
+          console.warn("[LexAgent] Supabase load failed, falling back to localStorage:", e.message);
+        }
+      }
+
+      // ── Fallback: localStorage only (demo / unauthenticated mode) ──────────
+      if(localCases.length) setCases(localCases);
       // Load shared matters from teammates
       try{
         const sharedIds = await vaultStore.get("lex4-shared-ids")||[];
@@ -4506,10 +4535,9 @@ export default function LexAgent() {
         }
       }catch(e){console.warn("Shared matters load failed:",e);}
       setLoaded(true);
-      // Show onboarding if fresh install (no matters, no API key, and no backend proxy)
-      if((!c||!c.length)&&!mergedSettings.anthropicKey&&!import.meta.env.VITE_API_URL) setShowOnboarding(true);
+      if((!localCases.length)&&!mergedSettings.anthropicKey&&!import.meta.env.VITE_API_URL) setShowOnboarding(true);
     })();
-  },[]);
+  },[user]);
 
   useEffect(()=>{
     const h = e=>{if((e.metaKey||e.ctrlKey)&&e.key==="k"){e.preventDefault();setShowCmd(v=>!v);}};
@@ -4520,7 +4548,6 @@ export default function LexAgent() {
   
   const saveCase = useCallback(async updated => {
     if (typeof updated === "function") {
-      // Capture both the updated case AND the full new array inside the setter (atomic)
       let result = null;
       setCases(prev => {
         const current = prev.find(x => x.id === sel?.id);
@@ -4530,11 +4557,11 @@ export default function LexAgent() {
         result = { updatedCase, next };
         return next;
       });
-      // Use setTimeout(0) to run after React commits the state change
       setTimeout(() => {
         if (result) {
           setSel(result.updatedCase);
           vaultStore.set("lex4-cases", result.next);
+          if(user) upsertMatter(user.id, result.updatedCase).catch(()=>{});
         }
       }, 0);
       return;
@@ -4546,12 +4573,14 @@ export default function LexAgent() {
       return next;
     });
     if (sel?.id === updated.id) setSel(updated);
-  }, [sel]);
+    if(user) upsertMatter(user.id, updated).catch(()=>{});
+  }, [sel, user]);
 
   const createCase = async form=>{
     const nc = {...form,id:genId(),createdAt:Date.now(),precedents:[],strategy:null,notes:[],allVerifications:[],deadlines:[],timeEntries:[],totalMinsBilled:0};
     const next = [nc,...cases];
     setCases(next); await vaultStore.set("lex4-cases",next);
+    if(user) upsertMatter(user.id, nc).catch(()=>{});
     // If shared, also write to shared storage so teammates see it
     if(form.shared){
       try{
@@ -4566,6 +4595,7 @@ export default function LexAgent() {
   const deleteCase = async id=>{
     const next = cases.filter(c=>c.id!==id);
     setCases(next); await vaultStore.set("lex4-cases",next);
+    if(user) deleteMatter(id).catch(()=>{});
     setSel(null); setView("dashboard"); toast_("Matter closed.");
   };
 
