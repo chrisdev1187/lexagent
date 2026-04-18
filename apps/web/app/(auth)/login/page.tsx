@@ -43,7 +43,7 @@ export default function LoginPage() {
       method: "HEAD",
       signal: AbortSignal.timeout(4000),
     })
-      .then((r) => setReachable(r.ok))
+      .then(() => setReachable(true))
       .catch(() => setReachable(false));
   };
 
