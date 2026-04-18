@@ -17,7 +17,7 @@ if (!supabaseAnonKey && typeof window !== "undefined") {
 export const supabaseReachable: Promise<boolean> =
   typeof window !== "undefined"
     ? fetch(`${supabaseUrl}/auth/v1/health`, { method: "HEAD", signal: AbortSignal.timeout(4000) })
-        .then((r) => r.ok)
+        .then(() => true)
         .catch(() => false)
     : Promise.resolve(true);
 
