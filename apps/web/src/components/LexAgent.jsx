@@ -1401,11 +1401,23 @@ function ResearchPanel({caseData,settings,onUpdateCase,onLog,isMobile,notify}) {
             <div style={{width:7,height:7,borderRadius:"50%",background:settings.webSearch?T.emerald:T.textMuted,animation:settings.webSearch?"pulse 2s infinite":""}}/>
             <span style={{fontSize:10,color:T.textSub,fontFamily:"'JetBrains Mono',monospace",letterSpacing:"0.06em"}}>ARES · HALLUCINATION SHIELD {settings.autoVerify?"ON":"OFF"}</span>
           </div>
-          <div style={{display:"flex",gap:5}}>
+          <div style={{display:"flex",gap:5,alignItems:"center"}}>
             {(caseData.allVerifications?.length>0)&&(
               <Badge color={(caseData.allVerifications||[]).find(v=>v.status==="not_found")?T.crimson:T.emerald} size="xs">
                 {(caseData.allVerifications||[]).filter(v=>v.status==="verified").length}/{(caseData.allVerifications||[]).length} verified
               </Badge>
+            )}
+            {msgs.length>1&&(
+              <button title="Print research conversation" onClick={()=>{
+                const w=window.open("","_blank");
+                if(w){
+                  const body=msgs.map(m=>`<div style="margin-bottom:20px;padding:12px;background:${m.role==="user"?"#f9f9f9":"#fff"};border:1px solid #ddd;border-radius:6px"><div style="font-size:9pt;color:#888;margin-bottom:6px;font-family:monospace">${m.role==="user"?"ATTORNEY":"ARES"} · ${new Date(m.ts).toLocaleTimeString()}</div><div style="font-size:11pt;line-height:1.6;white-space:pre-wrap">${m.content.replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div></div>`).join("");
+                  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Research — ${caseData.title}</title><style>@page{margin:1in}body{font-family:'Times New Roman',serif;font-size:12pt;color:#111;max-width:750px;margin:40px auto}h2{margin-bottom:4px}@media print{body{-webkit-print-color-adjust:exact}}</style></head><body><h2>Research Conversation</h2><p style="font-size:9pt;color:#888;margin-bottom:20px">${caseData.title} · ${caseData.caseType} · ${caseData.jurisdiction} · Printed ${new Date().toLocaleString()}</p>${body}</body></html>`);
+                  w.document.close();w.focus();setTimeout(()=>{try{w.print()}catch{}},500);
+                }
+              }} style={{width:26,height:26,borderRadius:5,border:`1px solid ${T.border}`,background:T.panel2,color:T.textSub,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                <Icon n="pdf" size={11} color={T.textSub}/>
+              </button>
             )}
           </div>
         </div>
@@ -1633,6 +1645,7 @@ function DraftPanel({caseData,settings,onLog,isMobile,notify}) {
   const [loading,setLoading] = useState(false);
   const [exporting,setExporting] = useState(null);
   const [mobileView, setMobileView] = useState("config"); // "config"|"output"
+  const [editMode,setEditMode] = useState(false); // "preview"|"edit"
 
   const generate = async()=>{
     if(!type||loading) return;
@@ -1976,7 +1989,11 @@ Now write the complete ${dt.label}, starting with the caption. The REQUIRED ENDI
           </div>
           {draft&&(
             <div style={{display:"flex",gap:5,flexShrink:0}}>
-              <Btn variant="cobalt" size="xs" icon="pdf" onClick={()=>doExport("pdf")} disabled={!!exporting}>{exporting==="pdf"?"…":"PDF"}</Btn>
+              <button onClick={()=>setEditMode(e=>!e)}
+                style={{fontSize:10,padding:"3px 9px",borderRadius:5,border:`1px solid ${editMode?T.gold:T.border}`,background:editMode?T.goldFaint:T.panel2,color:editMode?T.gold:T.textSub,cursor:"pointer",fontFamily:"'JetBrains Mono',monospace",letterSpacing:"0.05em"}}>
+                {editMode?"Preview":"Edit"}
+              </button>
+              <Btn variant="cobalt" size="xs" icon="pdf" onClick={()=>doExport("pdf")} disabled={!!exporting}>{exporting==="pdf"?"…":"Print / PDF"}</Btn>
               <Btn variant="emerald" size="xs" icon="word" onClick={()=>doExport("docx")} disabled={!!exporting}>{exporting==="docx"?"…":"Word"}</Btn>
               <Btn variant="ghost" size="xs" onClick={()=>navigator.clipboard.writeText(draft)} icon="copy">Copy</Btn>
             </div>
@@ -1984,7 +2001,13 @@ Now write the complete ${dt.label}, starting with the caption. The REQUIRED ENDI
         </div>
         <div className="scroll-y" style={{flex:1,padding:isMobile?"14px":"24px 28px"}}>
           {loading?<div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100%",gap:12}}><Spinner size={28}/><div style={{fontSize:13,color:T.textSub}}>Drafting with verified citations only…</div></div>
-          :draft?<div className="prose" style={{maxWidth:700,margin:"0 auto",fontFamily:"'Playfair Display',serif"}} dangerouslySetInnerHTML={{__html:renderMd(draft)}}/>
+          :draft?(
+            editMode
+              ? <textarea value={draft} onChange={e=>setDraft(e.target.value)}
+                  style={{width:"100%",height:"100%",minHeight:500,background:T.bg2,border:`1px solid ${T.border}`,borderRadius:6,color:T.text,padding:"20px",fontSize:12,fontFamily:"'JetBrains Mono',monospace",lineHeight:1.75,resize:"vertical"}}
+                  className="gold-focus" spellCheck={false}/>
+              : <div className="prose" style={{maxWidth:700,margin:"0 auto",fontFamily:"'Playfair Display',serif"}} dangerouslySetInnerHTML={{__html:renderMd(draft)}}/>
+          )
           :<div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100%",gap:12,textAlign:"center"}}>
             <Icon n="draft" size={32} color={T.textMuted}/>
             <div className="serif" style={{fontSize:18,color:T.textMuted,fontStyle:"italic"}}>Select a type and generate</div>
@@ -3026,7 +3049,8 @@ function VaultPanel({caseData,settings,onUpdateCase,isMobile,notify}) {
   const [query,setQuery] = useState("");
   const [loading,setLoading] = useState(false);
   const [results,setResults] = useState([]);
-  const [mode,setMode] = useState("ask"); // "ask"|"extract"|"compare"
+  const [mode,setMode] = useState("ask"); // "ask"|"extract"|"compare"|"summarize"
+  const [previewDoc,setPreviewDoc] = useState(null); // id of doc showing text preview
   const vaultRef = useRef();
 
   const EXTRACT_TEMPLATES = [
@@ -3089,7 +3113,7 @@ function VaultPanel({caseData,settings,onUpdateCase,isMobile,notify}) {
       })});
       
       const text = (data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("") || "No response";
-      setResults([{query:q,response:text,ts:Date.now(),docCount:Math.min(docs.length,5)}]);
+      setResults(prev=>[{query:q,response:text,ts:Date.now(),docCount:Math.min(docs.length,5)},...prev.slice(0,9)]);
       notify?.success("Vault Analysis Complete", `${Math.min(docs.length,5)} document(s) analyzed`, settings.model);
     }catch(e){
       setResults([{query,response:`Error: ${e.message}`,ts:Date.now(),docCount:0}]);
@@ -3113,18 +3137,25 @@ function VaultPanel({caseData,settings,onUpdateCase,isMobile,notify}) {
           <SectionHeader label={`Vault (${docs.length})`}/>
           {!docs.length&&<div style={{fontSize:12,color:T.textMuted,textAlign:"center",padding:"16px 0",lineHeight:1.6}}>No documents yet</div>}
           {docs.map(d=>(
-            <div key={d.id} style={{display:"flex",alignItems:"center",gap:7,padding:"7px 0",borderBottom:`1px solid ${T.border}`}}>
-              <Icon n="pdf" size={13} color={T.cobalt}/>
-              <div style={{flex:1,minWidth:0}}>
-                <span className="truncate" style={{fontSize:11,color:T.text,display:"block"}}>{d.name}</span>
-                {d.extractedChars>0
-                  ? <span style={{fontSize:9,color:T.green,fontFamily:"'JetBrains Mono',monospace"}}>{(d.extractedChars/1000).toFixed(1)}k chars extracted</span>
-                  : (d.type==="application/pdf"||d.name?.endsWith(".pdf"))
-                    ? <span style={{fontSize:9,color:T.amber,fontFamily:"'JetBrains Mono',monospace"}}>image PDF — text unavailable</span>
-                    : null
-                }
+            <div key={d.id} style={{borderBottom:`1px solid ${T.border}`}}>
+              <div style={{display:"flex",alignItems:"center",gap:7,padding:"7px 0"}}>
+                <Icon n="pdf" size={13} color={T.cobalt}/>
+                <div style={{flex:1,minWidth:0}}>
+                  <span className="truncate" style={{fontSize:11,color:T.text,display:"block"}}>{d.name}</span>
+                  {d.extractedChars>0
+                    ? <span style={{fontSize:9,color:T.green,fontFamily:"'JetBrains Mono',monospace",cursor:"pointer"}} onClick={()=>setPreviewDoc(previewDoc===d.id?null:d.id)}>{(d.extractedChars/1000).toFixed(1)}k chars · {previewDoc===d.id?"hide":"preview"}</span>
+                    : (d.type==="application/pdf"||d.name?.endsWith(".pdf"))
+                      ? <span style={{fontSize:9,color:T.amber,fontFamily:"'JetBrains Mono',monospace"}}>image PDF — text unavailable</span>
+                      : null
+                  }
+                </div>
+                <button onClick={()=>removeDoc(d.id)} style={{background:"none",border:"none",padding:2,cursor:"pointer",flexShrink:0}}><Icon n="close" size={10} color={T.textMuted}/></button>
               </div>
-              <button onClick={()=>removeDoc(d.id)} style={{background:"none",border:"none",padding:2,cursor:"pointer",flexShrink:0}}><Icon n="close" size={10} color={T.textMuted}/></button>
+              {previewDoc===d.id&&d.extractedText&&(
+                <div style={{fontSize:10,color:T.textSub,background:T.bg2,border:`1px solid ${T.border}`,borderRadius:5,padding:"8px",marginBottom:6,maxHeight:180,overflowY:"auto",fontFamily:"'JetBrains Mono',monospace",lineHeight:1.55,whiteSpace:"pre-wrap",wordBreak:"break-word"}}>
+                  {d.extractedText.slice(0,3000)}{d.extractedText.length>3000?"…[truncated]":""}
+                </div>
+              )}
             </div>
           ))}
         </Panel>
@@ -3134,8 +3165,8 @@ function VaultPanel({caseData,settings,onUpdateCase,isMobile,notify}) {
       <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
         <div style={{background:T.bg2,borderBottom:`1px solid ${T.border}`,padding:"10px 14px",flexShrink:0}}>
           <div style={{display:"flex",gap:4,marginBottom:10,flexWrap:"wrap"}}>
-            {[{id:"ask",label:"Ask Across Docs"},{id:"extract",label:"Extract Data"},{id:"compare",label:"Compare Docs"}].map(m=>(
-              <button key={m.id} onClick={()=>setMode(m.id)}
+            {[{id:"ask",label:"Ask Across Docs"},{id:"summarize",label:"Summarize"},{id:"extract",label:"Extract Data"},{id:"compare",label:"Compare Docs"}].map(m=>(
+              <button key={m.id} onClick={()=>{setMode(m.id);if(m.id==="summarize")setQuery("Provide a comprehensive executive summary of each document: key parties, main provisions, critical dates, obligations, risks, and any red flags or unusual clauses a lawyer should note.");}}
                 style={{fontSize:11,padding:"4px 10px",borderRadius:4,cursor:"pointer",background:mode===m.id?T.goldFaint:"transparent",border:`1px solid ${mode===m.id?T.goldDim:T.border}`,color:mode===m.id?T.gold:T.textSub,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>
                 {m.label}
               </button>
@@ -3155,7 +3186,8 @@ function VaultPanel({caseData,settings,onUpdateCase,isMobile,notify}) {
             <input value={query} onChange={e=>setQuery(e.target.value)} onKeyDown={e=>e.key==="Enter"&&analyze()}
               placeholder={mode==="ask"?"Ask a question across all documents…":mode==="extract"?"What to extract from all documents…":"How should I compare these documents?"}
               style={{flex:1,background:T.bg2,border:`1px solid ${T.border}`,borderRadius:6,color:T.text,padding:"9px 12px",fontSize:13,minWidth:0}} className="gold-focus"/>
-            <Btn onClick={analyze} disabled={loading||!docs.length||!query.trim()} icon="search">{loading?"Analyzing…":"Analyze"}</Btn>
+            <Btn onClick={analyze} disabled={loading||!docs.length||!query.trim()} icon="search">{loading?"Analyzing…":mode==="summarize"?"Summarize":"Analyze"}</Btn>
+            {results.length>0&&<Btn variant="ghost" size="sm" onClick={()=>setResults([])} disabled={loading}>Clear</Btn>}
           </div>
           {!docs.length&&<div style={{fontSize:11,color:T.amber,marginTop:6}}>⚠ Add documents to the vault first</div>}
           {!!docs.length&&docs.some(d=>d.extractedChars>0)&&(
@@ -3177,11 +3209,21 @@ function VaultPanel({caseData,settings,onUpdateCase,isMobile,notify}) {
             <div style={{fontSize:12,color:T.textMuted,maxWidth:400,lineHeight:1.7}}>Upload documents and ask questions across all of them at once. Extract structured data, compare contracts, or analyze discovery materials.</div>
           </div>}
           {results.map((r,i)=>(
-            <div key={i} style={{marginBottom:20}}>
-              <div style={{fontSize:10,color:T.textMuted,fontFamily:"'JetBrains Mono',monospace",marginBottom:8}}>
-                {new Date(r.ts).toLocaleTimeString()} · {r.docCount} document(s)
+            <div key={i} style={{marginBottom:24,background:T.surface,border:`1px solid ${T.border}`,borderRadius:8,overflow:"hidden"}}>
+              <div style={{padding:"8px 14px",borderBottom:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,background:T.panel2}}>
+                <div style={{fontSize:10,color:T.textMuted,fontFamily:"'JetBrains Mono',monospace"}}>
+                  {new Date(r.ts).toLocaleTimeString()} · {r.docCount} doc(s) · <span style={{color:T.gold}}>{r.query.slice(0,60)}{r.query.length>60?"…":""}</span>
+                </div>
+                <div style={{display:"flex",gap:5,flexShrink:0}}>
+                  <button onClick={()=>navigator.clipboard.writeText(r.response)}
+                    style={{fontSize:9,padding:"2px 8px",borderRadius:4,border:`1px solid ${T.border}`,background:T.panel2,color:T.textSub,cursor:"pointer",fontFamily:"'JetBrains Mono',monospace"}}>Copy</button>
+                  <button onClick={()=>{
+                    const w=window.open("","_blank");
+                    if(w){w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Document Analysis</title><style>@page{margin:1in}body{font-family:'Times New Roman',serif;font-size:12pt;line-height:1.6;max-width:700px;margin:40px auto;color:#111}h1,h2,h3{margin:16px 0 6px}p{margin-bottom:10px}ul{padding-left:20px}@media print{body{-webkit-print-color-adjust:exact}}</style></head><body><h2>Document Analysis — ${new Date(r.ts).toLocaleString()}</h2><p><em>${r.query}</em></p><hr/>${renderMd(r.response)}</body></html>`);w.document.close();w.focus();setTimeout(()=>{try{w.print()}catch{}},500);}}}
+                    style={{fontSize:9,padding:"2px 8px",borderRadius:4,border:`1px solid ${T.cobalt}40`,background:`${T.cobalt}10`,color:T.cobalt,cursor:"pointer",fontFamily:"'JetBrains Mono',monospace"}}>Print</button>
+                </div>
               </div>
-              <div className="prose" dangerouslySetInnerHTML={{__html:renderMd(r.response)}}/>
+              <div style={{padding:"16px 20px"}} className="prose" dangerouslySetInnerHTML={{__html:renderMd(r.response)}}/>
             </div>
           ))}
         </div>
