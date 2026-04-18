@@ -11,6 +11,7 @@ import { useAuth } from "@/lib/auth";
 import { useSettings } from "@/providers/settings-provider";
 import { useMatters, Matter } from "@/providers/matters-provider";
 import { LexTooltip } from "@/components/shared/LexTooltip";
+import { UsagePill } from "@/components/shared/UsagePill";
 
 const STATUS_COLOR: Record<string, string> = {
   Active: "var(--emerald)",
@@ -171,13 +172,16 @@ export function Sidebar({ onNewMatter }: SidebarProps) {
 
       {/* Bottom: user + collapse */}
       <div style={{ borderTop: "1px solid var(--sidebar-border)" }}>
-        {/* Billable timer hint */}
+        {/* Billable timer hint + usage pill */}
         {!collapsed && (
-          <div className="flex items-center gap-2 px-4 py-2">
-            <Timer size={12} style={{ color: "var(--text-muted)" }} />
-            <span className="font-mono text-[10px]" style={{ color: "var(--text-muted)" }}>
-              00:00:00
-            </span>
+          <div className="flex items-center justify-between px-4 py-2">
+            <div className="flex items-center gap-2">
+              <Timer size={12} style={{ color: "var(--text-muted)" }} />
+              <span className="font-mono text-[10px]" style={{ color: "var(--text-muted)" }}>
+                00:00:00
+              </span>
+            </div>
+            <UsagePill />
           </div>
         )}
 

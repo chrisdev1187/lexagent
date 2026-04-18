@@ -1,14 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
-  Building2, Palette, Key, Cpu, ShieldCheck, FileText, Activity, ChevronRight,
+  Building2, Palette, Key, Cpu, ShieldCheck, FileText, Activity, ChevronRight, Users,
 } from "lucide-react";
 import { useSettings } from "@/providers/settings-provider";
+import { useAuth } from "@/lib/auth";
+import { supabase } from "@/lib/supabase";
 import { PRACTICE_AREAS, DEFAULT_SYSTEM } from "@/lib/settings";
 import { LexTooltip } from "@/components/shared/LexTooltip";
 
-type TabKey = "firm" | "ui" | "apikeys" | "model" | "shield" | "prompt" | "telemetry";
+type TabKey = "firm" | "ui" | "apikeys" | "model" | "shield" | "prompt" | "telemetry" | "users";
 
 const ADMIN_TABS: { id: TabKey; icon: React.ElementType; label: string }[] = [
   { id: "firm",      icon: Building2,  label: "Firm Profile"    },
@@ -18,6 +20,7 @@ const ADMIN_TABS: { id: TabKey; icon: React.ElementType; label: string }[] = [
   { id: "shield",    icon: ShieldCheck,label: "Hallucination Shield" },
   { id: "prompt",    icon: FileText,   label: "System Prompt"   },
   { id: "telemetry", icon: Activity,   label: "Telemetry"       },
+  { id: "users",     icon: Users,      label: "User Management" },
 ];
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
@@ -54,6 +57,159 @@ const inputStyle = {
   color: "var(--text)",
   outline: "none",
 };
+
+interface AdminUser {
+  user_id: string;
+  role: string;
+  plan_id: string;
+  byok_active: boolean;
+  profiles: { email: string | null; full_name: string | null } | null;
+  usage_monthly: { total_usd_cost: number; total_requests: number } | null;
+}
+
+const PLANS = ["starter", "professional", "firm", "premium"];
+
+function UserManagementTab() {
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [updating, setUpdating] = useState<string | null>(null);
+
+  const now = new Date();
+
+  useEffect(() => {
+    async function load() {
+      const { data } = await supabase
+        .from("user_roles")
+        .select(`
+          user_id, role, plan_id, byok_active,
+          profiles (email, full_name)
+        `)
+        .order("user_id");
+
+      if (!data) { setLoading(false); return; }
+
+      // Fetch this month's usage for each user
+      const userIds = data.map((u: any) => u.user_id);
+      const { data: usageData } = await supabase
+        .from("usage_monthly")
+        .select("user_id, total_usd_cost, total_requests")
+        .in("user_id", userIds)
+        .eq("year", now.getFullYear())
+        .eq("month", now.getMonth() + 1);
+
+      const usageMap: Record<string, { total_usd_cost: number; total_requests: number }> = {};
+      (usageData ?? []).forEach((u: any) => { usageMap[u.user_id] = u; });
+
+      setUsers((data as any[]).map((u) => ({
+        ...u,
+        profiles: Array.isArray(u.profiles) ? u.profiles[0] ?? null : u.profiles,
+        usage_monthly: usageMap[u.user_id] ?? null,
+      })));
+      setLoading(false);
+    }
+    load();
+  }, []);
+
+  async function changePlan(userId: string, planId: string) {
+    setUpdating(userId);
+    await supabase.from("user_roles").update({ plan_id: planId }).eq("user_id", userId);
+    setUsers((prev) => prev.map((u) => u.user_id === userId ? { ...u, plan_id: planId } : u));
+    setUpdating(null);
+  }
+
+  const filtered = users.filter((u) => {
+    const email = u.profiles?.email ?? "";
+    const name = u.profiles?.full_name ?? "";
+    return email.includes(search) || name.includes(search) || u.plan_id.includes(search);
+  });
+
+  return (
+    <div>
+      <SectionHeading>ALL USERS</SectionHeading>
+      <input
+        className={inputCls}
+        style={{ ...inputStyle, marginBottom: "1rem" }}
+        placeholder="Search by email, name, or plan…"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
+
+      {loading ? (
+        <p style={{ color: "var(--text-muted)" }}>Loading…</p>
+      ) : filtered.length === 0 ? (
+        <p style={{ color: "var(--text-muted)" }}>No users found.</p>
+      ) : (
+        <div style={{ overflowX: "auto" }}>
+          <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ background: "var(--panel)" }}>
+                {["Email", "Name", "Role", "Plan", "Usage (mo)", "Requests", "Actions"].map((h) => (
+                  <th key={h} className="px-3 py-2 text-left font-mono text-[10px] tracking-wider" style={{ color: "var(--text-muted)" }}>
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((u) => {
+                const spent = Number(u.usage_monthly?.total_usd_cost ?? 0);
+                return (
+                  <tr key={u.user_id} style={{ borderTop: "1px solid var(--border)" }}>
+                    <td className="px-3 py-2.5" style={{ color: "var(--text)" }}>
+                      {u.profiles?.email ?? "—"}
+                    </td>
+                    <td className="px-3 py-2.5" style={{ color: "var(--text-muted)" }}>
+                      {u.profiles?.full_name ?? "—"}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <span
+                        className="px-2 py-0.5 rounded text-xs"
+                        style={{ background: u.role === "admin" ? "var(--gold)" : "var(--panel)", color: u.role === "admin" ? "#000" : "var(--text-muted)" }}
+                      >
+                        {u.role}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <select
+                        value={u.plan_id}
+                        disabled={updating === u.user_id}
+                        onChange={(e) => changePlan(u.user_id, e.target.value)}
+                        className="rounded px-2 py-1 text-xs"
+                        style={{ background: "var(--panel)", color: "var(--text)", border: "1px solid var(--border)" }}
+                      >
+                        {PLANS.map((p) => <option key={p} value={p}>{p}</option>)}
+                      </select>
+                    </td>
+                    <td className="px-3 py-2.5 font-mono text-xs" style={{ color: "var(--text)" }}>
+                      ${spent.toFixed(4)}
+                    </td>
+                    <td className="px-3 py-2.5 font-mono text-xs" style={{ color: "var(--text-muted)" }}>
+                      {u.usage_monthly?.total_requests ?? 0}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <a
+                        href={`/settings/profile?uid=${u.user_id}`}
+                        className="text-xs"
+                        style={{ color: "var(--emerald)" }}
+                      >
+                        View
+                      </a>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <p className="text-xs mt-4" style={{ color: "var(--text-muted)" }}>
+        {filtered.length} user{filtered.length !== 1 ? "s" : ""} · Usage data: {now.toLocaleString("default", { month: "long" })} {now.getFullYear()}
+      </p>
+    </div>
+  );
+}
 
 export default function AdminPage() {
   const { settings, updateSettings } = useSettings();
@@ -364,6 +520,9 @@ export default function AdminPage() {
             </button>
           </div>
         );
+
+      case "users":
+        return <UserManagementTab />;
 
       case "telemetry":
         return (
