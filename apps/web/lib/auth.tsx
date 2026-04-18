@@ -11,17 +11,70 @@ import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 import { setAuthToken } from "./api";
 
+export type AuthErrorCode =
+  | "invalid_credentials"
+  | "email_not_confirmed"
+  | "rate_limited"
+  | "network_unreachable"
+  | "supabase_misconfigured"
+  | "unknown";
+
+export interface AuthError {
+  code: AuthErrorCode;
+  message: string;
+}
+
 interface AuthContextValue {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signInWithEmail: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUpWithEmail: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signInWithGoogle: () => Promise<{ error: Error | null }>;
+  signInWithEmail: (email: string, password: string) => Promise<{ error: AuthError | null }>;
+  signUpWithEmail: (email: string, password: string) => Promise<{ error: AuthError | null }>;
+  signInWithGoogle: () => Promise<{ error: AuthError | null }>;
+  resendConfirmation: (email: string) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+
+function classifyError(err: unknown): AuthError {
+  if (!err) return { code: "unknown", message: "Unknown error" };
+
+  const msg = (err as { message?: string }).message ?? String(err);
+  const status = (err as { status?: number }).status;
+
+  if (
+    err instanceof TypeError ||
+    msg.toLowerCase().includes("failed to fetch") ||
+    msg.toLowerCase().includes("networkerror") ||
+    msg.toLowerCase().includes("network request failed")
+  ) {
+    return { code: "network_unreachable", message: msg };
+  }
+
+  if (status === 429 || msg.toLowerCase().includes("rate limit") || msg.toLowerCase().includes("too many")) {
+    return { code: "rate_limited", message: msg };
+  }
+
+  if (msg.toLowerCase().includes("email not confirmed") || msg.toLowerCase().includes("email_not_confirmed")) {
+    return { code: "email_not_confirmed", message: msg };
+  }
+
+  if (
+    msg.toLowerCase().includes("invalid login credentials") ||
+    msg.toLowerCase().includes("invalid email or password") ||
+    msg.toLowerCase().includes("user not found") ||
+    msg.toLowerCase().includes("wrong password")
+  ) {
+    return { code: "invalid_credentials", message: msg };
+  }
+
+  if (msg.toLowerCase().includes("url") && msg.toLowerCase().includes("required")) {
+    return { code: "supabase_misconfigured", message: msg };
+  }
+
+  return { code: "unknown", message: msg };
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -48,21 +101,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signInWithEmail = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error: error as Error | null };
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      return { error: error ? classifyError(error) : null };
+    } catch (err) {
+      return { error: classifyError(err) };
+    }
   };
 
   const signUpWithEmail = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({ email, password });
-    return { error: error as Error | null };
+    try {
+      const { error } = await supabase.auth.signUp({ email, password });
+      return { error: error ? classifyError(error) : null };
+    } catch (err) {
+      return { error: classifyError(err) };
+    }
   };
 
   const signInWithGoogle = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: typeof window !== "undefined" ? window.location.origin : "" },
-    });
-    return { error: error as Error | null };
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: typeof window !== "undefined" ? window.location.origin : "" },
+      });
+      return { error: error ? classifyError(error) : null };
+    } catch (err) {
+      return { error: classifyError(err) };
+    }
+  };
+
+  const resendConfirmation = async (email: string) => {
+    try {
+      const { error } = await supabase.auth.resend({ type: "signup", email });
+      return { error: error ? classifyError(error) : null };
+    } catch (err) {
+      return { error: classifyError(err) };
+    }
   };
 
   const signOut = async () => {
@@ -71,7 +145,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, session, loading, signInWithEmail, signUpWithEmail, signInWithGoogle, signOut }}
+      value={{
+        user,
+        session,
+        loading,
+        signInWithEmail,
+        signUpWithEmail,
+        signInWithGoogle,
+        resendConfirmation,
+        signOut,
+      }}
     >
       {children}
     </AuthContext.Provider>

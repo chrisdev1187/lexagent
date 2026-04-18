@@ -4,6 +4,9 @@
   "scripts": {
     "dev": "pnpm --parallel --filter './apps/*' dev",
     "build": "pnpm --filter './apps/*' build",
-    "lint": "pnpm --filter './apps/*' lint"
+    "lint": "pnpm --filter './apps/*' lint",
+    "check:migrations": "SUPABASE_URL=https://mgiqicasllvisiwvbiuu.supabase.co npx tsx scripts/check-migrations.ts",
+    "seed:admin": "npx tsx scripts/seed-admin.ts",
+    "verify:auth": "npx tsx scripts/verify-auth.ts"
   }
 }

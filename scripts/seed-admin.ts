@@ -1,23 +1,38 @@
 /**
- * Seed script: create admin accounts and verify plan rows exist.
+ * Seed script: create/repair admin accounts using the Supabase Admin API.
+ *
+ * WHY the Admin API and not raw SQL:
+ *   Supabase requires an `auth.identities` row for every user — without it,
+ *   signInWithPassword always returns "Invalid login credentials" even if the
+ *   password hash in `auth.users` is correct. The Admin API creates both rows
+ *   atomically; raw SQL inserts into `auth.users` alone will always break login.
  *
  * Usage:
  *   SUPABASE_URL=https://... SUPABASE_SERVICE_ROLE_KEY=... npx tsx scripts/seed-admin.ts
- *
- * The service role key bypasses RLS — never expose it client-side.
+ *   (or: pnpm seed:admin  — see root package.json)
  */
 
 import { createClient } from "@supabase/supabase-js";
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_URL = process.env.SUPABASE_URL ?? "https://mgiqicasllvisiwvbiuu.supabase.co";
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_ANON_KEY =
+  process.env.SUPABASE_ANON_KEY ?? "";
 
-if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-  console.error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY env vars.");
+if (!SUPABASE_SERVICE_ROLE_KEY) {
+  console.error(
+    "Missing SUPABASE_SERVICE_ROLE_KEY.\n" +
+    "Get it from: Supabase Dashboard → Project Settings → API → service_role key\n" +
+    "Then run: SUPABASE_SERVICE_ROLE_KEY=<key> pnpm seed:admin"
+  );
   process.exit(1);
 }
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  auth: { autoRefreshToken: false, persistSession: false },
+});
+
+const anonClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
@@ -26,55 +41,145 @@ const ADMINS = [
   { email: "christiaanbothma47@gmail.com", password: "P@ssword1212*#*#" },
 ];
 
-async function upsertAdmin(email: string, password: string) {
-  // Check if user already exists
-  const { data: list } = await supabase.auth.admin.listUsers();
+async function upsertAdmin(email: string, password: string): Promise<string> {
+  const { data: list, error: listErr } = await adminClient.auth.admin.listUsers();
+  if (listErr) {
+    if (listErr.message.includes("401") || listErr.status === 401) {
+      throw new Error(
+        "SUPABASE_SERVICE_ROLE_KEY is invalid or is the anon key (not the service_role key). " +
+        "Check Supabase Dashboard → Project Settings → API."
+      );
+    }
+    throw new Error(`listUsers failed: ${listErr.message}`);
+  }
+
   const existing = list?.users?.find((u) => u.email === email);
 
   let userId: string;
 
   if (existing) {
-    console.log(`[skip] ${email} already exists (${existing.id})`);
-    userId = existing.id;
+    console.log(`  [exists]  ${email} (${existing.id})`);
+
+    // Check if identity row exists — orphaned users (created via raw SQL) have none
+    const hasIdentity = (existing.identities ?? []).length > 0;
+
+    if (!hasIdentity) {
+      console.log(`  [repair]  No auth.identities row — deleting orphan and re-creating via Admin API`);
+      const { error: delErr } = await adminClient.auth.admin.deleteUser(existing.id);
+      if (delErr) throw new Error(`deleteUser ${email}: ${delErr.message}`);
+
+      const { data: created, error: createErr } = await adminClient.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+      });
+      if (createErr) throw new Error(`createUser (after repair) ${email}: ${createErr.message}`);
+      userId = created.user.id;
+      console.log(`  [created] ${email} → ${userId} (with identities)`);
+    } else {
+      // User is healthy — just reset the password in case it was changed
+      const { error: updateErr } = await adminClient.auth.admin.updateUserById(existing.id, {
+        password,
+        email_confirm: true,
+      });
+      if (updateErr) throw new Error(`updateUser ${email}: ${updateErr.message}`);
+      userId = existing.id;
+      console.log(`  [updated] password reset + email confirmed`);
+    }
   } else {
-    const { data, error } = await supabase.auth.admin.createUser({
+    const { data, error } = await adminClient.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
     });
     if (error) throw new Error(`createUser ${email}: ${error.message}`);
     userId = data.user.id;
-    console.log(`[created] ${email} → ${userId}`);
+    console.log(`  [created] ${email} → ${userId}`);
   }
 
-  // Upsert user_roles to admin + premium plan
-  const { error: roleErr } = await supabase
+  // Upsert user_roles → admin + premium
+  const { error: roleErr } = await adminClient
     .from("user_roles")
     .upsert({ user_id: userId, role: "admin", plan_id: "premium" }, { onConflict: "user_id" });
 
-  if (roleErr) throw new Error(`user_roles upsert ${email}: ${roleErr.message}`);
-  console.log(`[role] ${email} → admin / premium`);
+  if (roleErr) {
+    if (roleErr.code === "42P01") {
+      throw new Error(
+        `user_roles table not found. Run 003_monetisation.sql in Supabase SQL editor first, then retry.`
+      );
+    }
+    throw new Error(`user_roles upsert ${email}: ${roleErr.message}`);
+  }
+  console.log(`  [role]    admin / premium`);
+
+  return userId;
+}
+
+async function verifyLogin(email: string, password: string): Promise<boolean> {
+  const { data, error } = await anonClient.auth.signInWithPassword({ email, password });
+  if (error || !data.session) {
+    console.error(`  [verify]  FAIL — ${error?.message ?? "no session"}`);
+    return false;
+  }
+  console.log(`  [verify]  PASS (token: ${data.session.access_token.slice(0, 20)}…)`);
+  await anonClient.auth.signOut();
+  return true;
+}
+
+async function checkPlans(): Promise<void> {
+  const { data: plans, error } = await adminClient.from("plans").select("id");
+  if (error) {
+    if (error.code === "42P01") {
+      throw new Error(
+        "plans table not found. Run these in Supabase SQL editor first:\n" +
+        "  1. supabase/migrations/001_init.sql\n" +
+        "  2. supabase/migrations/002_rls.sql\n" +
+        "  3. supabase/migrations/003_monetisation.sql"
+      );
+    }
+    throw new Error(`Cannot read plans: ${error.message}`);
+  }
+  const ids = plans?.map((p) => p.id) ?? [];
+  if (!ids.includes("premium")) {
+    throw new Error(
+      `"premium" plan not found in plans table (found: ${ids.join(", ") || "none"}). ` +
+      "Run 003_monetisation.sql in Supabase SQL editor."
+    );
+  }
+  console.log(`  Plans OK: ${ids.join(", ")}`);
 }
 
 async function main() {
   console.log("=== LexAgent seed-admin ===\n");
 
-  // Verify plans exist (migration 003 must have been run first)
-  const { data: plans, error: plansErr } = await supabase.from("plans").select("id");
-  if (plansErr) {
-    console.error("Cannot read plans table — have you run 003_monetisation.sql?");
-    process.exit(1);
-  }
-  console.log(`Plans found: ${plans?.map((p) => p.id).join(", ")}\n`);
+  console.log("Pre-flight: checking plans table…");
+  await checkPlans();
+  console.log();
+
+  let allVerified = true;
 
   for (const { email, password } of ADMINS) {
+    console.log(`── ${email}`);
     await upsertAdmin(email, password);
+    const ok = await verifyLogin(email, password);
+    if (!ok) allVerified = false;
+    console.log();
   }
 
-  console.log("\n✓ Done.");
+  if (!allVerified) {
+    console.error(
+      "One or more logins failed verification.\n" +
+      "If Supabase Dashboard → Auth → Providers → Email still has 'Confirm email' enabled,\n" +
+      "disable it for testing (Auth → Providers → Email → toggle off 'Confirm email').\n" +
+      "Then re-run: pnpm seed:admin"
+    );
+    process.exit(1);
+  }
+
+  console.log("✓ All admins seeded and verified. You can now log in at /login.");
 }
 
 main().catch((err) => {
-  console.error(err);
+  console.error("\nError:", err.message ?? err);
   process.exit(1);
 });
