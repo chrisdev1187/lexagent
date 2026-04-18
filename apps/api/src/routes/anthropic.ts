@@ -185,6 +185,13 @@ async function tryProviders(
     };
 
     const text = data.choices?.[0]?.message?.content ?? "";
+
+    if (!text.trim()) {
+      errors.push(`${provider.name}: empty response content`);
+      console.warn(`[llm-router] ${provider.name} returned empty content — trying next provider`);
+      continue;
+    }
+
     const inputTokens = data.usage?.prompt_tokens ?? 0;
     const outputTokens = data.usage?.completion_tokens ?? 0;
 

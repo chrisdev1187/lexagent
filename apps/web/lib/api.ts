@@ -61,3 +61,7 @@ export const USPTO_BASE = API_URL
 export const OPENSTATES_BASE = API_URL
   ? `${API_URL}/api/openstates`
   : "https://v3.openstates.org";
+
+export function getApiHeaders(): Record<string, string> {
+  return _authToken ? { Authorization: `Bearer ${_authToken}` } : {};
+}
