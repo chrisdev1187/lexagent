@@ -28,6 +28,9 @@ export interface AppSettings {
   practiceAreas: string[];
   letterheadText: string;
 
+  // Billing
+  hourlyRate: number;
+
   // UI Preferences (NEW)
   tooltipsEnabled: boolean;
   animationsEnabled: boolean;
@@ -74,6 +77,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   practiceAreas: [],
   letterheadText: "",
 
+  // Billing defaults
+  hourlyRate: 350,
+
   // UI Preference defaults
   tooltipsEnabled: true,
   animationsEnabled: true,
@@ -100,6 +106,7 @@ export const JURISDICTIONS = [
 ];
 
 export const TABS = [
+  { id: "overview",     label: "Overview",      icon: "LayoutDashboard", tooltip: "Matter summary — details, stats, and quick actions" },
   { id: "research",     label: "Research",      icon: "Search",     tooltip: "AI-powered case law research using CourtListener (9M+ opinions)" },
   { id: "deepresearch", label: "Deep Research",  icon: "ScanSearch", tooltip: "Multi-source legal research: Congress, eCFR, EDGAR, USPTO, OpenStates" },
   { id: "vault",        label: "Vault",          icon: "FileText",   tooltip: "Secure document storage — upload PDFs, evidence, discovery materials" },
@@ -110,6 +117,7 @@ export const TABS = [
   { id: "citations",    label: "Shield",         icon: "ShieldCheck", tooltip: "Hallucination Shield — verify all citations against 18M+ CourtListener records" },
   { id: "draft",        label: "Draft",          icon: "FileEdit",   tooltip: "AI document drafting: motions, briefs, letters, memos" },
   { id: "notes",        label: "Evidence",       icon: "BookOpen",   tooltip: "Case notes, evidence log, and annotations" },
+  { id: "billing",      label: "Billing",        icon: "Receipt",    tooltip: "Billable hours, time entries, and invoice generation" },
   { id: "conflict",     label: "Conflict",       icon: "Scale",      tooltip: "Conflict of interest checker across all active matters" },
 ] as const;
 

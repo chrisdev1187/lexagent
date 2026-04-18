@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Scale, LayoutDashboard, Settings, ChevronLeft, ChevronRight,
-  Plus, Circle, Folder, LogOut, User, Timer, Square, Play,
+  Plus, Circle, Folder, LogOut, User, Timer, Square, Play, Users,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useSettings } from "@/providers/settings-provider";
@@ -108,6 +108,7 @@ export function Sidebar({ onNewMatter }: SidebarProps) {
 
   const navItems = [
     { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+    { href: "/clients", icon: Users, label: "Clients" },
     { href: "/admin", icon: Settings, label: "Administration" },
   ];
 
@@ -203,7 +204,7 @@ export function Sidebar({ onNewMatter }: SidebarProps) {
           return (
             <LexTooltip key={m.id} content={`${m.title} — ${m.status}`} side="right">
               <Link
-                href={`/matters/${m.id}/research`}
+                href={`/matters/${m.id}/overview`}
                 className="flex items-center gap-2 rounded-lg px-2.5 py-2 cursor-pointer transition-all duration-150 group"
                 style={{
                   background: active ? "var(--panel)" : "transparent",

@@ -304,6 +304,20 @@ export default function AdminPage() {
                 placeholder="e.g., Attorneys at Law · Serving Since 1998"
               />
             </Field>
+
+            <SectionHeading>BILLING</SectionHeading>
+            <Field label="DEFAULT HOURLY RATE ($)" tooltip="Used to calculate invoice totals in the Billing tab">
+              <input
+                className={inputCls}
+                style={inputStyle}
+                type="number"
+                min="0"
+                step="5"
+                value={settings.hourlyRate ?? 350}
+                onChange={e => set("hourlyRate", parseFloat(e.target.value) || 0)}
+                placeholder="350"
+              />
+            </Field>
           </div>
         );
 

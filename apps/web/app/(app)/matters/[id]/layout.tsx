@@ -5,6 +5,7 @@ import { usePathname, useParams } from "next/navigation";
 import {
   Search, ScanSearch, FileText, Target, Users, Clock,
   CalendarDays, ShieldCheck, FileEdit, BookOpen, Scale, ArrowLeft,
+  LayoutDashboard, Receipt,
 } from "lucide-react";
 import { useMatters } from "@/providers/matters-provider";
 import { LexTooltip } from "@/components/shared/LexTooltip";
@@ -12,7 +13,7 @@ import { TABS } from "@/lib/settings";
 
 const ICON_MAP: Record<string, React.ElementType> = {
   Search, ScanSearch, FileText, Target, Users, Clock,
-  CalendarDays, ShieldCheck, FileEdit, BookOpen, Scale,
+  CalendarDays, ShieldCheck, FileEdit, BookOpen, Scale, LayoutDashboard, Receipt,
 };
 
 function TabBar() {

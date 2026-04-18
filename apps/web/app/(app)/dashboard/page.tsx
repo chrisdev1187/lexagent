@@ -54,7 +54,7 @@ function MatterCard({ matter }: { matter: Matter }) {
   const totalHours = ((matter.totalMinsBilled ?? 0) / 60).toFixed(1);
 
   return (
-    <Link href={`/matters/${matter.id}/research`}>
+    <Link href={`/matters/${matter.id}/overview`}>
       <div
         className="rounded-xl p-4 cursor-pointer transition-all duration-150 group matter-card"
         style={{
