@@ -42,58 +42,67 @@ const ADMINS = [
 ];
 
 async function upsertAdmin(email: string, password: string): Promise<string> {
-  const { data: list, error: listErr } = await adminClient.auth.admin.listUsers();
-  if (listErr) {
-    if (listErr.message.includes("401") || listErr.status === 401) {
-      throw new Error(
-        "SUPABASE_SERVICE_ROLE_KEY is invalid or is the anon key (not the service_role key). " +
-        "Check Supabase Dashboard → Project Settings → API."
-      );
-    }
-    throw new Error(`listUsers failed: ${listErr.message}`);
-  }
-
-  const existing = list?.users?.find((u) => u.email === email);
+  // Try to create — if user already exists Supabase returns a specific error
+  const { data: created, error: createErr } = await adminClient.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+  });
 
   let userId: string;
 
-  if (existing) {
-    console.log(`  [exists]  ${email} (${existing.id})`);
+  if (createErr) {
+    const msg = createErr.message ?? "";
+    if (createErr.status === 401) {
+      throw new Error(
+        "SUPABASE_SERVICE_ROLE_KEY is invalid or is the anon key. " +
+        "Check Supabase Dashboard → Project Settings → API → service_role."
+      );
+    }
 
-    // Check if identity row exists — orphaned users (created via raw SQL) have none
-    const hasIdentity = (existing.identities ?? []).length > 0;
+    // User already exists — find them via the DB and update
+    if (msg.toLowerCase().includes("already") || msg.toLowerCase().includes("duplicate") || createErr.status === 422) {
+      console.log(`  [exists]  ${email} — resetting password via admin update`);
 
-    if (!hasIdentity) {
-      console.log(`  [repair]  No auth.identities row — deleting orphan and re-creating via Admin API`);
-      const { error: delErr } = await adminClient.auth.admin.deleteUser(existing.id);
-      if (delErr) throw new Error(`deleteUser ${email}: ${delErr.message}`);
+      // Look up by querying auth.users directly via service role
+      const res = await fetch(
+        `${SUPABASE_URL}/auth/v1/admin/users?email=${encodeURIComponent(email)}`,
+        { headers: { apikey: SUPABASE_SERVICE_ROLE_KEY!, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` } }
+      );
+      const json = await res.json() as { users?: { id: string; identities?: unknown[] }[] };
+      const existing = json.users?.[0];
 
-      const { data: created, error: createErr } = await adminClient.auth.admin.createUser({
-        email,
-        password,
-        email_confirm: true,
-      });
-      if (createErr) throw new Error(`createUser (after repair) ${email}: ${createErr.message}`);
-      userId = created.user.id;
-      console.log(`  [created] ${email} → ${userId} (with identities)`);
-    } else {
-      // User is healthy — just reset the password in case it was changed
-      const { error: updateErr } = await adminClient.auth.admin.updateUserById(existing.id, {
-        password,
-        email_confirm: true,
-      });
-      if (updateErr) throw new Error(`updateUser ${email}: ${updateErr.message}`);
+      if (!existing) {
+        throw new Error(`User ${email} exists but could not be fetched. Try deleting them in Supabase Dashboard → Auth → Users and re-running.`);
+      }
+
       userId = existing.id;
-      console.log(`  [updated] password reset + email confirmed`);
+
+      // Check for missing identities (orphan from raw SQL seed)
+      if (!existing.identities || existing.identities.length === 0) {
+        console.log(`  [repair]  No identities row — deleting orphan and re-creating`);
+        const { error: delErr } = await adminClient.auth.admin.deleteUser(userId);
+        if (delErr) throw new Error(`deleteUser ${email}: ${delErr.message}`);
+
+        const { data: recreated, error: reErr } = await adminClient.auth.admin.createUser({
+          email, password, email_confirm: true,
+        });
+        if (reErr) throw new Error(`re-createUser ${email}: ${reErr.message}`);
+        userId = recreated.user.id;
+        console.log(`  [created] ${email} → ${userId} (repaired with identities)`);
+      } else {
+        const { error: updateErr } = await adminClient.auth.admin.updateUserById(userId, {
+          password,
+          email_confirm: true,
+        });
+        if (updateErr) throw new Error(`updateUser ${email}: ${updateErr.message}`);
+        console.log(`  [updated] password reset + email confirmed`);
+      }
+    } else {
+      throw new Error(`createUser ${email}: ${msg}`);
     }
   } else {
-    const { data, error } = await adminClient.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-    });
-    if (error) throw new Error(`createUser ${email}: ${error.message}`);
-    userId = data.user.id;
+    userId = created.user.id;
     console.log(`  [created] ${email} → ${userId}`);
   }
 
