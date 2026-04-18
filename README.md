@@ -1,20 +1,23 @@
 # LexAgent — AI Legal Practice Platform
 
-> **ARES** (Autonomous Research & Evidence System) — Harvey AI competitor built on a 9-provider free LLM waterfall, 10 live legal databases, and a real-time Hallucination Shield.
+> **ARES** (Autonomous Research & Evidence System) — Harvey AI competitor built on a 9-provider free LLM waterfall, 10 live legal databases, real-time Hallucination Shield, and full Supabase auth with cloud persistence.
 
 **Live:** https://lexagent-ochre.vercel.app  
-**API:** https://lexagent-0o5u.onrender.com
+**API:** https://lexagent-0o5u.onrender.com  
+**GitHub:** https://github.com/chrisdev1187/lexagent
 
 ---
 
 ## What It Does
 
-- AI-powered legal research across 10 authoritative databases
-- Hallucination Shield — every citation verified against CourtListener in real-time
+- AI-powered legal research across 10 authoritative databases (CourtListener, SEC EDGAR, USPTO, eCFR, Congress.gov, GovInfo, Regulations.gov, OpenStates)
+- RAG pre-fetch — databases are queried BEFORE the AI call; real results injected as context (anti-hallucination)
+- Hallucination Shield — every citation verified against CourtListener in real-time, tagged [DB]/[WEB]/[MEM]
 - Judge intelligence profiling (16,000+ federal and state judges)
-- Legal document drafting (motions, memos, briefs, demand letters)
-- SOL calculator, case timeline, conflict checker
-- Zero API cost in normal operation — free LLM waterfall with 9 providers
+- Legal document drafting with inline editing and print/export
+- Document vault — multi-PDF upload, AI analysis, summarize, compare, extract
+- SOL calculator, case timeline, conflict checker, billing tracker
+- Zero API cost in normal operation — 9-provider free LLM waterfall
 
 ---
 
@@ -22,16 +25,17 @@
 
 | Layer | Tech |
 |---|---|
-| Frontend | Vite + React, deployed on Vercel |
+| Frontend | Vite + React, deployed on Vercel (auto-deploys from master) |
 | Backend | Hono (Node), deployed on Render |
 | Monorepo | pnpm workspaces |
-| Auth | Supabase (optional — bypassed in dev/demo) |
-| LLM | 9-provider waterfall (Groq → Cerebras → SambaNova → OpenRouter → NVIDIA → xAI → Mistral → Gemini × 2) |
-| Paid fallback | Anthropic Claude (Sonnet 4.6 / Opus 4.7 / Haiku 4.5) |
+| Auth | Supabase — email/password sign-in, JWT session tokens |
+| Database | Supabase Postgres — matters, documents, logs, usage_events |
+| LLM | 9-provider waterfall: Groq → Cerebras → SambaNova → OpenRouter → NVIDIA → xAI → Mistral → Gemini × 2 |
+| Paid fallback | Anthropic Claude (Sonnet 4.6 / Opus 4.7 / Haiku 4.5) — user-provided key |
 
 ---
 
-## Quickstart
+## Quickstart (Local Dev)
 
 ```bash
 # 1. Install
@@ -42,23 +46,25 @@ cp apps/api/.env.example apps/api/.env
 # Add at minimum: GROQ_API_KEY (free at console.groq.com)
 
 # 3. Configure frontend
-echo "VITE_API_URL=http://localhost:8080" > apps/web/.env.local
+cp apps/web/.env.example apps/web/.env.local
+# Set: VITE_API_URL=http://localhost:8080
+# Optional: VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY for auth
 
 # 4. Run
 pnpm --filter api dev    # API on :8080
 pnpm --filter web dev    # Web on :5173
 ```
 
-The app runs without Supabase. Auth is bypassed, all requests treated as `userId = "anon"`.
+The app runs without Supabase — auth gate is bypassed, all storage falls back to localStorage (demo mode).
 
 ---
 
 ## Environment Variables
 
-### `apps/api/.env`
+### `apps/api/.env` (never committed)
 
 ```bash
-# ── LLM Providers (add as many as you want — more = more redundancy) ──────────
+# ── LLM Providers ────────────────────────────────────────────────────────────
 GROQ_API_KEY=gsk_...               # console.groq.com (free)
 # CEREBRAS_API_KEY=csk-...         # cloud.cerebras.ai (free)
 # SAMBANOVA_API_KEY=...            # cloud.sambanova.ai (free)
@@ -68,78 +74,88 @@ GROQ_API_KEY=gsk_...               # console.groq.com (free)
 # MISTRAL_API_KEY=...              # console.mistral.ai (free tier)
 # GEMINI_API_KEY=AIza...           # aistudio.google.com (free)
 # GEMINI_API_KEY_2=AIza...         # second account for rotation
-# ANTHROPIC_API_KEY=sk-ant-...    # fallback when all free providers exhausted (paid)
+# ANTHROPIC_API_KEY=sk-ant-...     # paid fallback only
 
 # ── Legal Database APIs ────────────────────────────────────────────────────────
-# CourtListener — courtlistener.com/register (free token)
-# COURTLISTENER_TOKEN=your-token
+# COURTLISTENER_TOKEN=...          # courtlistener.com/register (free)
+# DATA_GOV_KEY=...                 # api.data.gov/signup (free) — covers GovInfo + Congress + Regulations
+# OPENSTATES_KEY=...               # openstates.org/accounts/signup (free)
 
-# api.data.gov — api.data.gov/signup (free) — ONE key covers 3 APIs:
-#   GovInfo (US Code, CFR, Federal Register)
-#   Congress.gov (bills, amendments, voting records)
-#   Regulations.gov (federal rulemaking, agency dockets)
-# DATA_GOV_KEY=your-key
-
-# OpenStates — openstates.org/accounts/signup (free)
-# OPENSTATES_KEY=your-key
-
-# Free APIs with no key needed (always active):
-#   eCFR: ecfr.gov — live Code of Federal Regulations
-#   SEC EDGAR: sec.gov — corporate filings full-text search
-#   USPTO PatentsView: patentsview.org — patent database
+# ── Supabase (required for auth + cloud persistence) ──────────────────────────
+# SUPABASE_URL=https://your-project.supabase.co
+# SUPABASE_SERVICE_KEY=your-service-role-key   # NOT the anon key
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
-ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173,https://your-app.vercel.app
-
-# ── Supabase (optional) ───────────────────────────────────────────────────────
-# SUPABASE_URL=https://your-project.supabase.co
-# SUPABASE_SERVICE_KEY=your-service-role-key
-
-# ── Rate limits ───────────────────────────────────────────────────────────────
-ANTHROPIC_RPM=60
-LEGAL_RPM=120
+ALLOWED_ORIGINS=http://localhost:5173,https://lexagent-ochre.vercel.app
 ```
 
-### `apps/web/.env.local`
+### `apps/web/.env.local` (never committed)
 
 ```bash
 VITE_API_URL=http://localhost:8080
+
+# Supabase — enables auth gate and cloud matter persistence
 # VITE_SUPABASE_URL=https://your-project.supabase.co
 # VITE_SUPABASE_ANON_KEY=your-anon-key
 ```
 
 ---
 
+## Database Schema (Supabase)
+
+Tables in `supabase/migrations/`:
+
+| Table | Purpose |
+|---|---|
+| `profiles` | One row per user — auto-created on sign-up via trigger |
+| `matters` | Legal matters/cases — synced from app on every save |
+| `documents` | Vault docs and drafts linked to matters |
+| `logs` | Activity log per user/matter |
+| `usage_events` | Token usage tracking for billing and quota enforcement |
+
+RLS enabled on all tables — users can only read/write their own rows.
+
+---
+
+## Auth Flow
+
+1. User visits app → Supabase configured → **AuthGate** shows Sign In / Sign Up screen
+2. User signs up with email → Supabase sends confirmation email
+3. User clicks confirmation link → account activated, redirected to app
+4. Supabase issues JWT → stored in browser, injected into API calls via `Authorization: Bearer`
+5. Render backend validates JWT on every request via `middleware/auth.ts`
+6. Matters load from Supabase; any localStorage-only matters migrated to cloud on first login
+
+Without Supabase env vars: auth is bypassed, app runs in demo mode with localStorage only.
+
+---
+
 ## API Integrations
 
-All external API calls are proxied through the Hono backend. Secrets never reach the browser.
+All external API calls proxied through the Hono backend. Secrets never reach the browser.
 
-| Route | External API | Key Required | Data |
+| Route | External API | Key | Data |
 |---|---|---|---|
-| `/api/anthropic` | 9-provider LLM waterfall | Server env keys | AI completions |
-| `/api/courtlistener` | courtlistener.com | `COURTLISTENER_TOKEN` (optional) | 9M opinions, 18M citations, 16K judges |
+| `/api/anthropic` | 9-provider LLM waterfall | Server env | AI completions |
+| `/api/courtlistener` | courtlistener.com | `COURTLISTENER_TOKEN` (opt) | 9M opinions, 16K judges |
 | `/api/govinfo` | api.govinfo.gov | `DATA_GOV_KEY` | US Code, CFR, Federal Register |
-| `/api/congress` | api.congress.gov | `DATA_GOV_KEY` (same key) | Bills, amendments, voting records |
-| `/api/regulations` | api.regulations.gov | `DATA_GOV_KEY` (same key) | Federal rulemaking, agency dockets |
+| `/api/congress` | api.congress.gov | `DATA_GOV_KEY` | Bills, amendments, voting records |
+| `/api/regulations` | api.regulations.gov | `DATA_GOV_KEY` | Federal rulemaking, agency dockets |
 | `/api/ecfr` | ecfr.gov | None | Live Code of Federal Regulations |
 | `/api/edgar` | sec.gov / efts.sec.gov | None | Corporate filings: 10-K, 10-Q, 8-K |
 | `/api/uspto` | api.patentsview.org | None | Patent full-text, IP research |
-| `/api/openstates` | v3.openstates.org | `OPENSTATES_KEY` | 50-state legislation, bills |
-| `/api/cap` | *(decommissioned)* | — | Returns 410 — api.case.law shut down 2024 |
+| `/api/openstates` | v3.openstates.org | `OPENSTATES_KEY` | 50-state legislation |
+| `/api/cap` | *(decommissioned)* | — | 410 Gone — api.case.law shut down 2024 |
 
 ---
 
 ## LLM Waterfall
 
-The backend tries providers in this order. Skips any without a key. On HTTP 429 (rate limit) skips to the next. Returns the first success.
-
 ```
 Groq → Cerebras → SambaNova → OpenRouter → NVIDIA → xAI → Mistral → Gemini → Gemini-2 → Anthropic
 ```
 
-**Preferred provider routing:** The frontend model selector lets users pick a specific provider. That provider is sorted first in the waterfall and falls back automatically if rate-limited.
-
-**Model mapping:** Free providers receive Llama 3.3 70B (or 8B for haiku-class requests). The Anthropic models (Sonnet 4.6, Opus 4.7, Haiku 4.5) are available for paid testing via the admin model selector.
+Skips any provider without a key. On rate-limit (429) falls to next. Returns first success. Preferred-provider routing: user's chosen model sorted first, auto-falls back.
 
 ---
 
@@ -148,11 +164,11 @@ Groq → Cerebras → SambaNova → OpenRouter → NVIDIA → xAI → Mistral �
 ```
 lexagent/
 ├── apps/
-│   ├── api/                     # Hono backend
+│   ├── api/                       # Hono backend (Node)
 │   │   └── src/
-│   │       ├── index.ts         # Server entrypoint, all routes mounted
-│   │       ├── routes/          # One file per external API
-│   │       │   ├── anthropic.ts # LLM waterfall + provider routing
+│   │       ├── index.ts           # Entrypoint, all routes mounted
+│   │       ├── routes/            # One file per external API
+│   │       │   ├── anthropic.ts   # 9-provider LLM waterfall
 │   │       │   ├── courtlistener.ts
 │   │       │   ├── govinfo.ts
 │   │       │   ├── congress.ts
@@ -161,24 +177,30 @@ lexagent/
 │   │       │   ├── edgar.ts
 │   │       │   ├── uspto.ts
 │   │       │   ├── openstates.ts
-│   │       │   └── cap.ts       # 410 Gone — API decommissioned
+│   │       │   └── cap.ts         # 410 Gone
 │   │       └── middleware/
-│   │           ├── auth.ts      # Supabase JWT (bypassed if unconfigured)
-│   │           └── ratelimit.ts # Per-user token bucket
-│   └── web/                     # Vite + React frontend
+│   │           ├── auth.ts        # Supabase JWT validation
+│   │           └── ratelimit.ts   # Per-user token bucket
+│   └── web/                       # Vite + React frontend
 │       └── src/
 │           ├── components/
-│           │   ├── LexAgent.jsx # Main app (~4,400 lines)
-│           │   └── AuthGate.tsx # Login/signup screen
+│           │   ├── LexAgent.jsx   # Main app (~4,900 lines)
+│           │   └── AuthGate.tsx   # Login/signup screen
 │           ├── lib/
-│           │   ├── api.ts       # Proxy base URLs
-│           │   ├── auth.tsx     # AuthProvider + useAuth
-│           │   └── supabase.ts  # Supabase client
+│           │   ├── api.ts         # Proxy base URLs + auth header injection
+│           │   ├── auth.tsx       # AuthProvider + useAuth hook
+│           │   ├── supabase.ts    # Supabase browser client
+│           │   ├── db.ts          # Supabase CRUD — matters persistence
+│           │   └── storage.ts     # localStorage shim (demo/fallback)
 │           └── App.tsx
-├── supabase/migrations/         # DB schema + RLS policies
-├── render.yaml                  # Render.com deploy config
-├── PLAN.md                      # Internal dev roadmap (full detail)
-└── README.md                    # This file
+├── supabase/
+│   └── migrations/
+│       ├── 001_init.sql           # Tables + triggers
+│       └── 002_rls.sql            # Row Level Security policies
+├── docs/                          # SA localisation report, client proposal
+├── render.yaml                    # Render one-click deploy config
+├── PLAN.md                        # Internal dev roadmap
+└── README.md
 ```
 
 ---
@@ -189,17 +211,23 @@ lexagent/
 
 1. Connect GitHub repo at render.com
 2. Service: **Web Service**, Root: `apps/api`, Build: `pnpm install && pnpm build`, Start: `node dist/index.js`
-3. Set env vars: `GROQ_API_KEY`, `ALLOWED_ORIGINS` (your Vercel URL)
-4. Optional: add `COURTLISTENER_TOKEN`, `DATA_GOV_KEY`, `OPENSTATES_KEY`, Supabase keys
-
-Or use the included `render.yaml` for one-click deploy.
+3. Required env vars: `GROQ_API_KEY`, `ALLOWED_ORIGINS`
+4. For auth: `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`
+5. Or use `render.yaml` for one-click deploy
 
 ### Frontend → Vercel
 
-1. Import repo at vercel.com
+1. Import repo at vercel.com — auto-deploys on every push to master
 2. Root Directory: `apps/web`
-3. Set env var: `VITE_API_URL=https://your-render-api.onrender.com`
-4. Optional: Supabase `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY`
+3. Required: `VITE_API_URL=https://lexagent-0o5u.onrender.com`
+4. For auth: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
+
+### Database → Supabase
+
+1. Create project at supabase.com
+2. Run `supabase/migrations/001_init.sql` in SQL Editor
+3. Run `supabase/migrations/002_rls.sql` in SQL Editor
+4. Authentication → URL Configuration → set Site URL + Redirect URLs to your Vercel domain
 
 ---
 
@@ -207,17 +235,18 @@ Or use the included `render.yaml` for one-click deploy.
 
 | Tab | Feature |
 |---|---|
-| Research | AI chat + web search + PDF upload + citation verify + CourtListener direct search |
+| Research | AI chat + RAG pre-fetch from 8 databases + web search + citation verify |
 | Deep Research | Multi-pass extended research with iterative refinement |
-| Vault | Document storage and knowledge base |
+| Vault | Multi-PDF upload, AI analysis, summarize/compare/extract modes, result history |
 | Strategy | JSON-structured case strategy analysis |
-| Judge Intel | Live judge profiles — biography, affiliation, career positions, ABA ratings |
+| Judge Intel | Live judge profiles — biography, career, ABA ratings, ruling tendencies |
 | Deadlines | Statute of limitations calculator + deadline tracking |
 | Timeline | Case event timeline builder |
-| Shield | Hallucination audit — every citation classified as Verified / Unconfirmed / Not Found |
-| Draft | Legal document drafting — motions, memos, briefs, demand letters |
+| Shield | Hallucination audit — every citation classified Verified / Unconfirmed / Not Found |
+| Draft | Legal document drafting with inline markdown editing, print/export |
 | Evidence | Notes and evidence tracking |
 | Conflict | Conflict-of-interest checker |
+| Admin | API key management, live database telemetry, model selector |
 
 ---
 
@@ -226,6 +255,7 @@ Or use the included `render.yaml` for one-click deploy.
 | Feature | LexAgent | Harvey AI | CoCounsel | Lexis+AI |
 |---|---|---|---|---|
 | Hallucination Shield + citation verify | ✅ | ❌ | ❌ | Partial |
+| RAG pre-fetch (real database retrieval) | ✅ | ✅ | ❌ | Partial |
 | Judge profiling (16K+ judges) | ✅ | ❌ | ❌ | ❌ |
 | CourtListener direct integration | ✅ | ❌ | ❌ | ❌ |
 | Historical case search (pre-2000) | ✅ | ❌ | ❌ | ❌ |
@@ -233,16 +263,24 @@ Or use the included `render.yaml` for one-click deploy.
 | Conflict checker | ✅ | ❌ | ✅ | ❌ |
 | Free tier operation | ✅ | ❌ | ❌ | ❌ |
 | Document upload + analysis | ✅ | ✅ | ✅ | ✅ |
+| Cloud persistence (Supabase) | ✅ | ✅ | ✅ | ✅ |
 
-Harvey AI pricing: ~$1,200+/seat/month. LexAgent runs at near-zero marginal cost on free provider tiers.
+Harvey AI pricing: ~$1,200+/seat/month. LexAgent operates at near-zero marginal cost.
 
 ---
 
-## Current Status (2026-04-17)
+## Current Status (2026-04-18)
 
-Phase 3 (Production Infrastructure) complete. Working on Phase 3.5 hardening:
+**Phase 3.5 — Complete:**
+- RAG pre-fetch live (real database results injected before every AI call)
+- Admin telemetry system (live API ping tests with latency)
+- Anthropic key admin section (user-provided, browser-only)
+- Document panel: inline editing, summarize mode, result history, print/export
+- Supabase persistence wired — matters sync to cloud on every save
 
-- **Next:** RAG pre-fetch — query databases before AI call, inject real results as context
-- **Then:** Admin key ping tests, Supabase persistence, Render cold-start UX, empty provider response handling
+**Phase 4 — In Progress:**
+- Email confirmation flow verification
+- User roles, ranks, permissions, packages
+- Admin dashboard (usage, billing, user management)
 
-See `PLAN.md` for full roadmap and internal session notes.
+See `PLAN.md` for full roadmap.
