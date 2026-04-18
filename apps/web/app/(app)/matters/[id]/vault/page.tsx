@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { Archive, Plus, Trash2, ExternalLink } from "lucide-react";
+import { useState, useRef } from "react";
+import { Archive, Plus, Trash2, ExternalLink, Upload, FileText, Loader2 } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useMatters } from "@/providers/matters-provider";
+import { useAuth } from "@/lib/auth";
+import { supabase } from "@/lib/supabase";
 import { PanelShell } from "@/components/panels/PanelShell";
 
 interface VaultDoc {
@@ -11,6 +13,9 @@ interface VaultDoc {
   title: string;
   docType: string;
   url?: string;
+  storagePath?: string;
+  fileSize?: number;
+  fileType?: string;
   notes?: string;
   createdAt: number;
 }
@@ -32,9 +37,16 @@ const TYPE_COLORS: Record<string, string> = {
   Other: "var(--text-muted)",
 };
 
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1048576).toFixed(1)} MB`;
+}
+
 export default function VaultPage() {
   const { id } = useParams<{ id: string }>();
   const { getMatter, updateMatter } = useMatters();
+  const { user } = useAuth();
   const matter = getMatter(id);
 
   const [title, setTitle] = useState("");
@@ -42,30 +54,87 @@ export default function VaultPage() {
   const [url, setUrl] = useState("");
   const [notes, setNotes] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [viewingUrl, setViewingUrl] = useState<string | null>(null);
+  const [viewingDocId, setViewingDocId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const docs = (matter?.vaultDocs as unknown as VaultDoc[]) ?? [];
 
-  const addDoc = async () => {
-    if (!title.trim() || !matter) return;
-    const newDoc: VaultDoc = {
-      id: crypto.randomUUID(),
-      title: title.trim(),
-      docType,
-      url: url.trim() || undefined,
-      notes: notes.trim() || undefined,
-      createdAt: Date.now(),
-    };
-    await updateMatter({ ...matter, vaultDocs: [newDoc, ...docs] });
-    setTitle("");
-    setDocType("Motion");
-    setUrl("");
-    setNotes("");
-    setShowForm(false);
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null;
+    setSelectedFile(file);
+    if (file && !title) setTitle(file.name.replace(/\.[^.]+$/, ""));
   };
 
-  const deleteDoc = async (docId: string) => {
+  const addDoc = async () => {
+    if (!title.trim() || !matter || !user) return;
+    setUploading(true);
+    setUploadError(null);
+
+    let storagePath: string | undefined;
+    let fileSize: number | undefined;
+    let fileType: string | undefined;
+
+    try {
+      if (selectedFile) {
+        const ext = selectedFile.name.split(".").pop() ?? "bin";
+        const path = `${user.id}/${matter.id}/${crypto.randomUUID()}.${ext}`;
+        const { error } = await supabase.storage
+          .from("vault-docs")
+          .upload(path, selectedFile, { upsert: false });
+        if (error) throw new Error(error.message);
+        storagePath = path;
+        fileSize = selectedFile.size;
+        fileType = selectedFile.type;
+      }
+
+      const newDoc: VaultDoc = {
+        id: crypto.randomUUID(),
+        title: title.trim(),
+        docType,
+        url: url.trim() || undefined,
+        storagePath,
+        fileSize,
+        fileType,
+        notes: notes.trim() || undefined,
+        createdAt: Date.now(),
+      };
+      await updateMatter({ ...matter, vaultDocs: [newDoc, ...docs] });
+      setTitle("");
+      setDocType("Motion");
+      setUrl("");
+      setNotes("");
+      setSelectedFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      setShowForm(false);
+    } catch (e) {
+      setUploadError((e as Error).message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const deleteDoc = async (doc: VaultDoc) => {
     if (!matter) return;
-    await updateMatter({ ...matter, vaultDocs: docs.filter(d => d.id !== docId) });
+    if (doc.storagePath) {
+      await supabase.storage.from("vault-docs").remove([doc.storagePath]);
+    }
+    await updateMatter({ ...matter, vaultDocs: docs.filter(d => d.id !== doc.id) });
+    if (viewingDocId === doc.id) { setViewingUrl(null); setViewingDocId(null); }
+  };
+
+  const viewFile = async (doc: VaultDoc) => {
+    if (!doc.storagePath) return;
+    if (viewingDocId === doc.id) { setViewingUrl(null); setViewingDocId(null); return; }
+    const { data, error } = await supabase.storage
+      .from("vault-docs")
+      .createSignedUrl(doc.storagePath, 3600);
+    if (error || !data?.signedUrl) return;
+    setViewingUrl(data.signedUrl);
+    setViewingDocId(doc.id);
   };
 
   const inputStyle = {
@@ -129,6 +198,34 @@ export default function VaultPage() {
                 </select>
               </div>
             </div>
+
+            {/* File upload */}
+            <div>
+              <label className="text-xs mb-1 block" style={{ color: "var(--text-muted)" }}>Upload File (optional)</label>
+              <div
+                className="flex items-center gap-2 rounded-lg px-3 py-2 cursor-pointer"
+                style={{ border: "1px dashed var(--border)", background: "var(--panel2)" }}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload size={13} style={{ color: "var(--text-muted)" }} />
+                <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+                  {selectedFile ? selectedFile.name : "Click to upload PDF, Word, image…"}
+                </span>
+                {selectedFile && (
+                  <span className="ml-auto text-xs" style={{ color: "var(--text-muted)" }}>
+                    {formatBytes(selectedFile.size)}
+                  </span>
+                )}
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.txt"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+            </div>
+
             <div>
               <label className="text-xs mb-1 block" style={{ color: "var(--text-muted)" }}>URL (optional)</label>
               <input
@@ -149,9 +246,14 @@ export default function VaultPage() {
                 style={{ ...inputStyle, resize: "none" }}
               />
             </div>
+
+            {uploadError && (
+              <p className="text-xs" style={{ color: "var(--crimson)" }}>{uploadError}</p>
+            )}
+
             <div className="flex gap-2 justify-end">
               <button
-                onClick={() => setShowForm(false)}
+                onClick={() => { setShowForm(false); setSelectedFile(null); setUploadError(null); }}
                 className="text-xs px-3 py-1.5 rounded-lg"
                 style={{ background: "var(--panel2)", color: "var(--text-muted)", border: "1px solid var(--border)", cursor: "pointer" }}
               >
@@ -159,19 +261,18 @@ export default function VaultPage() {
               </button>
               <button
                 onClick={addDoc}
-                disabled={!title.trim()}
+                disabled={!title.trim() || uploading}
                 className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold"
                 style={{
-                  background: title.trim()
+                  background: title.trim() && !uploading
                     ? "linear-gradient(135deg, var(--emerald) 0%, #059669 100%)"
                     : "var(--panel2)",
-                  color: title.trim() ? "#0A0F0D" : "var(--text-muted)",
+                  color: title.trim() && !uploading ? "#0A0F0D" : "var(--text-muted)",
                   border: "none",
-                  cursor: title.trim() ? "pointer" : "default",
+                  cursor: title.trim() && !uploading ? "pointer" : "default",
                 }}
               >
-                <Plus size={12} />
-                Save Document
+                {uploading ? <><Loader2 size={12} className="animate-spin" /> Uploading…</> : <><Plus size={12} /> Save Document</>}
               </button>
             </div>
           </div>
@@ -193,55 +294,84 @@ export default function VaultPage() {
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {docs.map(doc => (
-            <div
-              key={doc.id}
-              className="rounded-xl p-4"
-              style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
-            >
-              <div className="flex items-start justify-between gap-2 mb-2">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <span
-                      className="text-xs font-semibold px-2 py-0.5 rounded-full"
-                      style={{
-                        background: `${TYPE_COLORS[doc.docType] ?? "var(--text-muted)"}22`,
-                        color: TYPE_COLORS[doc.docType] ?? "var(--text-muted)",
-                        border: `1px solid ${TYPE_COLORS[doc.docType] ?? "var(--text-muted)"}44`,
-                      }}
-                    >
-                      {doc.docType}
-                    </span>
-                    {doc.url && (
-                      <a
-                        href={doc.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ color: "var(--emerald)", display: "flex", alignItems: "center" }}
+            <div key={doc.id}>
+              <div
+                className="rounded-xl p-4"
+                style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+              >
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <span
+                        className="text-xs font-semibold px-2 py-0.5 rounded-full"
+                        style={{
+                          background: `${TYPE_COLORS[doc.docType] ?? "var(--text-muted)"}22`,
+                          color: TYPE_COLORS[doc.docType] ?? "var(--text-muted)",
+                          border: `1px solid ${TYPE_COLORS[doc.docType] ?? "var(--text-muted)"}44`,
+                        }}
                       >
-                        <ExternalLink size={12} />
-                      </a>
+                        {doc.docType}
+                      </span>
+                      {doc.storagePath && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: "var(--panel2)", color: "var(--text-muted)", border: "1px solid var(--border)" }}>
+                          {doc.fileType?.split("/")[1]?.toUpperCase() ?? "FILE"} · {formatBytes(doc.fileSize ?? 0)}
+                        </span>
+                      )}
+                      {doc.url && (
+                        <a
+                          href={doc.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ color: "var(--emerald)", display: "flex", alignItems: "center" }}
+                        >
+                          <ExternalLink size={12} />
+                        </a>
+                      )}
+                    </div>
+                    <p className="text-sm font-medium" style={{ color: "var(--text)" }}>{doc.title}</p>
+                    {doc.notes && (
+                      <p className="text-xs mt-1 line-clamp-2" style={{ color: "var(--text-muted)" }}>
+                        {doc.notes}
+                      </p>
                     )}
                   </div>
-                  <p className="text-sm font-medium" style={{ color: "var(--text)" }}>{doc.title}</p>
-                  {doc.notes && (
-                    <p
-                      className="text-xs mt-1 line-clamp-2"
-                      style={{ color: "var(--text-muted)" }}
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    {doc.storagePath && (
+                      <button
+                        onClick={() => viewFile(doc)}
+                        className="p-1 rounded"
+                        style={{ color: viewingDocId === doc.id ? "var(--emerald)" : "var(--text-muted)", background: "none", border: "none", cursor: "pointer" }}
+                        title="View file"
+                      >
+                        <FileText size={13} />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => deleteDoc(doc)}
+                      style={{ color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer" }}
                     >
-                      {doc.notes}
-                    </p>
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                </div>
+                <p className="text-xs mt-2" style={{ color: "var(--text-muted)" }}>
+                  {new Date(doc.createdAt).toLocaleDateString()}
+                </p>
+              </div>
+
+              {/* Inline file viewer */}
+              {viewingDocId === doc.id && viewingUrl && (
+                <div
+                  className="rounded-xl mt-2 overflow-hidden"
+                  style={{ border: "1px solid var(--border)", height: 500 }}
+                >
+                  {doc.fileType?.startsWith("image/") ? (
+                    <img src={viewingUrl} alt={doc.title} className="w-full h-full object-contain" style={{ background: "var(--surface)" }} />
+                  ) : (
+                    <iframe src={viewingUrl} title={doc.title} className="w-full h-full" style={{ border: "none" }} />
                   )}
                 </div>
-                <button
-                  onClick={() => deleteDoc(doc.id)}
-                  style={{ color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", flexShrink: 0 }}
-                >
-                  <Trash2 size={13} />
-                </button>
-              </div>
-              <p className="text-xs mt-2" style={{ color: "var(--text-muted)" }}>
-                {new Date(doc.createdAt).toLocaleDateString()}
-              </p>
+              )}
             </div>
           ))}
         </div>

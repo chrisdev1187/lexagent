@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Scale, LayoutDashboard, Settings, ChevronLeft, ChevronRight,
-  Plus, Circle, Folder, LogOut, User, Timer,
+  Plus, Circle, Folder, LogOut, User, Timer, Square, Play,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useSettings } from "@/providers/settings-provider";
@@ -28,8 +28,16 @@ export function Sidebar({ onNewMatter }: SidebarProps) {
   const pathname = usePathname();
   const { user, signOut } = useAuth();
   const { settings, updateSettings } = useSettings();
-  const { matters } = useMatters();
+  const { matters, getMatter, updateMatter } = useMatters();
   const [collapsed, setCollapsed] = useState(settings.sidebarCollapsed);
+
+  // Timer state
+  const [timerRunning, setTimerRunning] = useState(false);
+  const [displayElapsed, setDisplayElapsed] = useState(0);
+  const elapsedRef = useRef(0);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timerMatterIdRef = useRef<string | null>(null);
+  const startedAtRef = useRef<number>(0);
 
   const toggle = useCallback(() => {
     const next = !collapsed;
@@ -38,6 +46,65 @@ export function Sidebar({ onNewMatter }: SidebarProps) {
   }, [collapsed, updateSettings]);
 
   const activeMatterId = pathname?.match(/\/matters\/([^/]+)/)?.[1];
+
+  const stopAndSave = useCallback(() => {
+    if (!intervalRef.current) return;
+    clearInterval(intervalRef.current);
+    intervalRef.current = null;
+    const mid = timerMatterIdRef.current;
+    if (mid) {
+      const matter = getMatter(mid);
+      if (matter) {
+        const durationMins = Math.max(1, Math.ceil(elapsedRef.current / 60));
+        const entry = {
+          id: crypto.randomUUID(),
+          durationMins,
+          startedAt: startedAtRef.current,
+          stoppedAt: Date.now(),
+        };
+        const entries = (matter.timeEntries as typeof entry[]) ?? [];
+        updateMatter({
+          ...matter,
+          timeEntries: [entry, ...entries],
+          totalMinsBilled: ((matter.totalMinsBilled as number) ?? 0) + durationMins,
+        });
+      }
+    }
+    elapsedRef.current = 0;
+    setDisplayElapsed(0);
+    timerMatterIdRef.current = null;
+    setTimerRunning(false);
+  }, [getMatter, updateMatter]);
+
+  const startTimer = useCallback((mid: string) => {
+    if (timerRunning) {
+      stopAndSave();
+      return;
+    }
+    timerMatterIdRef.current = mid;
+    startedAtRef.current = Date.now();
+    elapsedRef.current = 0;
+    setDisplayElapsed(0);
+    setTimerRunning(true);
+    intervalRef.current = setInterval(() => {
+      elapsedRef.current += 1;
+      setDisplayElapsed(elapsedRef.current);
+    }, 1000);
+  }, [timerRunning, stopAndSave]);
+
+  // Auto-stop when switching matters
+  useEffect(() => {
+    if (timerRunning && timerMatterIdRef.current && timerMatterIdRef.current !== activeMatterId) {
+      stopAndSave();
+    }
+  }, [activeMatterId, timerRunning, stopAndSave]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, []);
 
   const navItems = [
     { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
@@ -172,15 +239,30 @@ export function Sidebar({ onNewMatter }: SidebarProps) {
 
       {/* Bottom: user + collapse */}
       <div style={{ borderTop: "1px solid var(--sidebar-border)" }}>
-        {/* Billable timer hint + usage pill */}
+        {/* Billable timer + usage pill */}
         {!collapsed && (
           <div className="flex items-center justify-between px-4 py-2">
-            <div className="flex items-center gap-2">
-              <Timer size={12} style={{ color: "var(--text-muted)" }} />
-              <span className="font-mono text-[10px]" style={{ color: "var(--text-muted)" }}>
-                00:00:00
-              </span>
-            </div>
+            <LexTooltip content={timerRunning ? "Stop timer & save entry" : activeMatterId ? "Start billable timer" : "Open a matter to start timer"} side="top">
+              <button
+                onClick={() => activeMatterId ? startTimer(activeMatterId) : undefined}
+                disabled={!activeMatterId && !timerRunning}
+                className="flex items-center gap-1.5 cursor-pointer"
+                style={{ background: "none", border: "none", padding: 0 }}
+              >
+                {timerRunning
+                  ? <Square size={12} fill="var(--crimson)" style={{ color: "var(--crimson)" }} />
+                  : <Play size={12} style={{ color: activeMatterId ? "var(--emerald)" : "var(--text-muted)" }} />
+                }
+                <span className="font-mono text-[10px]" style={{ color: timerRunning ? "var(--crimson)" : "var(--text-muted)" }}>
+                  {timerRunning
+                    ? `${String(Math.floor(displayElapsed / 3600)).padStart(2, "0")}:${String(Math.floor((displayElapsed % 3600) / 60)).padStart(2, "0")}:${String(displayElapsed % 60).padStart(2, "0")}`
+                    : activeMatterId
+                      ? (() => { const m = getMatter(activeMatterId); const mins = (m?.totalMinsBilled as number) ?? 0; return `${String(Math.floor(mins / 60)).padStart(2, "0")}h ${String(mins % 60).padStart(2, "0")}m billed`; })()
+                      : "00:00:00"
+                  }
+                </span>
+              </button>
+            </LexTooltip>
             <UsagePill />
           </div>
         )}

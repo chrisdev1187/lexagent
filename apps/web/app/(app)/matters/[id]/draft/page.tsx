@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FileEdit, Zap, Copy, Check, Loader2 } from "lucide-react";
+import { FileEdit, Zap, Copy, Check, Loader2, Download } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useMatters } from "@/providers/matters-provider";
 import { useSettings } from "@/providers/settings-provider";
@@ -55,6 +55,19 @@ export default function DraftPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const exportPDF = () => {
+    if (!draft) return;
+    const win = window.open("", "_blank");
+    if (!win) return;
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${docType}</title><style>
+      body { font-family: "Times New Roman", serif; font-size: 12pt; line-height: 1.8; margin: 0; color: #000; }
+      @page { margin: 1in; }
+      pre { white-space: pre-wrap; word-wrap: break-word; font-family: inherit; font-size: inherit; }
+    </style></head><body><pre>${draft.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</pre></body></html>`);
+    win.document.close();
+    setTimeout(() => { win.focus(); win.print(); }, 300);
   };
 
   const copyToClipboard = async () => {
@@ -166,19 +179,34 @@ export default function DraftPage() {
         <div>
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>{docType}</p>
-            <button
-              onClick={copyToClipboard}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
-              style={{
-                background: copied ? "rgba(16,185,129,0.12)" : "var(--panel2)",
-                color: copied ? "var(--emerald)" : "var(--text-muted)",
-                border: `1px solid ${copied ? "rgba(16,185,129,0.3)" : "var(--border)"}`,
-                cursor: "pointer",
-              }}
-            >
-              {copied ? <Check size={12} /> : <Copy size={12} />}
-              {copied ? "Copied!" : "Copy to Clipboard"}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={exportPDF}
+                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
+                style={{
+                  background: "var(--panel2)",
+                  color: "var(--text-muted)",
+                  border: "1px solid var(--border)",
+                  cursor: "pointer",
+                }}
+              >
+                <Download size={12} />
+                Export PDF
+              </button>
+              <button
+                onClick={copyToClipboard}
+                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
+                style={{
+                  background: copied ? "rgba(16,185,129,0.12)" : "var(--panel2)",
+                  color: copied ? "var(--emerald)" : "var(--text-muted)",
+                  border: `1px solid ${copied ? "rgba(16,185,129,0.3)" : "var(--border)"}`,
+                  cursor: "pointer",
+                }}
+              >
+                {copied ? <Check size={12} /> : <Copy size={12} />}
+                {copied ? "Copied!" : "Copy to Clipboard"}
+              </button>
+            </div>
           </div>
           <div
             className="rounded-xl p-5 overflow-auto"
