@@ -50,12 +50,7 @@ export function AuthGate({ children }: Props) {
     );
   }
 
-  // If Supabase isn't configured, skip auth entirely
-  const supabaseConfigured =
-    import.meta.env.VITE_SUPABASE_URL &&
-    import.meta.env.VITE_SUPABASE_URL !== "https://placeholder.supabase.co";
-
-  if (user || !supabaseConfigured) return <>{children}</>;
+  if (user) return <>{children}</>;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

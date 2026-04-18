@@ -27,16 +27,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Skip Supabase calls entirely when not configured (demo / localStorage-only mode)
-    const configured =
-      import.meta.env.VITE_SUPABASE_URL &&
-      !import.meta.env.VITE_SUPABASE_URL.includes("placeholder");
-
-    if (!configured) {
-      setLoading(false);
-      return;
-    }
-
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setUser(data.session?.user ?? null);
