@@ -39,7 +39,7 @@ interface MattersContextValue {
 
 const MattersContext = createContext<MattersContextValue | null>(null);
 
-const genId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+const genId = () => crypto.randomUUID();
 const _ns = (k: string, shared?: boolean) => (shared ? "lexagent:vault:" : "lexagent:") + k;
 
 export function MattersProvider({ children, onShowOnboarding }: { children: ReactNode; onShowOnboarding?: () => void }) {
@@ -104,11 +104,16 @@ export function MattersProvider({ children, onShowOnboarding }: { children: Reac
   const updateMatter = useCallback(async (updated: Matter | ((prev: Matter) => Matter)) => {
     if (typeof updated === "function") {
       setMatters(prev => {
+        const changed: Matter[] = [];
         const newMatters = prev.map(m => {
           const result = (updated as (prev: Matter) => Matter)(m);
+          if (result !== m) changed.push(result);
           return result.id === m.id ? result : m;
         });
         vaultStore.set("lex4-cases", newMatters);
+        if (user) {
+          for (const m of changed) upsertMatter(user.id, m as Record<string, unknown>).catch(() => {});
+        }
         return newMatters;
       });
       return;
