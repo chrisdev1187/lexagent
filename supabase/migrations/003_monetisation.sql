@@ -109,7 +109,6 @@ create table public.usage_events (
 
 create index if not exists usage_events_user_id_idx    on public.usage_events (user_id);
 create index if not exists usage_events_created_at_idx on public.usage_events (created_at desc);
-create index if not exists usage_events_month_idx      on public.usage_events (user_id, date_trunc('month', created_at));
 
 -- ── Usage Monthly Rollup ─────────────────────────────────────────────────────
 create table if not exists public.usage_monthly (
