@@ -1,6 +1,6 @@
 # LexAgent — AI Legal Practice Platform
 
-> **ARES** (Autonomous Research & Evidence System) — Harvey AI competitor built on a 9-provider free LLM waterfall, 10 live legal databases, real-time Hallucination Shield, and full Supabase auth with cloud persistence.
+> **ARES** (Advanced Research & Evidence System) — Harvey AI competitor built on a 9-provider free LLM waterfall, 10 live legal databases, real-time Hallucination Shield, and full Supabase auth with cloud persistence.
 
 **Live:** https://lexagent-ochre.vercel.app  
 **API:** https://lexagent-0o5u.onrender.com  
@@ -17,6 +17,7 @@
 - Legal document drafting with inline editing and print/export
 - Document vault — multi-PDF upload, AI analysis, summarize, compare, extract
 - SOL calculator, case timeline, conflict checker, billing tracker
+- Firm Profile + letterhead settings for generated documents
 - Zero API cost in normal operation — 9-provider free LLM waterfall
 
 ---
@@ -25,13 +26,16 @@
 
 | Layer | Tech |
 |---|---|
-| Frontend | Vite + React, deployed on Vercel (auto-deploys from master) |
+| Frontend | **Next.js 15** App Router + React 19, deployed on Vercel |
+| Design System | **Lex Viridian** — Tailwind v4 + @radix-ui primitives, emerald `#10B981` on near-black `#0A0F0D` |
+| Fonts | Playfair Display (serif) · Inter (sans) · JetBrains Mono (mono) |
+| Icons | lucide-react |
 | Backend | Hono (Node), deployed on Render |
 | Monorepo | pnpm workspaces |
-| Auth | Supabase — email/password sign-in, JWT session tokens |
+| Auth | Supabase — email/password + Google OAuth, JWT session tokens |
 | Database | Supabase Postgres — matters, documents, logs, usage_events |
 | LLM | 9-provider waterfall: Groq → Cerebras → SambaNova → OpenRouter → NVIDIA → xAI → Mistral → Gemini × 2 |
-| Paid fallback | Anthropic Claude (Sonnet 4.6 / Opus 4.7 / Haiku 4.5) — user-provided key |
+| Paid fallback | Anthropic Claude (user-provided key in Admin → API Keys) |
 
 ---
 
@@ -47,15 +51,15 @@ cp apps/api/.env.example apps/api/.env
 
 # 3. Configure frontend
 cp apps/web/.env.example apps/web/.env.local
-# Set: VITE_API_URL=http://localhost:8080
-# Optional: VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY for auth
+# Set: NEXT_PUBLIC_API_URL=http://localhost:8080
+# Optional: NEXT_PUBLIC_SUPABASE_URL + NEXT_PUBLIC_SUPABASE_ANON_KEY for auth
 
 # 4. Run
 pnpm --filter api dev    # API on :8080
-pnpm --filter web dev    # Web on :5173
+pnpm --filter web dev    # Web on :3000
 ```
 
-The app runs without Supabase — auth gate is bypassed, all storage falls back to localStorage (demo mode).
+The app runs without Supabase — auth gate redirects to `/login`, all storage falls back to localStorage (demo mode).
 
 ---
 
@@ -86,17 +90,17 @@ GROQ_API_KEY=gsk_...               # console.groq.com (free)
 # SUPABASE_SERVICE_KEY=your-service-role-key   # NOT the anon key
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
-ALLOWED_ORIGINS=http://localhost:5173,https://lexagent-ochre.vercel.app
+ALLOWED_ORIGINS=http://localhost:3000,https://lexagent-ochre.vercel.app
 ```
 
 ### `apps/web/.env.local` (never committed)
 
 ```bash
-VITE_API_URL=http://localhost:8080
+NEXT_PUBLIC_API_URL=http://localhost:8080
 
 # Supabase — enables auth gate and cloud matter persistence
-# VITE_SUPABASE_URL=https://your-project.supabase.co
-# VITE_SUPABASE_ANON_KEY=your-anon-key
+# NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+# NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 ```
 
 ---
@@ -119,14 +123,14 @@ RLS enabled on all tables — users can only read/write their own rows.
 
 ## Auth Flow
 
-1. User visits app → Supabase configured → **AuthGate** shows Sign In / Sign Up screen
+1. User visits app → redirected to `/login`
 2. User signs up with email → Supabase sends confirmation email
-3. User clicks confirmation link → account activated, redirected to app
+3. User clicks confirmation link → account activated, redirected to `/dashboard`
 4. Supabase issues JWT → stored in browser, injected into API calls via `Authorization: Bearer`
 5. Render backend validates JWT on every request via `middleware/auth.ts`
 6. Matters load from Supabase; any localStorage-only matters migrated to cloud on first login
 
-Without Supabase env vars: auth is bypassed, app runs in demo mode with localStorage only.
+Without Supabase env vars: app redirects to `/login`, runs in demo mode with localStorage only.
 
 ---
 
@@ -145,7 +149,6 @@ All external API calls proxied through the Hono backend. Secrets never reach the
 | `/api/edgar` | sec.gov / efts.sec.gov | None | Corporate filings: 10-K, 10-Q, 8-K |
 | `/api/uspto` | api.patentsview.org | None | Patent full-text, IP research |
 | `/api/openstates` | v3.openstates.org | `OPENSTATES_KEY` | 50-state legislation |
-| `/api/cap` | *(decommissioned)* | — | 410 Gone — api.case.law shut down 2024 |
 
 ---
 
@@ -164,7 +167,7 @@ Skips any provider without a key. On rate-limit (429) falls to next. Returns fir
 ```
 lexagent/
 ├── apps/
-│   ├── api/                       # Hono backend (Node)
+│   ├── api/                       # Hono backend (Node) — Render
 │   │   └── src/
 │   │       ├── index.ts           # Entrypoint, all routes mounted
 │   │       ├── routes/            # One file per external API
@@ -176,28 +179,41 @@ lexagent/
 │   │       │   ├── regulations.ts
 │   │       │   ├── edgar.ts
 │   │       │   ├── uspto.ts
-│   │       │   ├── openstates.ts
-│   │       │   └── cap.ts         # 410 Gone
+│   │       │   └── openstates.ts
 │   │       └── middleware/
 │   │           ├── auth.ts        # Supabase JWT validation
 │   │           └── ratelimit.ts   # Per-user token bucket
-│   └── web/                       # Vite + React frontend
-│       └── src/
-│           ├── components/
-│           │   ├── LexAgent.jsx   # Main app (~4,900 lines)
-│           │   └── AuthGate.tsx   # Login/signup screen
-│           ├── lib/
-│           │   ├── api.ts         # Proxy base URLs + auth header injection
-│           │   ├── auth.tsx       # AuthProvider + useAuth hook
-│           │   ├── supabase.ts    # Supabase browser client
-│           │   ├── db.ts          # Supabase CRUD — matters persistence
-│           │   └── storage.ts     # localStorage shim (demo/fallback)
-│           └── App.tsx
+│   └── web/                       # Next.js 15 App Router — Vercel
+│       ├── app/
+│       │   ├── layout.tsx         # Root — fonts, providers
+│       │   ├── page.tsx           # → redirect /dashboard
+│       │   ├── (auth)/login/      # Login / sign-up page
+│       │   └── (app)/
+│       │       ├── layout.tsx     # Auth-guarded shell (sidebar + topbar)
+│       │       ├── dashboard/     # Matter cards, stats, search
+│       │       ├── matters/[id]/  # Per-matter shell + 11 tab pages
+│       │       └── admin/         # Settings (7-tab admin page)
+│       ├── components/
+│       │   ├── layout/            # Sidebar, TopBar
+│       │   ├── panels/            # PanelShell + per-tab panels
+│       │   └── shared/            # LexTooltip, NewMatterModal
+│       ├── lib/
+│       │   ├── api.ts             # Proxy base URLs + auth header injection
+│       │   ├── auth.tsx           # AuthProvider + useAuth hook
+│       │   ├── supabase.ts        # Supabase browser client
+│       │   ├── db.ts              # Supabase CRUD — matters persistence
+│       │   ├── storage.ts         # localStorage wrapper (demo/fallback)
+│       │   └── settings.ts        # AppSettings type, defaults, TABS config
+│       ├── providers/
+│       │   ├── index.tsx          # AppProviders composition
+│       │   ├── settings-provider.tsx
+│       │   ├── tooltip-provider.tsx
+│       │   └── matters-provider.tsx
+│       └── styles/globals.css     # Lex Viridian design tokens + Tailwind v4
 ├── supabase/
 │   └── migrations/
 │       ├── 001_init.sql           # Tables + triggers
 │       └── 002_rls.sql            # Row Level Security policies
-├── docs/                          # SA localisation report, client proposal
 ├── render.yaml                    # Render one-click deploy config
 ├── PLAN.md                        # Internal dev roadmap
 └── README.md
@@ -219,8 +235,9 @@ lexagent/
 
 1. Import repo at vercel.com — auto-deploys on every push to master
 2. Root Directory: `apps/web`
-3. Required: `VITE_API_URL=https://lexagent-0o5u.onrender.com`
-4. For auth: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
+3. Framework: **Next.js** (auto-detected)
+4. Required: `NEXT_PUBLIC_API_URL=https://lexagent-0o5u.onrender.com`
+5. For auth: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 
 ### Database → Supabase
 
@@ -235,18 +252,18 @@ lexagent/
 
 | Tab | Feature |
 |---|---|
-| Research | AI chat + RAG pre-fetch from 8 databases + web search + citation verify |
-| Deep Research | Multi-pass extended research with iterative refinement |
-| Vault | Multi-PDF upload, AI analysis, summarize/compare/extract modes, result history |
-| Strategy | JSON-structured case strategy analysis |
+| Research | AI chat + RAG pre-fetch from 8 databases + citation verify |
+| Deep Research | Multi-source research: Congress, eCFR, EDGAR, USPTO, OpenStates |
+| Vault | Multi-PDF upload, AI analysis, summarize/compare/extract modes |
+| Strategy | AI-generated case strategy with argument strength analysis |
 | Judge Intel | Live judge profiles — biography, career, ABA ratings, ruling tendencies |
 | Deadlines | Statute of limitations calculator + deadline tracking |
 | Timeline | Case event timeline builder |
 | Shield | Hallucination audit — every citation classified Verified / Unconfirmed / Not Found |
-| Draft | Legal document drafting with inline markdown editing, print/export |
+| Draft | Legal document drafting with inline editing, print/export |
 | Evidence | Notes and evidence tracking |
 | Conflict | Conflict-of-interest checker |
-| Admin | API key management, live database telemetry, model selector |
+| Admin | Firm profile, API keys, model config, UI preferences, telemetry |
 
 ---
 
@@ -258,7 +275,7 @@ lexagent/
 | RAG pre-fetch (real database retrieval) | ✅ | ✅ | ❌ | Partial |
 | Judge profiling (16K+ judges) | ✅ | ❌ | ❌ | ❌ |
 | CourtListener direct integration | ✅ | ❌ | ❌ | ❌ |
-| Historical case search (pre-2000) | ✅ | ❌ | ❌ | ❌ |
+| Firm profile + letterhead settings | ✅ | ❌ | ❌ | ❌ |
 | SOL calculator | ✅ | ❌ | ❌ | ❌ |
 | Conflict checker | ✅ | ❌ | ✅ | ❌ |
 | Free tier operation | ✅ | ❌ | ❌ | ❌ |
@@ -271,16 +288,18 @@ Harvey AI pricing: ~$1,200+/seat/month. LexAgent operates at near-zero marginal 
 
 ## Current Status (2026-04-18)
 
-**Phase 3.5 — Complete:**
-- RAG pre-fetch live (real database results injected before every AI call)
-- Admin telemetry system (live API ping tests with latency)
-- Anthropic key admin section (user-provided, browser-only)
-- Document panel: inline editing, summarize mode, result history, print/export
-- Supabase persistence wired — matters sync to cloud on every save
+**Phase 4 — UI Overhaul Complete:**
+- Migrated from Vite + React 18 → Next.js 15 App Router + React 19
+- Lex Viridian design system: Tailwind v4 + @radix-ui, emerald/near-black premium aesthetic
+- Premium collapsible sidebar, mobile-responsive TopBar with drawer
+- URL-based matter routing (`/matters/[id]/research` etc.)
+- Full 7-tab Admin page: Firm Profile, UI Preferences, API Keys, Model, Shield, Prompt, Telemetry
+- Global tooltip system (enable/disable in Admin → UI Preferences)
+- Zero TypeScript errors, clean `next build`
 
-**Phase 4 — In Progress:**
-- Email confirmation flow verification
-- User roles, ranks, permissions, packages
-- Admin dashboard (usage, billing, user management)
+**Next up:**
+- Wire remaining panel stubs to existing API logic (Deep Research, Vault, Strategy, etc.)
+- Resolve Vercel env var injection for `NEXT_PUBLIC_*` prefix
+- User roles, packages, and Stripe billing integration
 
 See `PLAN.md` for full roadmap.
