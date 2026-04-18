@@ -1,6 +1,6 @@
 # LexAgent — Master Project Plan
 
-> **Last updated:** 2026-04-18 (Session 9)
+> **Last updated:** 2026-04-18 (Session 10)
 > **Current phase:** Phase 6 — Monetisation & Admin (Active)
 > **Status:** Fully deployed — Vercel (Next.js 15) + Render backend + Supabase DB + 10 API integrations live
 
@@ -180,17 +180,17 @@ LexAgent buys Anthropic API wholesale, gives users a monthly USD budget:
 
 ### Admin Accounts
 ```
-drwillybum@gmail.com        role=admin
-christiaanbothma47@gmail.com role=admin, password=P@ssword1212*#*#
+drwillybum@gmail.com         role=admin, plan=premium
+christiaanbothma47@gmail.com role=admin, plan=premium
 ```
-Seeded via `scripts/seed-admin.ts` using Supabase Admin API.
+Seeded via `supabase/migrations/seed_admins.sql` (pure SQL, paste into Supabase editor).
 
-### Matter Limits (Hard Enforcement)
-- Starter: 10 matters max (DB constraint + UI gate)
+### Matter Limits
+- Starter: 10 matters max
 - Professional: 25 matters max
 - Firm: 60 matters total across all seats
 - Premium: unlimited
-- Enforcement: DB trigger on `matters` insert + frontend `MatterLimitGuard` component
+- Enforcement: API layer in `quota.ts` (DB trigger approach abandoned — Supabase SQL editor cannot handle PL/pgSQL DECLARE blocks)
 
 ---
 
@@ -246,23 +246,21 @@ Seeded via `scripts/seed-admin.ts` using Supabase Admin API.
 Tab stubs wired to "coming soon" — will be activated after monetisation is live:
 - Deep Research, Vault, Strategy, Judge Intel, Deadlines, Timeline, Citations, Draft, Notes, Conflict
 
-### 🔄 Phase 6 — Monetisation & Admin (Active — Session 9)
+### 🔄 Phase 6 — Monetisation & Admin (Active — Session 10)
 
 #### 6.1 — Database Migration
-- [ ] `supabase/migrations/003_monetisation.sql`
-  - `plans` table (4 rows)
+- [x] `supabase/migrations/003_monetisation.sql` — run successfully in Supabase
+  - `plans` table (4 rows seeded)
   - `subscriptions` table + RLS
-  - `usage_events` table + RLS
-  - `usage_monthly` table + trigger
-  - `user_roles` table + RLS
-  - `premium_leads` table
-  - Matter limit enforcement trigger on `matters` insert
+  - `usage_events` table (replaces thin 001 version) + RLS
+  - `usage_monthly` table + rollup trigger
+  - `user_roles` table + auto-create trigger on sign-up + RLS
+  - `premium_leads` table + RLS
 
 #### 6.2 — Seed Script
-- [ ] `scripts/seed-admin.ts`
-  - Insert 4 plan rows
-  - Create admin accounts via Supabase Admin API
-  - Assign admin roles
+- [x] `supabase/migrations/seed_admins.sql` — both admin accounts created in Supabase auth
+  - `drwillybum@gmail.com` → admin / premium
+  - `christiaanbothma47@gmail.com` → admin / premium
 
 #### 6.3 — API Quota Middleware
 - [ ] `apps/api/src/middleware/quota.ts`
@@ -346,6 +344,13 @@ Wire all 10 stub tabs to live AI + API calls.
 ---
 
 ## Session Notes
+
+### 2026-04-18 — Session 10
+Phase 6 DB setup complete. Supabase SQL editor cannot handle PL/pgSQL `DECLARE` blocks — it splits `$$`-delimited bodies and resolves variable names as table references. All PL/pgSQL functions in 003 were rewritten to avoid `DECLARE` variables; matter-limit enforcement moved to API layer. Admin seed script rewritten as pure SQL (no PL/pgSQL). Both admin accounts live in Supabase auth.
+
+**Next:** 6.3 quota.ts middleware → 6.4 billing routes → 6.5 region detection. Lemon Squeezy variant IDs on hold (pending LS account verification).
+
+---
 
 ### 2026-04-18 — Session 9
 Monetisation system designed and documented. Deployment fixes shipped.
