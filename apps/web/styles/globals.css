@@ -1,0 +1,270 @@
+@import "tailwindcss";
+
+/* ── Lex Viridian Design System ─────────────────────────────────────── */
+:root {
+  /* Backgrounds */
+  --bg:           #0A0F0D;
+  --bg2:          #0D1310;
+  --surface:      #111A16;
+  --panel:        #152018;
+  --panel2:       #1A2820;
+
+  /* Borders */
+  --border:       #1F3028;
+  --border-hi:    #2A4038;
+
+  /* Emerald — primary accent */
+  --emerald:          #10B981;
+  --emerald-bright:   #34D399;
+  --emerald-dim:      rgba(16,185,129,0.25);
+  --emerald-faint:    rgba(16,185,129,0.06);
+
+  /* Gold — secondary/verified touches */
+  --gold:             #F59E0B;
+  --gold-dim:         rgba(245,158,11,0.2);
+  --gold-faint:       rgba(245,158,11,0.07);
+
+  /* Text */
+  --text:         #ECFDF5;
+  --text-sub:     #6EE7B7;
+  --text-muted:   #3D5248;
+
+  /* Semantic */
+  --crimson:      #EF4444;
+  --crimson-faint: rgba(239,68,68,0.08);
+  --cobalt:       #3B82F6;
+  --cobalt-faint: rgba(59,130,246,0.08);
+  --amber:        #F59E0B;
+  --amber-faint:  rgba(245,158,11,0.08);
+  --violet:       #8B5CF6;
+  --violet-faint: rgba(139,92,246,0.08);
+  --emerald-faint-verify: rgba(16,185,129,0.08);
+
+  /* Sidebar */
+  --sidebar-bg:     #080D0A;
+  --sidebar-border: #162018;
+
+  /* shadcn/ui compat */
+  --background:      #0A0F0D;
+  --foreground:      #ECFDF5;
+  --card:            #152018;
+  --card-foreground: #ECFDF5;
+  --popover:         #111A16;
+  --popover-foreground: #ECFDF5;
+  --primary:         #10B981;
+  --primary-foreground: #0A0F0D;
+  --secondary:       #1A2820;
+  --secondary-foreground: #ECFDF5;
+  --muted:           #1F3028;
+  --muted-foreground: #6EE7B7;
+  --accent:          #10B981;
+  --accent-foreground: #0A0F0D;
+  --destructive:     #EF4444;
+  --destructive-foreground: #ECFDF5;
+  --border-color:    #1F3028;
+  --input:           #1A2820;
+  --ring:            #10B981;
+  --radius:          0.5rem;
+}
+
+/* ── Base reset ──────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #__next {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Custom scrollbar ────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-hi); }
+
+/* ── Prose styles (for AI-generated content) ─────────────────────────── */
+.prose h1 {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.125rem;
+  color: var(--text);
+  font-weight: 500;
+  margin: 1.125rem 0 0.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.prose h2 {
+  font-size: 0.625rem;
+  color: var(--emerald);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin: 1rem 0 0.375rem;
+  font-family: 'JetBrains Mono', monospace;
+}
+.prose h3 {
+  font-size: 0.8125rem;
+  color: var(--text);
+  font-weight: 600;
+  margin: 0.75rem 0 0.25rem;
+}
+.prose p {
+  color: var(--text);
+  line-height: 1.75;
+  margin-bottom: 0.625rem;
+  font-size: 0.8125rem;
+}
+.prose ul, .prose ol {
+  padding-left: 1.25rem;
+  margin-bottom: 0.625rem;
+}
+.prose li {
+  color: var(--text);
+  line-height: 1.65;
+  font-size: 0.8125rem;
+  margin-bottom: 0.125rem;
+}
+.prose strong { color: var(--text); font-weight: 600; }
+.prose em { font-style: italic; color: var(--text-sub); }
+.prose code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  padding: 0.1rem 0.3rem;
+  border-radius: 0.25rem;
+  color: var(--emerald-bright);
+}
+.prose blockquote {
+  border-left: 2px solid var(--emerald);
+  padding-left: 0.875rem;
+  color: var(--text-sub);
+  font-style: italic;
+  margin: 0.875rem 0;
+}
+
+/* Citation badges */
+.cite-verified {
+  font-size: 0.6875rem;
+  color: var(--emerald);
+  font-family: 'JetBrains Mono', monospace;
+  background: var(--emerald-faint-verify);
+  border: 1px solid rgba(16,185,129,0.2);
+  padding: 0.0625rem 0.375rem;
+  border-radius: 0.25rem;
+  font-weight: 500;
+}
+.cite-unconfirmed {
+  font-size: 0.6875rem;
+  color: var(--amber);
+  font-family: 'JetBrains Mono', monospace;
+  background: var(--amber-faint);
+  border: 1px solid rgba(245,158,11,0.2);
+  padding: 0.0625rem 0.375rem;
+  border-radius: 0.25rem;
+  font-weight: 500;
+}
+.cite-notfound {
+  font-size: 0.6875rem;
+  color: var(--crimson);
+  font-family: 'JetBrains Mono', monospace;
+  background: var(--crimson-faint);
+  border: 1px solid rgba(239,68,68,0.2);
+  padding: 0.0625rem 0.375rem;
+  border-radius: 0.25rem;
+  font-weight: 500;
+}
+
+/* ── Keyframe animations ─────────────────────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+@keyframes slideModal {
+  from { opacity: 0; transform: translateY(16px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);    }
+}
+@keyframes sheetUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0);    }
+}
+@keyframes dotBounce {
+  0%, 80%, 100% { transform: translateY(0); }
+  40%           { transform: translateY(-6px); }
+}
+@keyframes emeraldPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); }
+  50%      { box-shadow: 0 0 0 6px rgba(16,185,129,0.1); }
+}
+
+.fade-up      { animation: fadeUp 0.35s cubic-bezier(0.16,1,0.3,1) both; }
+.fade-in      { animation: fadeIn 0.2s ease both; }
+.slide-modal  { animation: slideModal 0.3s cubic-bezier(0.16,1,0.3,1) both; }
+.sheet-up     { animation: sheetUp 0.3s cubic-bezier(0.16,1,0.3,1) both; }
+
+/* ── Sidebar transitions ────────────────────────────────────────────── */
+.sidebar-rail {
+  transition: width 0.22s cubic-bezier(0.4,0,0.2,1),
+              min-width 0.22s cubic-bezier(0.4,0,0.2,1);
+}
+.sidebar-label {
+  transition: opacity 0.15s, width 0.22s cubic-bezier(0.4,0,0.2,1);
+  overflow: hidden;
+  white-space: nowrap;
+}
+.sidebar-collapsed .sidebar-label {
+  opacity: 0;
+  width: 0;
+  pointer-events: none;
+}
+
+/* ── Focus ring ──────────────────────────────────────────────────────── */
+.lex-focus:focus {
+  outline: none;
+  border-color: rgba(16,185,129,0.4) !important;
+  box-shadow: 0 0 0 3px rgba(16,185,129,0.12) !important;
+}
+
+/* ── Matter card hover ───────────────────────────────────────────────── */
+.matter-card {
+  transition: border-color 0.15s, background 0.15s, transform 0.12s;
+  cursor: pointer;
+}
+.matter-card:hover {
+  border-color: var(--border-hi);
+  background: var(--panel);
+  transform: translateY(-1px);
+}
+
+/* ── Tab scroll (horizontal, no scrollbar) ───────────────────────────── */
+.tab-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.tab-scroll::-webkit-scrollbar { display: none; }
+
+/* ── Utility ─────────────────────────────────────────────────────────── */
+.truncate-1 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
