@@ -5,6 +5,8 @@ import { X, Scale } from "lucide-react";
 import { useMatters } from "@/providers/matters-provider";
 import { CASE_TYPES, JURISDICTIONS } from "@/lib/settings";
 import { useRouter } from "next/navigation";
+import { checkMatterQuota } from "@/lib/quota";
+import { UpgradeCTA } from "@/components/shared/UpgradeCTA";
 
 interface NewMatterModalProps {
   onClose: () => void;
@@ -22,12 +24,15 @@ export function NewMatterModal({ onClose }: NewMatterModalProps) {
     status: "Active",
   });
   const [saving, setSaving] = useState(false);
+  const [showUpgrade, setShowUpgrade] = useState(false);
 
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
 
   const handleCreate = async () => {
     if (!form.title.trim()) return;
     setSaving(true);
+    const allowed = await checkMatterQuota();
+    if (!allowed) { setSaving(false); setShowUpgrade(true); return; }
     const matter = await createMatter(form);
     setSaving(false);
     onClose();
@@ -53,6 +58,15 @@ export function NewMatterModal({ onClose }: NewMatterModalProps) {
     color: "var(--text-muted)",
     marginBottom: "0.375rem",
   } as const;
+
+  if (showUpgrade) {
+    return (
+      <UpgradeCTA
+        reason="You've reached your plan's matter limit. Upgrade to create more matters."
+        onClose={() => { setShowUpgrade(false); onClose(); }}
+      />
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }}>

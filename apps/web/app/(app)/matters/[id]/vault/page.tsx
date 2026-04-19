@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { PanelShell } from "@/components/panels/PanelShell";
 import { logAudit } from "@/lib/audit";
+import { adjustStorageUsage } from "@/lib/quota";
 
 interface VaultDoc {
   id: string;
@@ -108,6 +109,7 @@ export default function VaultPage() {
       };
       await updateMatter({ ...matter, vaultDocs: [newDoc, ...docs] });
       logAudit("doc.upload", "document", newDoc.id, matter.id, { title: newDoc.title, acp }).catch(() => {});
+      if (fileSize) adjustStorageUsage(fileSize).catch(() => {});
       setTitle("");
       setDocType("Motion");
       setUrl("");
@@ -130,6 +132,7 @@ export default function VaultPage() {
     }
     await updateMatter({ ...matter, vaultDocs: docs.filter(d => d.id !== doc.id) });
     logAudit("doc.delete", "document", doc.id, matter.id, { title: doc.title }).catch(() => {});
+    if (doc.fileSize) adjustStorageUsage(-doc.fileSize).catch(() => {});
     if (viewingDocId === doc.id) { setViewingUrl(null); setViewingDocId(null); }
   };
 

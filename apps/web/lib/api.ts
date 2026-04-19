@@ -14,6 +14,10 @@ export const ANTHROPIC_ENDPOINT = API_URL
   ? `${API_URL}/api/anthropic/messages`
   : "https://api.anthropic.com/v1/messages";
 
+export class QuotaExceededError extends Error {
+  constructor() { super("AI quota exceeded — upgrade your plan to continue."); this.name = "QuotaExceededError"; }
+}
+
 export async function anthropicFetch(
   body: Record<string, unknown>,
   extraHeaders?: Record<string, string>
@@ -23,11 +27,13 @@ export async function anthropicFetch(
     ...(API_URL ? authHeaders() : {}),
     ...extraHeaders,
   };
-  return fetch(ANTHROPIC_ENDPOINT, {
+  const res = await fetch(ANTHROPIC_ENDPOINT, {
     method: "POST",
     headers,
     body: JSON.stringify(body),
   });
+  if (res.status === 429) throw new QuotaExceededError();
+  return res;
 }
 
 export const COURTLISTENER_BASE = API_URL

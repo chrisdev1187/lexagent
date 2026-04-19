@@ -5,7 +5,8 @@ import { Search, Send, RotateCcw, ExternalLink, ShieldCheck, AlertTriangle } fro
 import { useParams } from "next/navigation";
 import { useMatters } from "@/providers/matters-provider";
 import { useSettings } from "@/providers/settings-provider";
-import { anthropicFetch } from "@/lib/api";
+import { anthropicFetch, QuotaExceededError } from "@/lib/api";
+import { UpgradeCTA } from "@/components/shared/UpgradeCTA";
 import { PanelShell } from "@/components/panels/PanelShell";
 import { LexTooltip } from "@/components/shared/LexTooltip";
 
@@ -25,6 +26,7 @@ export default function ResearchPage() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingPhase, setLoadingPhase] = useState(0);
+  const [showUpgrade, setShowUpgrade] = useState(false);
   const loadingTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -57,10 +59,8 @@ export default function ResearchPage() {
       const text = data.content?.[0]?.text ?? data.error?.message ?? "No response.";
       setMessages(prev => [...prev, { role: "assistant", content: text }]);
     } catch (e) {
-      setMessages(prev => [...prev, {
-        role: "assistant",
-        content: `Error: ${(e as Error).message}`,
-      }]);
+      if (e instanceof QuotaExceededError) { setShowUpgrade(true); }
+      else { setMessages(prev => [...prev, { role: "assistant", content: `Error: ${(e as Error).message}` }]); }
     } finally {
       loadingTimers.current.forEach(clearTimeout);
       loadingTimers.current = [];
@@ -77,6 +77,13 @@ export default function ResearchPage() {
   };
 
   return (
+    <>
+    {showUpgrade && (
+      <UpgradeCTA
+        reason="You've used your monthly AI quota. Upgrade to continue researching."
+        onClose={() => setShowUpgrade(false)}
+      />
+    )}
     <PanelShell
       icon={Search}
       title="Legal Research"
@@ -216,5 +223,6 @@ export default function ResearchPage() {
         </div>
       </div>
     </PanelShell>
+    </>
   );
 }

@@ -5,7 +5,8 @@ import { FileEdit, Zap, Copy, Check, Loader2, Download } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useMatters } from "@/providers/matters-provider";
 import { useSettings } from "@/providers/settings-provider";
-import { anthropicFetch } from "@/lib/api";
+import { anthropicFetch, QuotaExceededError } from "@/lib/api";
+import { UpgradeCTA } from "@/components/shared/UpgradeCTA";
 import { PanelShell } from "@/components/panels/PanelShell";
 
 const DOC_TYPES = [

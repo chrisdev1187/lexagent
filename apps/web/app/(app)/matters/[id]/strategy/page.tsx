@@ -5,7 +5,8 @@ import { Target, RefreshCw, Zap, AlertTriangle } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useMatters } from "@/providers/matters-provider";
 import { useSettings } from "@/providers/settings-provider";
-import { anthropicFetch } from "@/lib/api";
+import { anthropicFetch, QuotaExceededError } from "@/lib/api";
+import { UpgradeCTA } from "@/components/shared/UpgradeCTA";
 import { PanelShell } from "@/components/panels/PanelShell";
 import { usePresence } from "@/hooks/usePresence";
 
@@ -19,6 +20,7 @@ export default function StrategyPage() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showUpgrade, setShowUpgrade] = useState(false);
 
   const strategy = matter?.strategy as string | undefined;
 
@@ -55,13 +57,21 @@ Format with clear headers. Use Bluebook citation format.`;
       const text = data.content?.[0]?.text ?? data.error?.message ?? "No response.";
       await updateMatter({ ...matter, strategy: text });
     } catch (e) {
-      setError((e as Error).message);
+      if (e instanceof QuotaExceededError) { setShowUpgrade(true); }
+      else { setError((e as Error).message); }
     } finally {
       setLoading(false);
     }
   };
 
   return (
+    <>
+    {showUpgrade && (
+      <UpgradeCTA
+        reason="You've used your monthly AI quota. Upgrade to continue generating strategies."
+        onClose={() => setShowUpgrade(false)}
+      />
+    )}
     <PanelShell
       icon={Target}
       title="Case Strategy"
@@ -162,5 +172,6 @@ Format with clear headers. Use Bluebook citation format.`;
         </div>
       )}
     </PanelShell>
+    </>
   );
 }

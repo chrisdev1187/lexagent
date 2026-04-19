@@ -3,15 +3,17 @@
 import { useState, useEffect } from "react";
 import {
   Building2, Palette, Key, Cpu, ShieldCheck, FileText, Activity, ChevronRight, Users,
-  CreditCard, UsersRound, Plus, Trash2, ClipboardList, Lock,
+  CreditCard, UsersRound, Plus, Trash2, ClipboardList, Lock, BarChart3,
 } from "lucide-react";
 import { useSettings } from "@/providers/settings-provider";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { PRACTICE_AREAS, DEFAULT_SYSTEM } from "@/lib/settings";
 import { LexTooltip } from "@/components/shared/LexTooltip";
+import { useQuota } from "@/hooks/useQuota";
+import { storagePercent, aiPercent, matterPercent } from "@/lib/quota";
 
-type TabKey = "firm" | "ui" | "apikeys" | "model" | "shield" | "prompt" | "telemetry" | "users" | "billing" | "teams" | "auditlog";
+type TabKey = "firm" | "ui" | "apikeys" | "model" | "shield" | "prompt" | "telemetry" | "users" | "billing" | "teams" | "auditlog" | "quota";
 
 const ADMIN_TABS: { id: TabKey; icon: React.ElementType; label: string }[] = [
   { id: "firm",      icon: Building2,   label: "Firm Profile"    },
@@ -25,6 +27,7 @@ const ADMIN_TABS: { id: TabKey; icon: React.ElementType; label: string }[] = [
   { id: "teams",     icon: UsersRound,  label: "Teams"           },
   { id: "users",     icon: Users,       label: "User Management" },
   { id: "auditlog",  icon: ClipboardList, label: "Audit Log"     },
+  { id: "quota",     icon: BarChart3,    label: "Quota & Usage"  },
 ];
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
@@ -602,6 +605,61 @@ function AuditLogTab() {
   );
 }
 
+function QuotaBar({ label, pct, detail }: { label: string; pct: number; detail: string }) {
+  const color = pct >= 100 ? "#EF4444" : pct >= 80 ? "#F59E0B" : "var(--emerald)";
+  return (
+    <div className="mb-4">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-xs font-medium" style={{ color: "var(--text)" }}>{label}</span>
+        <span className="text-xs font-mono" style={{ color }}>{Math.round(pct)}%</span>
+      </div>
+      <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: "var(--panel2)" }}>
+        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: color }} />
+      </div>
+      <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>{detail}</p>
+    </div>
+  );
+}
+
+function QuotaTab() {
+  const { quota, loading } = useQuota();
+
+  if (loading) return <p style={{ color: "var(--text-muted)" }}>Loading…</p>;
+  if (!quota)  return <p style={{ color: "var(--text-muted)" }}>Unable to load quota data.</p>;
+
+  const storageMB = (quota.storage_bytes / (1024 * 1024)).toFixed(1);
+  const storageLimitMB = quota.storage_limit_mb ? `${quota.storage_limit_mb} MB` : "Unlimited";
+
+  return (
+    <div>
+      <SectionHeading>YOUR USAGE</SectionHeading>
+      <div className="rounded-xl p-5 mb-4" style={{ background: "var(--panel)", border: "1px solid var(--border)" }}>
+        <QuotaBar
+          label="Matters"
+          pct={matterPercent(quota)}
+          detail={`${quota.matter_count} / ${quota.matter_limit ?? "Unlimited"} matters`}
+        />
+        <QuotaBar
+          label="AI Budget"
+          pct={aiPercent(quota)}
+          detail={`$${quota.ai_spent.toFixed(4)} spent of $${quota.ai_budget} · ${quota.ai_requests} requests this month`}
+        />
+        <QuotaBar
+          label="Storage"
+          pct={storagePercent(quota)}
+          detail={`${storageMB} MB used of ${storageLimitMB}`}
+        />
+      </div>
+      <div
+        className="rounded-xl p-3 text-xs font-mono"
+        style={{ background: "var(--panel2)", color: "var(--text-muted)", border: "1px solid var(--border)" }}
+      >
+        Plan: <span style={{ color: "var(--emerald)" }}>{quota.plan_id}</span>
+      </div>
+    </div>
+  );
+}
+
 const ADMIN_ONLY_TABS: TabKey[] = ["apikeys", "prompt", "telemetry", "users", "teams", "auditlog"];
 
 export default function AdminPage() {
@@ -940,6 +998,9 @@ export default function AdminPage() {
 
       case "auditlog":
         return <AuditLogTab />;
+
+      case "quota":
+        return <QuotaTab />;
 
       case "telemetry":
         return (
