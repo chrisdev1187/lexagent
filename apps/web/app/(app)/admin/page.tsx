@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import {
   Building2, Palette, Key, Cpu, ShieldCheck, FileText, Activity, ChevronRight, Users,
-  CreditCard, UsersRound, Plus, Trash2,
+  CreditCard, UsersRound, Plus, Trash2, ClipboardList, Lock,
 } from "lucide-react";
 import { useSettings } from "@/providers/settings-provider";
 import { useAuth } from "@/lib/auth";
@@ -11,7 +11,7 @@ import { supabase } from "@/lib/supabase";
 import { PRACTICE_AREAS, DEFAULT_SYSTEM } from "@/lib/settings";
 import { LexTooltip } from "@/components/shared/LexTooltip";
 
-type TabKey = "firm" | "ui" | "apikeys" | "model" | "shield" | "prompt" | "telemetry" | "users" | "billing" | "teams";
+type TabKey = "firm" | "ui" | "apikeys" | "model" | "shield" | "prompt" | "telemetry" | "users" | "billing" | "teams" | "auditlog";
 
 const ADMIN_TABS: { id: TabKey; icon: React.ElementType; label: string }[] = [
   { id: "firm",      icon: Building2,   label: "Firm Profile"    },
@@ -24,6 +24,7 @@ const ADMIN_TABS: { id: TabKey; icon: React.ElementType; label: string }[] = [
   { id: "telemetry", icon: Activity,    label: "Telemetry"       },
   { id: "teams",     icon: UsersRound,  label: "Teams"           },
   { id: "users",     icon: Users,       label: "User Management" },
+  { id: "auditlog",  icon: ClipboardList, label: "Audit Log"     },
 ];
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
@@ -472,7 +473,136 @@ function UserManagementTab() {
   );
 }
 
-const ADMIN_ONLY_TABS: TabKey[] = ["apikeys", "prompt", "telemetry", "users", "teams"];
+interface AuditRow {
+  id: number;
+  user_email: string | null;
+  matter_title: string | null;
+  action: string;
+  entity_type: string | null;
+  entity_id: string | null;
+  payload: Record<string, unknown>;
+  created_at: string;
+}
+
+function AuditLogTab() {
+  const [rows, setRows] = useState<AuditRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [sealing, setSealing] = useState(false);
+  const [sealMsg, setSealMsg] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
+  const PAGE = 50;
+
+  async function load(p: number) {
+    setLoading(true);
+    const { data } = await supabase.rpc("get_audit_log", { p_limit: PAGE, p_offset: p * PAGE });
+    setRows((data as AuditRow[]) ?? []);
+    setLoading(false);
+  }
+
+  useEffect(() => { load(page); }, [page]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function sealCheckpoint() {
+    setSealing(true);
+    setSealMsg(null);
+    const now = new Date();
+    const { data, error } = await supabase.rpc("generate_audit_checkpoint", {
+      p_year: now.getFullYear(),
+      p_month: now.getMonth() + 1,
+    });
+    setSealMsg(error ? `Error: ${error.message}` : `Sealed. SHA-256: ${data}`);
+    setSealing(false);
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <SectionHeading>AUDIT LOG</SectionHeading>
+        <button
+          onClick={sealCheckpoint}
+          disabled={sealing}
+          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold cursor-pointer disabled:opacity-50"
+          style={{ background: "var(--panel2)", color: "var(--text-muted)", border: "1px solid var(--border)" }}
+        >
+          <Lock size={11} />
+          {sealing ? "Sealing…" : "Seal This Month"}
+        </button>
+      </div>
+
+      {sealMsg && (
+        <div
+          className="rounded-lg px-3 py-2 mb-4 text-xs font-mono break-all"
+          style={{ background: "var(--panel2)", color: "var(--text-muted)", border: "1px solid var(--border)" }}
+        >
+          {sealMsg}
+        </div>
+      )}
+
+      {loading ? (
+        <p style={{ color: "var(--text-muted)" }}>Loading…</p>
+      ) : rows.length === 0 ? (
+        <p className="text-sm" style={{ color: "var(--text-muted)" }}>No audit events yet.</p>
+      ) : (
+        <>
+          <div style={{ overflowX: "auto" }}>
+            <table className="w-full text-xs" style={{ borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ background: "var(--panel)" }}>
+                  {["Time", "User", "Action", "Entity", "Matter"].map(h => (
+                    <th key={h} className="px-3 py-2 text-left font-mono text-[10px] tracking-wider" style={{ color: "var(--text-muted)" }}>
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map(r => (
+                  <tr key={r.id} style={{ borderTop: "1px solid var(--border)" }}>
+                    <td className="px-3 py-2 font-mono whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
+                      {new Date(r.created_at).toLocaleString()}
+                    </td>
+                    <td className="px-3 py-2 max-w-[140px] truncate" style={{ color: "var(--text)" }}>
+                      {r.user_email ?? "—"}
+                    </td>
+                    <td className="px-3 py-2 font-mono" style={{ color: "var(--emerald)" }}>
+                      {r.action}
+                    </td>
+                    <td className="px-3 py-2 font-mono text-[10px]" style={{ color: "var(--text-muted)" }}>
+                      {r.entity_type ?? ""}{r.entity_id ? ` · ${r.entity_id.slice(0, 8)}…` : ""}
+                    </td>
+                    <td className="px-3 py-2 max-w-[120px] truncate" style={{ color: "var(--text-muted)" }}>
+                      {r.matter_title ?? "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="flex items-center justify-between mt-3">
+            <button
+              onClick={() => setPage(p => Math.max(0, p - 1))}
+              disabled={page === 0}
+              className="text-xs px-3 py-1.5 rounded-lg disabled:opacity-40 cursor-pointer"
+              style={{ background: "var(--panel2)", color: "var(--text-muted)", border: "1px solid var(--border)" }}
+            >
+              Previous
+            </button>
+            <span className="text-xs" style={{ color: "var(--text-muted)" }}>Page {page + 1}</span>
+            <button
+              onClick={() => setPage(p => p + 1)}
+              disabled={rows.length < PAGE}
+              className="text-xs px-3 py-1.5 rounded-lg disabled:opacity-40 cursor-pointer"
+              style={{ background: "var(--panel2)", color: "var(--text-muted)", border: "1px solid var(--border)" }}
+            >
+              Next
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+const ADMIN_ONLY_TABS: TabKey[] = ["apikeys", "prompt", "telemetry", "users", "teams", "auditlog"];
 
 export default function AdminPage() {
   const { settings, updateSettings } = useSettings();
@@ -807,6 +937,9 @@ export default function AdminPage() {
 
       case "users":
         return <UserManagementTab />;
+
+      case "auditlog":
+        return <AuditLogTab />;
 
       case "telemetry":
         return (

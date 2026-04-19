@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Archive, Plus, Trash2, ExternalLink, Upload, FileText, Loader2 } from "lucide-react";
+import { Archive, Plus, Trash2, ExternalLink, Upload, FileText, Loader2, ShieldCheck } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useMatters } from "@/providers/matters-provider";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { PanelShell } from "@/components/panels/PanelShell";
+import { logAudit } from "@/lib/audit";
 
 interface VaultDoc {
   id: string;
@@ -17,6 +18,7 @@ interface VaultDoc {
   fileSize?: number;
   fileType?: string;
   notes?: string;
+  acp?: boolean;
   createdAt: number;
 }
 
@@ -53,6 +55,7 @@ export default function VaultPage() {
   const [docType, setDocType] = useState("Motion");
   const [url, setUrl] = useState("");
   const [notes, setNotes] = useState("");
+  const [acp, setAcp] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -100,13 +103,16 @@ export default function VaultPage() {
         fileSize,
         fileType,
         notes: notes.trim() || undefined,
+        acp,
         createdAt: Date.now(),
       };
       await updateMatter({ ...matter, vaultDocs: [newDoc, ...docs] });
+      logAudit("doc.upload", "document", newDoc.id, matter.id, { title: newDoc.title, acp }).catch(() => {});
       setTitle("");
       setDocType("Motion");
       setUrl("");
       setNotes("");
+      setAcp(false);
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
       setShowForm(false);
@@ -123,6 +129,7 @@ export default function VaultPage() {
       await supabase.storage.from("vault-docs").remove([doc.storagePath]);
     }
     await updateMatter({ ...matter, vaultDocs: docs.filter(d => d.id !== doc.id) });
+    logAudit("doc.delete", "document", doc.id, matter.id, { title: doc.title }).catch(() => {});
     if (viewingDocId === doc.id) { setViewingUrl(null); setViewingDocId(null); }
   };
 
@@ -247,6 +254,21 @@ export default function VaultPage() {
               />
             </div>
 
+            <button
+              type="button"
+              onClick={() => setAcp(v => !v)}
+              className="flex items-center gap-2 text-xs px-3 py-2 rounded-lg w-full"
+              style={{
+                background: acp ? "rgba(124,58,237,0.1)" : "var(--panel2)",
+                color: acp ? "#7c3aed" : "var(--text-muted)",
+                border: `1px solid ${acp ? "rgba(124,58,237,0.4)" : "var(--border)"}`,
+                cursor: "pointer",
+              }}
+            >
+              <ShieldCheck size={13} />
+              Attorney-Client Privilege (ACP) — {acp ? "Protected" : "Not tagged"}
+            </button>
+
             {uploadError && (
               <p className="text-xs" style={{ color: "var(--crimson)" }}>{uploadError}</p>
             )}
@@ -315,6 +337,16 @@ export default function VaultPage() {
                       {doc.storagePath && (
                         <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: "var(--panel2)", color: "var(--text-muted)", border: "1px solid var(--border)" }}>
                           {doc.fileType?.split("/")[1]?.toUpperCase() ?? "FILE"} · {formatBytes(doc.fileSize ?? 0)}
+                        </span>
+                      )}
+                      {doc.acp && (
+                        <span
+                          className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full font-semibold"
+                          title="Attorney-Client Privilege"
+                          style={{ background: "rgba(124,58,237,0.12)", color: "#7c3aed", border: "1px solid rgba(124,58,237,0.3)" }}
+                        >
+                          <ShieldCheck size={9} />
+                          ACP
                         </span>
                       )}
                       {doc.url && (

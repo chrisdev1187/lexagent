@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState, useCallback, ReactNode 
 import { vaultStore } from "@/lib/storage";
 import { loadMatters, loadTeamMatters, upsertMatter, upsertMatters, deleteMatter } from "@/lib/db";
 import { useAuth } from "@/lib/auth";
+import { logAudit } from "@/lib/audit";
 
 export interface Matter {
   id: string;
@@ -105,7 +106,10 @@ export function MattersProvider({ children, onShowOnboarding }: { children: Reac
     const next = [nc, ...matters];
     setMatters(next);
     await vaultStore.set("lex4-cases", next);
-    if (user) upsertMatter(user.id, nc as Record<string, unknown>).catch(() => {});
+    if (user) {
+      upsertMatter(user.id, nc as Record<string, unknown>).catch(() => {});
+      logAudit("matter.create", "matter", nc.id, nc.id, { title: nc.title }).catch(() => {});
+    }
     return nc;
   }, [matters, user]);
 
@@ -138,7 +142,10 @@ export function MattersProvider({ children, onShowOnboarding }: { children: Reac
     const next = matters.filter(c => c.id !== id);
     setMatters(next);
     await vaultStore.set("lex4-cases", next);
-    if (user) deleteMatter(id).catch(() => {});
+    if (user) {
+      deleteMatter(id).catch(() => {});
+      logAudit("matter.delete", "matter", id, id).catch(() => {});
+    }
   }, [matters, user]);
 
   const getMatter = useCallback((id: string) => matters.find(m => m.id === id), [matters]);
