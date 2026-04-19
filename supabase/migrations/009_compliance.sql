@@ -81,25 +81,26 @@ RETURNS text LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
   v_hash text;
   v_count bigint;
-  v_data text;
 BEGIN
   IF NOT public.is_admin() THEN
     RAISE EXCEPTION 'Access denied';
   END IF;
 
-  SELECT
-    count(*),
-    encode(
-      digest(
-        string_agg(
-          id::text || '|' || coalesce(user_id::text,'') || '|' || action || '|' || created_at::text,
-          E'\n' ORDER BY id
-        ),
-        'sha256'
+  SELECT count(*) INTO v_count
+  FROM public.audit_log
+  WHERE extract(year  FROM created_at)::integer = p_year
+    AND extract(month FROM created_at)::integer = p_month;
+
+  SELECT encode(
+    digest(
+      string_agg(
+        id::text || '|' || coalesce(user_id::text,'') || '|' || action || '|' || created_at::text,
+        E'\n' ORDER BY id
       ),
-      'hex'
-    )
-  INTO v_count, v_hash
+      'sha256'
+    ),
+    'hex'
+  ) INTO v_hash
   FROM public.audit_log
   WHERE extract(year  FROM created_at)::integer = p_year
     AND extract(month FROM created_at)::integer = p_month;
