@@ -1,18 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { Target, RefreshCw, Zap } from "lucide-react";
+import { Target, RefreshCw, Zap, AlertTriangle } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useMatters } from "@/providers/matters-provider";
 import { useSettings } from "@/providers/settings-provider";
 import { anthropicFetch } from "@/lib/api";
 import { PanelShell } from "@/components/panels/PanelShell";
+import { usePresence } from "@/hooks/usePresence";
 
 export default function StrategyPage() {
   const { id } = useParams<{ id: string }>();
   const { getMatter, updateMatter } = useMatters();
   const { settings } = useSettings();
   const matter = getMatter(id);
+  const present = usePresence(id, "strategy");
+  const editingUsers = present.filter(u => u.tab === "strategy");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -82,6 +85,16 @@ Format with clear headers. Use Bluebook citation format.`;
         ) : undefined
       }
     >
+      {editingUsers.length > 0 && (
+        <div
+          className="rounded-lg px-4 py-2.5 mb-4 flex items-center gap-2 text-xs"
+          style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)", color: "var(--gold)" }}
+        >
+          <AlertTriangle size={12} />
+          {editingUsers.map(u => u.email).join(", ")} {editingUsers.length === 1 ? "is" : "are"} also viewing this strategy — changes may conflict
+        </div>
+      )}
+
       {error && (
         <div
           className="rounded-lg px-4 py-3 mb-4 text-xs"

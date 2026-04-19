@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react";
 import { vaultStore } from "@/lib/storage";
-import { loadMatters, upsertMatter, upsertMatters, deleteMatter } from "@/lib/db";
+import { loadMatters, loadTeamMatters, upsertMatter, upsertMatters, deleteMatter } from "@/lib/db";
 import { useAuth } from "@/lib/auth";
 
 export interface Matter {
@@ -16,6 +16,7 @@ export interface Matter {
   judgeName: string;
   court: string;
   shared: boolean;
+  visibility: "private" | "team" | "custom";
   createdAt: number;
   precedents: unknown[];
   notes: unknown[];
@@ -53,11 +54,17 @@ export function MattersProvider({ children, onShowOnboarding }: { children: Reac
 
       if (user) {
         try {
-          const cloudCases = await loadMatters(user.id) as Matter[];
+          const [cloudCases, teamCases] = await Promise.all([
+            loadMatters(user.id) as Promise<Matter[]>,
+            loadTeamMatters(user.id) as Promise<Matter[]>,
+          ]);
           const cloudIds = new Set(cloudCases.map(x => x.id));
           const localOnly = localCases.filter(x => !cloudIds.has(x.id));
           if (localOnly.length) await upsertMatters(user.id, localOnly as Record<string, unknown>[]).catch(() => {});
-          const merged = [...cloudCases, ...localOnly];
+          // Team matters come last; de-dup by id in case of overlap
+          const teamIds = new Set(cloudCases.map(x => x.id));
+          const deduped = teamCases.filter(x => !teamIds.has(x.id));
+          const merged = [...cloudCases, ...localOnly, ...deduped];
           setMatters(merged);
           vaultStore.set("lex4-cases", merged);
           setLoaded(true);
@@ -93,6 +100,7 @@ export function MattersProvider({ children, onShowOnboarding }: { children: Reac
       judgeName: form.judgeName || "",
       court: form.court || "",
       shared: form.shared || false,
+      visibility: (form.visibility as Matter["visibility"]) || "private",
     };
     const next = [nc, ...matters];
     setMatters(next);

@@ -11,7 +11,7 @@ interface UsageData {
 }
 
 export function UsagePill() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [data, setData] = useState<UsageData | null>(null);
 
   useEffect(() => {
@@ -39,12 +39,15 @@ export function UsagePill() {
 
   if (!user || !data) return null;
 
-  const pct = data.budget > 0 ? (data.spent / data.budget) * 100 : 0;
+  const pct = data.budget > 0 ? Math.min((data.spent / data.budget) * 100, 100) : 0;
   const color = pct >= 100 ? "#EF4444" : pct >= 80 ? "#F59E0B" : "#10B981";
+  const label = isAdmin
+    ? `$${data.spent.toFixed(2)} / $${data.budget}`
+    : `${Math.round(pct)}% used`;
 
   return (
     <Link
-      href="/settings/profile"
+      href="/admin"
       className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-mono transition-opacity hover:opacity-80"
       style={{ background: "var(--panel)", color, border: `1px solid ${color}33` }}
       title="Monthly AI usage"
@@ -53,7 +56,7 @@ export function UsagePill() {
         className="w-1.5 h-1.5 rounded-full"
         style={{ background: color, flexShrink: 0 }}
       />
-      ${data.spent.toFixed(2)} / ${data.budget}
+      {label}
     </Link>
   );
 }

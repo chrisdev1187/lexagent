@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Receipt, Trash2, Printer, DollarSign, Clock, Plus } from "lucide-react";
+import { Receipt, Trash2, Printer, DollarSign, Clock, Plus, Download } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useMatters } from "@/providers/matters-provider";
 import { useSettings } from "@/providers/settings-provider";
@@ -74,6 +74,24 @@ export default function BillingPage() {
     setShowForm(false);
   };
 
+  const downloadCsv = () => {
+    const rows = [
+      ["Date", "Description", "Hours", "Amount"],
+      ...entries.map(e => [
+        new Date(e.startedAt).toLocaleDateString(),
+        e.description || "Legal services",
+        (e.durationMins / 60).toFixed(2),
+        `$${((e.durationMins / 60) * rate).toFixed(2)}`,
+      ]),
+      ["", "Total", totalHours.toFixed(2), `$${totalBilled}`],
+    ];
+    const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    a.download = `${matter?.title ?? "billing"}-time-entries.csv`;
+    a.click();
+  };
+
   const printInvoice = () => {
     const firm = settings.firmName || "Law Firm";
     const addr = [settings.firmAddress, settings.firmCity, settings.firmState, settings.firmZip].filter(Boolean).join(", ");
@@ -143,6 +161,16 @@ export default function BillingPage() {
             <Plus size={12} />
             Manual Entry
           </button>
+          {entries.length > 0 && (
+            <button
+              onClick={downloadCsv}
+              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
+              style={{ background: "var(--panel2)", color: "var(--text-muted)", border: "1px solid var(--border)", cursor: "pointer" }}
+            >
+              <Download size={12} />
+              Export CSV
+            </button>
+          )}
           {entries.length > 0 && (
             <button
               onClick={printInvoice}

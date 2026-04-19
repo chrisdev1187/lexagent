@@ -5,10 +5,12 @@ import { usePathname, useParams } from "next/navigation";
 import {
   Search, ScanSearch, FileText, Target, Users, Clock,
   CalendarDays, ShieldCheck, FileEdit, BookOpen, Scale, ArrowLeft,
-  LayoutDashboard, Receipt,
+  LayoutDashboard, Receipt, Share2, Lock, Globe,
 } from "lucide-react";
 import { useMatters } from "@/providers/matters-provider";
 import { LexTooltip } from "@/components/shared/LexTooltip";
+import { AvatarStack } from "@/components/shared/AvatarStack";
+import { usePresence } from "@/hooks/usePresence";
 import { TABS } from "@/lib/settings";
 
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -61,9 +63,12 @@ function TabBar() {
 }
 
 export default function MatterLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const { id } = useParams<{ id: string }>();
-  const { getMatter } = useMatters();
+  const { getMatter, updateMatter } = useMatters();
   const matter = getMatter(id);
+  const currentTab = pathname?.split("/").pop() ?? "overview";
+  const present = usePresence(id, currentTab);
 
   if (!matter) {
     return (
@@ -94,39 +99,52 @@ export default function MatterLayout({ children }: { children: React.ReactNode }
           borderBottom: "1px solid var(--border)",
         }}
       >
-        <div className="flex items-start gap-3 min-w-0">
-          <Link
-            href="/dashboard"
-            className="flex-shrink-0 mt-0.5 cursor-pointer"
-            style={{ color: "var(--text-muted)" }}
-          >
+        <div className="flex items-start gap-3 min-w-0 flex-1">
+          <Link href="/dashboard" className="flex-shrink-0 mt-0.5 cursor-pointer" style={{ color: "var(--text-muted)" }}>
             <ArrowLeft size={16} />
           </Link>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h1 className="text-sm font-semibold truncate" style={{ color: "var(--text)" }}>
               {matter.title}
             </h1>
             <div className="flex items-center gap-2 mt-0.5 flex-wrap">
               {matter.client && (
-                <span className="text-xs" style={{ color: "var(--text-muted)" }}>{matter.client}</span>
+                <span className="text-xs truncate max-w-[120px] sm:max-w-none" style={{ color: "var(--text-muted)" }}>{matter.client}</span>
               )}
               {matter.caseType && (
-                <span
-                  className="font-mono text-[10px] tracking-wide px-1.5 py-0.5 rounded"
-                  style={{ background: "var(--panel2)", color: "var(--text-sub)" }}
-                >
+                <span className="font-mono text-[10px] tracking-wide px-1.5 py-0.5 rounded hidden sm:inline" style={{ background: "var(--panel2)", color: "var(--text-sub)" }}>
                   {matter.caseType}
                 </span>
               )}
-              <span
-                className="font-mono text-[10px] tracking-wide"
-                style={{ color: statusColors[matter.status] ?? "var(--text-muted)" }}
-              >
+              <span className="font-mono text-[10px] tracking-wide" style={{ color: statusColors[matter.status] ?? "var(--text-muted)" }}>
                 {matter.status}
               </span>
             </div>
           </div>
+          <AvatarStack users={present} />
         </div>
+        {(() => {
+          const vis = matter?.visibility ?? (matter?.shared ? "team" : "private");
+          const cycled = vis === "private" ? "team" : "private";
+          const isShared = vis !== "private";
+          const VisIcon = vis === "private" ? Lock : vis === "team" ? Globe : Share2;
+          const label = vis === "private" ? "Private" : vis === "team" ? "Team" : "Custom";
+          return (
+            <button
+              onClick={() => matter && updateMatter({ ...matter, visibility: cycled, shared: cycled !== "private" })}
+              title={isShared ? `Visible to team — click to make private` : "Click to share with your team"}
+              className="flex-shrink-0 flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold cursor-pointer"
+              style={{
+                background: isShared ? "var(--emerald-faint)" : "var(--panel2)",
+                color: isShared ? "var(--emerald)" : "var(--text-muted)",
+                border: `1px solid ${isShared ? "var(--emerald-dim)" : "var(--border)"}`,
+              }}
+            >
+              <VisIcon size={12} />
+              <span className="hidden sm:inline">{label}</span>
+            </button>
+          );
+        })()}
       </div>
 
       {/* Tab bar */}

@@ -28,6 +28,8 @@ interface AuthContextValue {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  isAdmin: boolean;
+  userRole: "member" | "admin" | "owner";
   signInWithEmail: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signUpWithEmail: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signInWithGoogle: () => Promise<{ error: AuthError | null }>;
@@ -80,12 +82,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [userRole, setUserRole] = useState<"member" | "admin" | "owner">("member");
+
+  const fetchRole = async (uid: string | undefined) => {
+    if (!uid) { setIsAdmin(false); setUserRole("member"); return; }
+    const { data } = await supabase.from("user_roles").select("role").eq("user_id", uid).single();
+    const role = (data?.role ?? "member") as "member" | "admin" | "owner";
+    setIsAdmin(role === "admin");
+    setUserRole(role);
+  };
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setUser(data.session?.user ?? null);
       setAuthToken(data.session?.access_token ?? null);
+      fetchRole(data.session?.user?.id);
       setLoading(false);
     });
 
@@ -94,6 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(newSession);
         setUser(newSession?.user ?? null);
         setAuthToken(newSession?.access_token ?? null);
+        fetchRole(newSession?.user?.id);
       }
     );
 
@@ -155,6 +169,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         session,
         loading,
+        isAdmin,
+        userRole,
         signInWithEmail,
         signUpWithEmail,
         signInWithGoogle,

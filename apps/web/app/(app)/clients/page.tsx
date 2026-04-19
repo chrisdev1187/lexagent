@@ -49,7 +49,7 @@ export default function ClientsPage() {
   );
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="flex-1 overflow-y-auto p-6 max-w-5xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-2 mb-1">
         <Users size={16} style={{ color: "var(--emerald)" }} />

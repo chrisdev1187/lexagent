@@ -45,7 +45,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
         {/* Mobile top bar */}
         <TopBar onNewMatter={() => setShowNewMatter(true)} />
 
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-hidden flex flex-col">
           {children}
         </main>
       </div>

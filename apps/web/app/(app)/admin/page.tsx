@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import {
   Building2, Palette, Key, Cpu, ShieldCheck, FileText, Activity, ChevronRight, Users,
+  CreditCard, UsersRound, Plus, Trash2,
 } from "lucide-react";
 import { useSettings } from "@/providers/settings-provider";
 import { useAuth } from "@/lib/auth";
@@ -10,17 +11,19 @@ import { supabase } from "@/lib/supabase";
 import { PRACTICE_AREAS, DEFAULT_SYSTEM } from "@/lib/settings";
 import { LexTooltip } from "@/components/shared/LexTooltip";
 
-type TabKey = "firm" | "ui" | "apikeys" | "model" | "shield" | "prompt" | "telemetry" | "users";
+type TabKey = "firm" | "ui" | "apikeys" | "model" | "shield" | "prompt" | "telemetry" | "users" | "billing" | "teams";
 
 const ADMIN_TABS: { id: TabKey; icon: React.ElementType; label: string }[] = [
-  { id: "firm",      icon: Building2,  label: "Firm Profile"    },
-  { id: "ui",        icon: Palette,    label: "UI Preferences"  },
-  { id: "apikeys",   icon: Key,        label: "API Keys"        },
-  { id: "model",     icon: Cpu,        label: "Model & AI"      },
-  { id: "shield",    icon: ShieldCheck,label: "Hallucination Shield" },
-  { id: "prompt",    icon: FileText,   label: "System Prompt"   },
-  { id: "telemetry", icon: Activity,   label: "Telemetry"       },
-  { id: "users",     icon: Users,      label: "User Management" },
+  { id: "firm",      icon: Building2,   label: "Firm Profile"    },
+  { id: "billing",   icon: CreditCard,  label: "Billing & Plan"  },
+  { id: "ui",        icon: Palette,     label: "UI Preferences"  },
+  { id: "apikeys",   icon: Key,         label: "API Keys"        },
+  { id: "model",     icon: Cpu,         label: "Model & AI"      },
+  { id: "shield",    icon: ShieldCheck, label: "Hallucination Shield" },
+  { id: "prompt",    icon: FileText,    label: "System Prompt"   },
+  { id: "telemetry", icon: Activity,    label: "Telemetry"       },
+  { id: "teams",     icon: UsersRound,  label: "Teams"           },
+  { id: "users",     icon: Users,       label: "User Management" },
 ];
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
@@ -68,6 +71,254 @@ interface AdminUser {
 }
 
 const PLANS = ["starter", "professional", "firm", "premium"];
+const ROLES = ["member", "admin"] as const;
+
+const PLAN_DETAILS: Record<string, { name: string; usd_budget: number; matter_limit: number | null; seat_limit: number | null; price_usd: number | null; features: string[] }> = {
+  starter:      { name: "Starter",      usd_budget: 8,   matter_limit: 10, seat_limit: 1,    price_usd: 45,   features: ["Research","Draft","Citations"] },
+  professional: { name: "Professional", usd_budget: 20,  matter_limit: 25, seat_limit: 3,    price_usd: 95,   features: ["Research","Draft","Citations","Strategy","Judge Intel"] },
+  firm:         { name: "Firm",         usd_budget: 35,  matter_limit: 60, seat_limit: 10,   price_usd: 200,  features: ["Research","Draft","Citations","Strategy","Judge Intel","Conflict","Timeline"] },
+  premium:      { name: "Premium",      usd_budget: 150, matter_limit: null, seat_limit: null, price_usd: 2000, features: ["All features","Custom development","Dedicated support","Personal onboarding"] },
+};
+
+function BillingTab() {
+  const { user, isAdmin } = useAuth();
+  const [data, setData] = useState<{ spent: number; budget: number; plan_id: string; requests: number } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user) return;
+    const now = new Date();
+    Promise.all([
+      supabase.from("user_roles").select("plan_id, plans(usd_budget)").eq("user_id", user.id).single(),
+      supabase.from("usage_monthly")
+        .select("total_usd_cost, total_requests")
+        .eq("user_id", user.id)
+        .eq("year", now.getFullYear())
+        .eq("month", now.getMonth() + 1)
+        .single(),
+    ]).then(([roleRes, usageRes]) => {
+      const plan_id = roleRes.data?.plan_id ?? "starter";
+      const budget = Number((roleRes.data?.plans as any)?.usd_budget ?? 8);
+      const spent = Number(usageRes.data?.total_usd_cost ?? 0);
+      const requests = Number(usageRes.data?.total_requests ?? 0);
+      setData({ spent, budget, plan_id, requests });
+      setLoading(false);
+    });
+  }, [user]);
+
+  if (loading) return <p style={{ color: "var(--text-muted)" }}>Loading…</p>;
+  if (!data) return null;
+
+  const pct = data.budget > 0 ? Math.min((data.spent / data.budget) * 100, 100) : 0;
+  const barColor = pct >= 100 ? "#EF4444" : pct >= 80 ? "#F59E0B" : "var(--emerald)";
+  const plan = PLAN_DETAILS[data.plan_id] ?? PLAN_DETAILS.starter;
+
+  return (
+    <div>
+      <SectionHeading>CURRENT PLAN</SectionHeading>
+      <div className="rounded-xl p-4 mb-4" style={{ background: "var(--panel)", border: "1px solid var(--border)" }}>
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <p className="text-base font-semibold" style={{ color: "var(--text)" }}>{plan.name}</p>
+            {plan.price_usd && (
+              <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>${plan.price_usd}/mo</p>
+            )}
+          </div>
+          <span className="px-2.5 py-1 rounded-full text-xs font-mono" style={{ background: "var(--emerald-faint)", color: "var(--emerald)", border: "1px solid var(--emerald-dim)" }}>
+            Active
+          </span>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {plan.features.map((f) => (
+            <span key={f} className="px-2 py-0.5 rounded text-xs" style={{ background: "var(--surface)", color: "var(--text-sub)", border: "1px solid var(--border)" }}>
+              {f}
+            </span>
+          ))}
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-2 text-xs" style={{ color: "var(--text-muted)" }}>
+          {plan.matter_limit && <span>Up to {plan.matter_limit} matters</span>}
+          {plan.seat_limit && <span>Up to {plan.seat_limit} seat{plan.seat_limit > 1 ? "s" : ""}</span>}
+        </div>
+      </div>
+
+      <SectionHeading>AI USAGE — THIS MONTH</SectionHeading>
+      <div className="rounded-xl p-4 mb-4" style={{ background: "var(--panel)", border: "1px solid var(--border)" }}>
+        <div className="flex items-end justify-between mb-2">
+          <div>
+            {isAdmin ? (
+              <p className="text-lg font-mono font-semibold" style={{ color: "var(--text)" }}>
+                ${data.spent.toFixed(4)}
+                <span className="text-sm font-normal ml-1" style={{ color: "var(--text-muted)" }}>/ ${data.budget}</span>
+              </p>
+            ) : (
+              <p className="text-lg font-mono font-semibold" style={{ color: "var(--text)" }}>
+                {Math.round(pct)}%
+                <span className="text-sm font-normal ml-1" style={{ color: "var(--text-muted)" }}>of monthly quota</span>
+              </p>
+            )}
+            <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{data.requests} AI request{data.requests !== 1 ? "s" : ""}</p>
+          </div>
+          <span className="text-xs font-mono" style={{ color: barColor }}>{Math.round(pct)}%</span>
+        </div>
+        <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: "var(--surface)" }}>
+          <div
+            className="h-full rounded-full transition-all duration-500"
+            style={{ width: `${pct}%`, background: barColor }}
+          />
+        </div>
+      </div>
+
+      {data.plan_id !== "premium" && (
+        <div className="rounded-xl p-4" style={{ background: "var(--emerald-faint)", border: "1px solid var(--emerald-dim)" }}>
+          <p className="text-sm font-medium mb-1" style={{ color: "var(--emerald)" }}>Upgrade your plan</p>
+          <p className="text-xs mb-3" style={{ color: "var(--text-sub)" }}>
+            Get more matters, seats, and AI quota with a higher plan.
+          </p>
+          <a
+            href="mailto:sales@lexagent.ai?subject=Upgrade%20Request"
+            className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-semibold transition-all cursor-pointer"
+            style={{ background: "var(--emerald)", color: "#0A0F0D" }}
+          >
+            Contact Sales
+          </a>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TeamsTab() {
+  const [teams, setTeams] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [newTeamName, setNewTeamName] = useState("");
+  const [saving, setSaving] = useState(false);
+  const { user } = useAuth();
+
+  useEffect(() => {
+    async function load() {
+      const { data } = await supabase.rpc("get_admin_teams");
+      setTeams(data ?? []);
+      setLoading(false);
+    }
+    load();
+  }, []);
+
+  async function createTeam() {
+    if (!newTeamName.trim() || !user) return;
+    setSaving(true);
+    const slug = newTeamName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    const { data, error } = await supabase.from("teams").insert({
+      name: newTeamName.trim(),
+      slug: `${slug}-${Date.now()}`,
+      owner_id: user.id,
+    }).select().single();
+    if (!error && data) {
+      await supabase.from("team_members").insert({ team_id: data.id, user_id: user.id, role: "owner" });
+      setTeams((prev) => [{ ...data, owner_email: "", member_count: 1 }, ...prev]);
+      setNewTeamName("");
+      setCreating(false);
+    }
+    setSaving(false);
+  }
+
+  async function deleteTeam(teamId: string) {
+    await supabase.from("teams").delete().eq("id", teamId);
+    setTeams((prev) => prev.filter((t) => t.team_id !== teamId));
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <SectionHeading>ALL TEAMS</SectionHeading>
+        <button
+          onClick={() => setCreating(true)}
+          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold cursor-pointer transition-all"
+          style={{ background: "var(--emerald)", color: "#0A0F0D" }}
+        >
+          <Plus size={12} /> New Team
+        </button>
+      </div>
+
+      {creating && (
+        <div className="rounded-xl p-4 mb-4" style={{ background: "var(--panel)", border: "1px solid var(--border)" }}>
+          <p className="text-xs font-mono mb-2" style={{ color: "var(--text-muted)" }}>TEAM NAME</p>
+          <div className="flex gap-2">
+            <input
+              className={inputCls}
+              style={{ ...inputStyle, flex: 1 }}
+              value={newTeamName}
+              onChange={(e) => setNewTeamName(e.target.value)}
+              placeholder="Acme Legal Team"
+              onKeyDown={(e) => e.key === "Enter" && createTeam()}
+              autoFocus
+            />
+            <button
+              onClick={createTeam}
+              disabled={saving || !newTeamName.trim()}
+              className="rounded-lg px-4 py-2 text-xs font-semibold cursor-pointer disabled:opacity-50"
+              style={{ background: "var(--emerald)", color: "#0A0F0D" }}
+            >
+              {saving ? "…" : "Create"}
+            </button>
+            <button
+              onClick={() => { setCreating(false); setNewTeamName(""); }}
+              className="rounded-lg px-3 py-2 text-xs cursor-pointer"
+              style={{ background: "var(--panel2)", color: "var(--text-muted)", border: "1px solid var(--border)" }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {loading ? (
+        <p style={{ color: "var(--text-muted)" }}>Loading…</p>
+      ) : teams.length === 0 ? (
+        <p className="text-sm" style={{ color: "var(--text-muted)" }}>No teams yet. Create one to start collaborating.</p>
+      ) : (
+        <div style={{ overflowX: "auto" }}>
+          <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ background: "var(--panel)" }}>
+                {["Name", "Owner", "Plan", "Members", "Created", ""].map((h) => (
+                  <th key={h} className="px-3 py-2 text-left font-mono text-[10px] tracking-wider" style={{ color: "var(--text-muted)" }}>
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {teams.map((t) => (
+                <tr key={t.team_id} style={{ borderTop: "1px solid var(--border)" }}>
+                  <td className="px-3 py-2.5 font-medium" style={{ color: "var(--text)" }}>{t.team_name}</td>
+                  <td className="px-3 py-2.5 text-xs" style={{ color: "var(--text-muted)" }}>{t.owner_email || "—"}</td>
+                  <td className="px-3 py-2.5">
+                    <span className="px-2 py-0.5 rounded text-xs" style={{ background: "var(--panel2)", color: "var(--text-muted)" }}>{t.plan_id}</span>
+                  </td>
+                  <td className="px-3 py-2.5 font-mono text-xs" style={{ color: "var(--text)" }}>{t.member_count}</td>
+                  <td className="px-3 py-2.5 text-xs" style={{ color: "var(--text-muted)" }}>
+                    {new Date(t.created_at).toLocaleDateString()}
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <button
+                      onClick={() => deleteTeam(t.team_id)}
+                      className="p-1 rounded cursor-pointer opacity-50 hover:opacity-100 transition-opacity"
+                      style={{ color: "var(--crimson)" }}
+                      title="Delete team"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function UserManagementTab() {
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -79,18 +330,11 @@ function UserManagementTab() {
 
   useEffect(() => {
     async function load() {
-      const { data } = await supabase
-        .from("user_roles")
-        .select(`
-          user_id, role, plan_id, byok_active,
-          profiles (email, full_name)
-        `)
-        .order("user_id");
+      // Uses security-definer RPC — bypasses RLS, only works for admins
+      const { data, error } = await supabase.rpc("get_admin_users");
+      if (error || !data) { setLoading(false); return; }
 
-      if (!data) { setLoading(false); return; }
-
-      // Fetch this month's usage for each user
-      const userIds = data.map((u: any) => u.user_id);
+      const userIds = (data as any[]).map((u: any) => u.user_id);
       const { data: usageData } = await supabase
         .from("usage_monthly")
         .select("user_id, total_usd_cost, total_requests")
@@ -101,9 +345,12 @@ function UserManagementTab() {
       const usageMap: Record<string, { total_usd_cost: number; total_requests: number }> = {};
       (usageData ?? []).forEach((u: any) => { usageMap[u.user_id] = u; });
 
-      setUsers((data as any[]).map((u) => ({
-        ...u,
-        profiles: Array.isArray(u.profiles) ? u.profiles[0] ?? null : u.profiles,
+      setUsers((data as any[]).map((u: any) => ({
+        user_id: u.user_id,
+        role: u.role,
+        plan_id: u.plan_id,
+        byok_active: u.byok_active,
+        profiles: { email: u.email, full_name: u.full_name },
         usage_monthly: usageMap[u.user_id] ?? null,
       })));
       setLoading(false);
@@ -115,6 +362,13 @@ function UserManagementTab() {
     setUpdating(userId);
     await supabase.from("user_roles").update({ plan_id: planId }).eq("user_id", userId);
     setUsers((prev) => prev.map((u) => u.user_id === userId ? { ...u, plan_id: planId } : u));
+    setUpdating(null);
+  }
+
+  async function changeRole(userId: string, role: string) {
+    setUpdating(userId);
+    await supabase.from("user_roles").update({ role }).eq("user_id", userId);
+    setUsers((prev) => prev.map((u) => u.user_id === userId ? { ...u, role } : u));
     setUpdating(null);
   }
 
@@ -163,12 +417,19 @@ function UserManagementTab() {
                       {u.profiles?.full_name ?? "—"}
                     </td>
                     <td className="px-3 py-2.5">
-                      <span
-                        className="px-2 py-0.5 rounded text-xs"
-                        style={{ background: u.role === "admin" ? "var(--gold)" : "var(--panel)", color: u.role === "admin" ? "#000" : "var(--text-muted)" }}
+                      <select
+                        value={u.role}
+                        disabled={updating === u.user_id}
+                        onChange={(e) => changeRole(u.user_id, e.target.value)}
+                        className="rounded px-2 py-1 text-xs"
+                        style={{
+                          background: u.role === "admin" ? "var(--gold)" : "var(--panel)",
+                          color: u.role === "admin" ? "#000" : "var(--text-muted)",
+                          border: "1px solid var(--border)",
+                        }}
                       >
-                        {u.role}
-                      </span>
+                        {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+                      </select>
                     </td>
                     <td className="px-3 py-2.5">
                       <select
@@ -211,8 +472,11 @@ function UserManagementTab() {
   );
 }
 
+const ADMIN_ONLY_TABS: TabKey[] = ["apikeys", "prompt", "telemetry", "users", "teams"];
+
 export default function AdminPage() {
   const { settings, updateSettings } = useSettings();
+  const { isAdmin } = useAuth();
   const [tab, setTab] = useState<TabKey>("firm");
   const [saved, setSaved] = useState(false);
 
@@ -535,6 +799,12 @@ export default function AdminPage() {
           </div>
         );
 
+      case "billing":
+        return <BillingTab />;
+
+      case "teams":
+        return <TeamsTab />;
+
       case "users":
         return <UserManagementTab />;
 
@@ -574,7 +844,7 @@ export default function AdminPage() {
   };
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="flex-1 overflow-y-auto p-6 max-w-4xl mx-auto">
       <div className="flex items-center gap-2.5 mb-6">
         <div
           className="w-8 h-8 rounded-lg flex items-center justify-center"
@@ -591,7 +861,7 @@ export default function AdminPage() {
       <div className="flex gap-6">
         {/* Sidebar nav */}
         <nav className="w-48 flex-shrink-0 space-y-0.5">
-          {ADMIN_TABS.map(({ id, icon: Icon, label }) => {
+          {ADMIN_TABS.filter(t => isAdmin || !ADMIN_ONLY_TABS.includes(t.id)).map(({ id, icon: Icon, label }) => {
             const active = tab === id;
             return (
               <button

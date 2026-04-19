@@ -3,9 +3,11 @@ import { supabase } from "./supabase";
 function toRow(userId: string, matter: Record<string, unknown>) {
   const {
     id, title, client, caseType, jurisdiction, status,
-    facts, judgeName, court, shared, createdAt,
+    facts, judgeName, court, shared, visibility, createdAt,
     ...rest
   } = matter;
+
+  const vis = (visibility as string) || (shared ? "team" : "private");
 
   return {
     id,
@@ -18,7 +20,8 @@ function toRow(userId: string, matter: Record<string, unknown>) {
     facts: (facts as string) || null,
     judge_name: (judgeName as string) || null,
     court: (court as string) || null,
-    shared: (shared as boolean) || false,
+    shared: vis !== "private",
+    visibility: vis,
     metadata: { ...rest, createdAt },
     updated_at: new Date().toISOString(),
   };
@@ -27,9 +30,10 @@ function toRow(userId: string, matter: Record<string, unknown>) {
 function fromRow(row: Record<string, unknown>) {
   const {
     id, title, client, matter_type, jurisdiction, status,
-    facts, judge_name, court, shared, metadata, created_at,
+    facts, judge_name, court, shared, visibility, metadata, created_at,
   } = row;
   const meta = (metadata as Record<string, unknown>) || {};
+  const vis = (visibility as string) || (shared ? "team" : "private");
   return {
     ...meta,
     id,
@@ -41,7 +45,8 @@ function fromRow(row: Record<string, unknown>) {
     facts: (facts as string) || "",
     judgeName: (judge_name as string) || "",
     court: (court as string) || "",
-    shared: (shared as boolean) || false,
+    shared: vis !== "private",
+    visibility: vis,
     createdAt: (meta.createdAt as number) || new Date(created_at as string).getTime(),
     precedents: (meta.precedents as unknown[]) || [],
     notes: (meta.notes as unknown[]) || [],
@@ -77,6 +82,28 @@ export async function upsertMatters(userId: string, matters: Record<string, unkn
     .from("matters")
     .upsert(rows, { onConflict: "id" });
   if (error) throw error;
+}
+
+export async function loadSharedMatters(): Promise<unknown[]> {
+  const { data, error } = await supabase
+    .from("matters")
+    .select("*")
+    .eq("shared", true)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data || []).map(fromRow);
+}
+
+// Loads matters the current user can access but does not own (team/custom shared)
+export async function loadTeamMatters(userId: string): Promise<unknown[]> {
+  const { data, error } = await supabase
+    .from("matters")
+    .select("*")
+    .neq("user_id", userId)
+    .in("visibility", ["team", "custom"])
+    .order("created_at", { ascending: false });
+  if (error) return [];
+  return (data || []).map((row) => ({ ...fromRow(row), _shared: true }));
 }
 
 export async function deleteMatter(matterId: string): Promise<void> {

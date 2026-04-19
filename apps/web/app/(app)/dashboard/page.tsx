@@ -9,6 +9,7 @@ import {
 import { useMatters, Matter } from "@/providers/matters-provider";
 import { NewMatterModal } from "@/components/shared/NewMatterModal";
 import { LexTooltip } from "@/components/shared/LexTooltip";
+import { DeadlineAlert } from "@/components/shared/DeadlineAlert";
 
 const STATUS_COLOR: Record<string, string> = {
   Active: "var(--emerald)",
@@ -161,7 +162,10 @@ export default function DashboardPage() {
   const totalHours = matters.reduce((acc, m) => acc + (m.totalMinsBilled ?? 0), 0);
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="flex-1 overflow-y-auto">
+      <div className="max-w-7xl mx-auto">
+      <DeadlineAlert />
+      <div className="p-6">
       {/* Page header */}
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -281,6 +285,8 @@ export default function DashboardPage() {
       )}
 
       {showNewMatter && <NewMatterModal onClose={() => setShowNewMatter(false)} />}
+      </div>
+      </div>
     </div>
   );
 }
