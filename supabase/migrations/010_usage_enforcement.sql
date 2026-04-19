@@ -60,42 +60,29 @@ CREATE POLICY "team_usage_read" ON public.team_usage_monthly FOR SELECT TO authe
 
 -- ── RPC: get_quota_status ─────────────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION public.get_quota_status()
-RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
-DECLARE
-  v_uid      uuid := auth.uid();
-  v_now      date := current_date;
-  v_plan_id  text;
-  v_result   jsonb;
-BEGIN
-  -- Fetch plan limits
-  SELECT ur.plan_id INTO v_plan_id
-  FROM public.user_roles ur WHERE ur.user_id = v_uid;
-
+RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
   SELECT jsonb_build_object(
     'plan_id',          p.id,
-    'matter_count',     (SELECT count(*) FROM public.matters m WHERE m.user_id = v_uid),
+    'matter_count',     (SELECT count(*) FROM public.matters m WHERE m.user_id = auth.uid()),
     'matter_limit',     p.matter_limit,
-    'storage_bytes',    coalesce((SELECT su.bytes_used FROM public.storage_usage su WHERE su.user_id = v_uid), 0),
+    'storage_bytes',    coalesce((SELECT su.bytes_used FROM public.storage_usage su WHERE su.user_id = auth.uid()), 0),
     'storage_limit_mb', p.storage_limit_mb,
     'ai_spent',         coalesce((
       SELECT um.total_usd_cost FROM public.usage_monthly um
-      WHERE um.user_id = v_uid
-        AND um.year  = extract(year  FROM v_now)::integer
-        AND um.month = extract(month FROM v_now)::integer
+      WHERE um.user_id = auth.uid()
+        AND um.year  = extract(year  FROM current_date)::integer
+        AND um.month = extract(month FROM current_date)::integer
     ), 0),
     'ai_budget',        p.usd_budget,
     'ai_requests',      coalesce((
       SELECT um.total_requests FROM public.usage_monthly um
-      WHERE um.user_id = v_uid
-        AND um.year  = extract(year  FROM v_now)::integer
-        AND um.month = extract(month FROM v_now)::integer
+      WHERE um.user_id = auth.uid()
+        AND um.year  = extract(year  FROM current_date)::integer
+        AND um.month = extract(month FROM current_date)::integer
     ), 0)
-  ) INTO v_result
+  )
   FROM public.plans p
-  WHERE p.id = coalesce(v_plan_id, 'starter');
-
-  RETURN v_result;
-END;
+  JOIN public.user_roles ur ON ur.plan_id = p.id AND ur.user_id = auth.uid();
 $$;
 
 -- ── RPC: adjust_storage_usage (signed delta, positive=upload, negative=delete) ─
@@ -112,20 +99,13 @@ $$;
 
 -- ── RPC: check_matter_quota — returns true if user can create another matter ──
 CREATE OR REPLACE FUNCTION public.check_matter_quota()
-RETURNS boolean LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
-DECLARE
-  v_uid    uuid := auth.uid();
-  v_limit  integer;
-  v_count  bigint;
-BEGIN
-  SELECT p.matter_limit INTO v_limit
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT
+    CASE
+      WHEN p.matter_limit IS NULL THEN true
+      ELSE (SELECT count(*) FROM public.matters WHERE user_id = auth.uid()) < p.matter_limit
+    END
   FROM public.user_roles ur
   JOIN public.plans p ON p.id = ur.plan_id
-  WHERE ur.user_id = v_uid;
-
-  IF v_limit IS NULL THEN RETURN true; END IF;  -- unlimited
-
-  SELECT count(*) INTO v_count FROM public.matters WHERE user_id = v_uid;
-  RETURN v_count < v_limit;
-END;
+  WHERE ur.user_id = auth.uid();
 $$;
