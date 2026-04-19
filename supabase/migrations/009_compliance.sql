@@ -78,42 +78,58 @@ $$;
 -- ── Helper: generate monthly checkpoint (admin only) ─────────────────────────
 CREATE OR REPLACE FUNCTION public.generate_audit_checkpoint(p_year integer, p_month integer)
 RETURNS text LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-DECLARE
-  v_hash text;
-  v_count bigint;
 BEGIN
   IF NOT public.is_admin() THEN
     RAISE EXCEPTION 'Access denied';
   END IF;
 
-  SELECT count(*) INTO v_count
-  FROM public.audit_log
-  WHERE extract(year  FROM created_at)::integer = p_year
-    AND extract(month FROM created_at)::integer = p_month;
-
-  SELECT encode(
-    digest(
-      string_agg(
-        id::text || '|' || coalesce(user_id::text,'') || '|' || action || '|' || created_at::text,
-        E'\n' ORDER BY id
-      ),
-      'sha256'
-    ),
-    'hex'
-  ) INTO v_hash
-  FROM public.audit_log
-  WHERE extract(year  FROM created_at)::integer = p_year
-    AND extract(month FROM created_at)::integer = p_month;
-
+  WITH computed AS (
+    SELECT
+      count(*)::bigint AS cnt,
+      encode(
+        digest(
+          coalesce(
+            string_agg(
+              id::text || '|' || coalesce(user_id::text,'') || '|' || action || '|' || created_at::text,
+              E'\n' ORDER BY id
+            ),
+            ''
+          ),
+          'sha256'
+        ),
+        'hex'
+      ) AS hash
+    FROM public.audit_log
+    WHERE extract(year  FROM created_at)::integer = p_year
+      AND extract(month FROM created_at)::integer = p_month
+  )
   INSERT INTO public.audit_checkpoints (year, month, event_count, sha256, sealed_by)
-  VALUES (p_year, p_month, v_count, coalesce(v_hash, encode(digest('', 'sha256'), 'hex')), auth.uid())
+  SELECT p_year, p_month, cnt, hash, auth.uid()
+  FROM computed
   ON CONFLICT (year, month) DO UPDATE SET
     event_count = excluded.event_count,
     sha256      = excluded.sha256,
     sealed_at   = now(),
     sealed_by   = excluded.sealed_by;
 
-  RETURN v_hash;
+  RETURN (
+    SELECT encode(
+      digest(
+        coalesce(
+          string_agg(
+            id::text || '|' || coalesce(user_id::text,'') || '|' || action || '|' || created_at::text,
+            E'\n' ORDER BY id
+          ),
+          ''
+        ),
+        'sha256'
+      ),
+      'hex'
+    )
+    FROM public.audit_log
+    WHERE extract(year  FROM created_at)::integer = p_year
+      AND extract(month FROM created_at)::integer = p_month
+  );
 END;
 $$;
 
