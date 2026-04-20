@@ -351,7 +351,6 @@ export function Sidebar({ onNewMatter }: SidebarProps) {
           className="w-full flex items-center justify-center py-2 cursor-pointer transition-all duration-150"
           style={{
             color: "var(--fg-quaternary)",
-            borderTop: "0.5px solid rgba(224,224,224,0.06)",
             background: "none",
             border: "none",
             borderTop: "0.5px solid rgba(224,224,224,0.06)",
