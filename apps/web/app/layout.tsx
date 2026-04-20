@@ -9,7 +9,7 @@ const fraunces = Fraunces({
   display: "swap",
   style: ["normal", "italic"],
   axes: ["SOFT", "opsz"],
-  weight: ["300", "400", "500", "600", "700"],
+  weight: "variable",
 });
 
 const inter = Inter({
