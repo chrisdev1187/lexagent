@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 48" fill="none">
+  
+  <g transform="translate(2,4) scale(1)" stroke="currentColor" fill="none">
+    <circle cx="20" cy="20" r="17.5" stroke-width="0.75" opacity="0.55"></circle>
+    <line x1="20" y1="10" x2="20" y2="30" stroke-width="1.25"></line>
+    <line x1="14" y1="30" x2="26" y2="30" stroke-width="1.25"></line>
+    <line x1="11" y1="15" x2="29" y2="15" stroke-width="1.25"></line>
+    <line x1="11" y1="15" x2="11" y2="20" stroke-width="0.75"></line>
+    <line x1="11" y1="20" x2="8" y2="23" stroke-width="0.75"></line>
+    <line x1="11" y1="20" x2="14" y2="23" stroke-width="0.75"></line>
+    <path d="M7 23 Q11 26 15 23" stroke-width="1"></path>
+    <line x1="29" y1="15" x2="29" y2="20" stroke-width="0.75"></line>
+    <line x1="29" y1="20" x2="26" y2="23" stroke-width="0.75"></line>
+    <line x1="29" y1="20" x2="32" y2="23" stroke-width="0.75"></line>
+    <path d="M25 23 Q29 26 33 23" stroke-width="1"></path>
+    <circle cx="20" cy="10" r="1.25" fill="currentColor"></circle>
+  </g>
+  
+  <text x="56" y="32" font-family="Fraunces, &#39;Editorial New&#39;, Georgia, serif" font-weight="500" font-size="22" letter-spacing="0.08em" fill="currentColor">LEX PROTOCOL</text>
+  
+  <text x="298" y="16" font-family="JetBrains Mono, ui-monospace, monospace" font-size="7" letter-spacing="0.18em" fill="currentColor" opacity="0.55">®</text>
+</svg>

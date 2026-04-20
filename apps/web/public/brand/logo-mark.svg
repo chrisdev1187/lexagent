@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" fill="none" stroke="currentColor">
+  
+  
+  <circle cx="20" cy="20" r="17.5" stroke="currentColor" stroke-width="0.75" opacity="0.55"></circle>
+  <line x1="20" y1="1.5" x2="20" y2="6" stroke="currentColor" stroke-width="0.75" opacity="0.55"></line>
+  <line x1="20" y1="34" x2="20" y2="38.5" stroke="currentColor" stroke-width="0.75" opacity="0.55"></line>
+  <line x1="1.5" y1="20" x2="6" y2="20" stroke="currentColor" stroke-width="0.75" opacity="0.55"></line>
+  <line x1="34" y1="20" x2="38.5" y2="20" stroke="currentColor" stroke-width="0.75" opacity="0.55"></line>
+
+  
+  <line x1="20" y1="10" x2="20" y2="30" stroke="currentColor" stroke-width="1.25"></line>
+  
+  <line x1="14" y1="30" x2="26" y2="30" stroke="currentColor" stroke-width="1.25"></line>
+  
+  <line x1="11" y1="15" x2="29" y2="15" stroke="currentColor" stroke-width="1.25"></line>
+  
+  <line x1="11" y1="15" x2="11" y2="20" stroke="currentColor" stroke-width="0.75"></line>
+  <line x1="11" y1="20" x2="8" y2="23" stroke="currentColor" stroke-width="0.75"></line>
+  <line x1="11" y1="20" x2="14" y2="23" stroke="currentColor" stroke-width="0.75"></line>
+  
+  <path d="M7 23 Q11 26 15 23" stroke="currentColor" stroke-width="1" fill="none"></path>
+  
+  <line x1="29" y1="15" x2="29" y2="20" stroke="currentColor" stroke-width="0.75"></line>
+  <line x1="29" y1="20" x2="26" y2="23" stroke="currentColor" stroke-width="0.75"></line>
+  <line x1="29" y1="20" x2="32" y2="23" stroke="currentColor" stroke-width="0.75"></line>
+  
+  <path d="M25 23 Q29 26 33 23" stroke="currentColor" stroke-width="1" fill="none"></path>
+
+  
+  <circle cx="20" cy="10" r="1.25" fill="currentColor"></circle>
+</svg>

@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Fraunces, Inter, JetBrains_Mono } from "next/font/google";
+import "@/styles/colors_and_type.css";
+import "@/styles/components.css";
 import "@/styles/globals.css";
 import { AppProviders } from "@/providers";
 
@@ -32,7 +34,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${fraunces.variable} ${inter.variable} ${jetbrains.variable}`}>
+    <html lang="en" className={`lex-app ${fraunces.variable} ${inter.variable} ${jetbrains.variable}`}>
       <body className="font-sans antialiased" style={{ background: "var(--bg)", color: "var(--text)" }}>
         <AppProviders>
           {children}
