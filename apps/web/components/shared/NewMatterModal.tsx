@@ -39,25 +39,27 @@ export function NewMatterModal({ onClose }: NewMatterModalProps) {
     router.push(`/matters/${matter.id}/research`);
   };
 
-  const inputStyle = {
-    background: "var(--panel)",
-    border: "1px solid var(--border)",
-    color: "var(--text)",
+  const inputStyle: React.CSSProperties = {
+    background: "rgba(255,255,255,0.03)",
+    border: "0.5px solid rgba(224,224,224,0.10)",
+    color: "var(--fg-primary)",
     outline: "none",
-    borderRadius: "0.5rem",
+    borderRadius: 4,
     padding: "0.625rem 0.875rem",
     fontSize: "0.875rem",
     width: "100%",
-  } as const;
+    fontFamily: "var(--font-sans)",
+  };
 
-  const labelStyle = {
+  const labelStyle: React.CSSProperties = {
     display: "block",
-    fontSize: "0.7rem",
+    fontSize: "0.625rem",
     fontFamily: "var(--font-mono)",
-    letterSpacing: "0.08em",
-    color: "var(--text-muted)",
+    letterSpacing: "0.18em",
+    textTransform: "uppercase",
+    color: "var(--fg-tertiary)",
     marginBottom: "0.375rem",
-  } as const;
+  };
 
   if (showUpgrade) {
     return (
@@ -69,61 +71,83 @@ export function NewMatterModal({ onClose }: NewMatterModalProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(6px)" }}
+    >
       <div
-        className="w-full max-w-lg fade-in"
+        className="w-full max-w-lg"
         style={{
-          background: "var(--surface)",
-          border: "1px solid var(--border-hi)",
-          borderRadius: "1rem",
+          background: "rgba(17,17,20,0.92)",
+          backdropFilter: "blur(24px) saturate(160%)",
+          WebkitBackdropFilter: "blur(24px) saturate(160%)",
+          border: "0.5px solid rgba(224,224,224,0.12)",
+          borderRadius: 10,
           padding: "1.75rem",
-          boxShadow: "0 32px 80px rgba(0,0,0,0.6)",
+          boxShadow: "0 40px 80px rgba(0,0,0,0.8), 0 0 0 0.5px rgba(0,255,195,0.08)",
         }}
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-3">
             <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center"
-              style={{ background: "var(--emerald-faint)", border: "1px solid var(--emerald-dim)" }}
+              className="w-8 h-8 rounded flex items-center justify-center"
+              style={{
+                background: "rgba(0,255,195,0.06)",
+                border: "0.5px solid rgba(0,255,195,0.22)",
+              }}
             >
-              <Scale size={15} style={{ color: "var(--emerald)" }} />
+              <Scale size={15} style={{ color: "var(--verdict-neon)" }} />
             </div>
             <div>
-              <h2 className="text-sm font-semibold" style={{ color: "var(--text)" }}>New Matter</h2>
-              <p className="text-xs" style={{ color: "var(--text-muted)" }}>Create a new case file</p>
+              <h2
+                className="font-serif font-semibold text-sm tracking-tight"
+                style={{ color: "var(--fg-primary)" }}
+              >
+                New Matter
+              </h2>
+              <p
+                className="font-mono text-[9px] tracking-[0.16em] uppercase"
+                style={{ color: "var(--fg-quaternary)" }}
+              >
+                Create case file
+              </p>
             </div>
           </div>
-          <button onClick={onClose} className="cursor-pointer" style={{ color: "var(--text-muted)" }}>
-            <X size={18} />
+          <button
+            onClick={onClose}
+            className="cursor-pointer"
+            style={{ color: "var(--fg-quaternary)", background: "none", border: "none" }}
+          >
+            <X size={16} />
           </button>
         </div>
 
         <div className="space-y-4">
           <div>
-            <label style={labelStyle}>MATTER TITLE *</label>
+            <label style={labelStyle}>Matter Title *</label>
             <input
               style={inputStyle}
               value={form.title}
               onChange={e => set("title", e.target.value)}
-              placeholder="e.g., State v. Johnson — Motion to Suppress"
+              placeholder="e.g., Ashford v. Cipher Holdings"
               autoFocus
             />
           </div>
 
           <div>
-            <label style={labelStyle}>CLIENT NAME</label>
+            <label style={labelStyle}>Client Name</label>
             <input
               style={inputStyle}
               value={form.client}
               onChange={e => set("client", e.target.value)}
-              placeholder="e.g., Robert Johnson"
+              placeholder="e.g., Eleanor Ashford"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label style={labelStyle}>CASE TYPE</label>
+              <label style={labelStyle}>Case Type</label>
               <select
                 style={{ ...inputStyle, cursor: "pointer" }}
                 value={form.caseType}
@@ -133,9 +157,8 @@ export function NewMatterModal({ onClose }: NewMatterModalProps) {
                 {CASE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
-
             <div>
-              <label style={labelStyle}>JURISDICTION</label>
+              <label style={labelStyle}>Jurisdiction</label>
               <select
                 style={{ ...inputStyle, cursor: "pointer" }}
                 value={form.jurisdiction}
@@ -148,12 +171,12 @@ export function NewMatterModal({ onClose }: NewMatterModalProps) {
           </div>
 
           <div>
-            <label style={labelStyle}>BRIEF FACTS (OPTIONAL)</label>
+            <label style={labelStyle}>Brief Facts (Optional)</label>
             <textarea
               style={{ ...inputStyle, resize: "none", minHeight: 80 }}
               value={form.facts}
               onChange={e => set("facts", e.target.value)}
-              placeholder="Summarize the key facts or legal issues..."
+              placeholder="Summarize the key facts or legal issues…"
             />
           </div>
         </div>
@@ -161,27 +184,35 @@ export function NewMatterModal({ onClose }: NewMatterModalProps) {
         <div className="flex gap-3 mt-6">
           <button
             onClick={onClose}
-            className="flex-1 rounded-lg py-2.5 text-sm cursor-pointer transition-all duration-150"
+            className="flex-1 rounded py-2.5 text-sm cursor-pointer transition-all duration-150"
             style={{
               background: "transparent",
-              border: "1px solid var(--border)",
-              color: "var(--text-muted)",
+              border: "0.5px solid rgba(224,224,224,0.12)",
+              color: "var(--fg-tertiary)",
+              fontFamily: "var(--font-mono)",
+              fontSize: 11,
+              letterSpacing: "0.1em",
             }}
           >
-            Cancel
+            CANCEL
           </button>
           <button
             onClick={handleCreate}
             disabled={!form.title.trim() || saving}
-            className="flex-1 rounded-lg py-2.5 text-sm font-semibold cursor-pointer transition-all duration-150"
+            className="flex-1 rounded py-2.5 cursor-pointer transition-all duration-150"
             style={{
-              background: "linear-gradient(135deg, var(--emerald) 0%, #059669 100%)",
+              background: !form.title.trim() || saving ? "rgba(0,255,195,0.18)" : "var(--verdict-neon)",
               border: "none",
-              color: "#0A0F0D",
+              color: "var(--midnight-court)",
               opacity: !form.title.trim() || saving ? 0.6 : 1,
+              fontFamily: "var(--font-mono)",
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: "0.1em",
+              boxShadow: !form.title.trim() || saving ? "none" : "0 0 16px rgba(0,255,195,0.35)",
             }}
           >
-            {saving ? "Creating…" : "Create Matter"}
+            {saving ? "CREATING…" : "CREATE MATTER"}
           </button>
         </div>
       </div>

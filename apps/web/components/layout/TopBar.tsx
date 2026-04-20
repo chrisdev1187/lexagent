@@ -17,61 +17,77 @@ export function TopBar({ onNewMatter }: TopBarProps) {
   return (
     <>
       <header
-        className="flex items-center justify-between px-4 h-14 md:hidden"
+        className="flex items-center justify-between px-4 md:hidden"
         style={{
-          background: "var(--sidebar-bg)",
-          borderBottom: "1px solid var(--sidebar-border)",
+          height: 52,
+          background: "rgba(10,10,12,0.85)",
+          backdropFilter: "blur(16px) saturate(160%)",
+          WebkitBackdropFilter: "blur(16px) saturate(160%)",
+          borderBottom: "0.5px solid rgba(224,224,224,0.08)",
         }}
       >
         <button
           onClick={() => setOpen(true)}
           className="cursor-pointer p-1"
-          style={{ color: "var(--text-muted)" }}
+          style={{ color: "var(--fg-tertiary)", background: "none", border: "none" }}
         >
-          <Menu size={20} />
+          <Menu size={18} />
         </button>
 
         <Link href="/dashboard" className="flex items-center gap-2">
-          <Scale size={18} style={{ color: "var(--emerald)" }} />
-          <span className="font-serif italic text-base" style={{ color: "var(--emerald)" }}>
-            {settings.firmName || "LexAgent"}
+          <Scale size={16} style={{ color: "var(--verdict-neon)" }} />
+          <span
+            className="font-serif font-semibold text-sm tracking-tight"
+            style={{ color: "var(--fg-primary)" }}
+          >
+            {settings.firmName || "LEX PROTOCOL"}
           </span>
         </Link>
 
         <button
           onClick={onNewMatter}
-          className="cursor-pointer flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
+          className="cursor-pointer flex items-center gap-1.5 rounded px-3 py-1.5"
           style={{
-            background: "linear-gradient(135deg, var(--emerald) 0%, #059669 100%)",
-            color: "#0A0F0D",
+            background: "var(--verdict-neon)",
+            color: "var(--midnight-court)",
+            border: "none",
+            fontFamily: "var(--font-mono)",
+            fontSize: 10,
+            fontWeight: 600,
+            letterSpacing: "0.1em",
+            boxShadow: "0 0 12px rgba(0,255,195,0.35)",
           }}
         >
-          <Plus size={13} />
-          New
+          <Plus size={12} />
+          NEW
         </button>
       </header>
 
-      {/* Mobile drawer overlay */}
+      {/* Mobile drawer */}
       {open && (
         <div className="fixed inset-0 z-50 md:hidden">
           <div
             className="absolute inset-0"
-            style={{ background: "rgba(0,0,0,0.6)" }}
+            style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}
             onClick={() => setOpen(false)}
           />
           <div
             className="absolute left-0 top-0 bottom-0 flex flex-col"
-            style={{ width: 240 }}
+            style={{ width: 240, zIndex: 1 }}
           >
             <div
               className="flex items-center justify-end px-3 py-3"
               style={{
-                background: "var(--sidebar-bg)",
-                borderBottom: "1px solid var(--sidebar-border)",
+                background: "var(--midnight-deep)",
+                borderBottom: "0.5px solid rgba(224,224,224,0.08)",
               }}
             >
-              <button onClick={() => setOpen(false)} className="cursor-pointer" style={{ color: "var(--text-muted)" }}>
-                <X size={18} />
+              <button
+                onClick={() => setOpen(false)}
+                className="cursor-pointer"
+                style={{ color: "var(--fg-tertiary)", background: "none", border: "none" }}
+              >
+                <X size={16} />
               </button>
             </div>
             <div className="flex-1 overflow-hidden">

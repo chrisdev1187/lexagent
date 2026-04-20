@@ -19,13 +19,13 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
 
   if (loading || !user) {
     return (
-      <div className="flex h-screen items-center justify-center" style={{ background: "var(--bg)" }}>
+      <div className="flex h-screen items-center justify-center" style={{ background: "var(--midnight-court)" }}>
         <div className="flex flex-col items-center gap-3">
           <div
-            className="h-6 w-6 rounded-full border-2 animate-spin"
-            style={{ borderColor: "var(--border)", borderTopColor: "var(--emerald)" }}
+            className="h-5 w-5 rounded-full border animate-spin"
+            style={{ borderColor: "var(--midnight-line)", borderTopColor: "var(--verdict-neon)" }}
           />
-          <span className="font-mono text-xs tracking-widest" style={{ color: "var(--text-muted)" }}>
+          <span className="font-mono text-[10px] tracking-[0.22em] uppercase" style={{ color: "var(--fg-quaternary)" }}>
             LOADING…
           </span>
         </div>

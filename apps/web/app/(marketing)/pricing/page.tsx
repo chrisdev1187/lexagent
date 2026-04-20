@@ -97,6 +97,13 @@ const PLANS: Plan[] = [
   },
 ];
 
+const inputStyle = {
+  background: "rgba(255,255,255,0.03)",
+  color: "var(--fg-primary)",
+  border: "0.5px solid rgba(224,224,224,0.10)",
+  outline: "none",
+};
+
 export default function PricingPage() {
   const region = useRegion();
   const [showLeadForm, setShowLeadForm] = useState(false);
@@ -111,10 +118,7 @@ export default function PricingPage() {
   }
 
   async function handleCTA(plan: Plan) {
-    if (plan.isPremium) {
-      setShowLeadForm(true);
-      return;
-    }
+    if (plan.isPremium) { setShowLeadForm(true); return; }
     setLoading(plan.id);
     try {
       const token = typeof window !== "undefined" ? localStorage.getItem("sb-token") : null;
@@ -129,7 +133,7 @@ export default function PricingPage() {
       const data = await res.json() as { url?: string; error?: string };
       if (data.url) window.location.href = data.url;
     } catch {
-      // silently fail — user can retry
+      // silently fail
     } finally {
       setLoading(null);
     }
@@ -146,63 +150,69 @@ export default function PricingPage() {
   }
 
   return (
-    <main className="min-h-screen" style={{ background: "var(--bg)" }}>
+    <main className="min-h-screen" style={{ background: "var(--midnight-court)" }}>
       {/* Header */}
       <div className="text-center py-20 px-4">
-        <p className="text-sm font-mono uppercase tracking-widest mb-4" style={{ color: "var(--emerald)" }}>
+        <p className="font-mono text-[10px] tracking-[0.22em] uppercase mb-4" style={{ color: "var(--verdict-neon)" }}>
           Transparent pricing
         </p>
-        <h1 className="text-5xl font-serif mb-4" style={{ color: "var(--text)" }}>
+        <h1 className="font-serif text-5xl font-semibold tracking-tight mb-4" style={{ color: "var(--fg-primary)" }}>
           Legal AI that pays for itself
         </h1>
-        <p className="text-lg max-w-xl mx-auto" style={{ color: "var(--text-muted)" }}>
+        <p className="text-lg max-w-xl mx-auto" style={{ color: "var(--fg-tertiary)" }}>
           Powered by Claude Sonnet 4.6. All plans include the same frontier model — higher tiers unlock more usage and features.
         </p>
         {region.currency !== "USD" && (
-          <p className="text-xs mt-3" style={{ color: "var(--text-muted)" }}>
+          <p className="font-mono text-[10px] tracking-[0.1em] uppercase mt-3" style={{ color: "var(--fg-quaternary)" }}>
             Prices shown in {region.currency} ({region.region})
           </p>
         )}
       </div>
 
       {/* Plans grid */}
-      <div className="max-w-7xl mx-auto px-4 pb-24 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="max-w-7xl mx-auto px-4 pb-24 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
         {PLANS.map((plan) => (
           <div
             key={plan.id}
-            className="rounded-xl p-6 flex flex-col"
+            className="rounded p-6 flex flex-col"
             style={{
-              background: plan.highlighted ? "var(--emerald)" : "var(--surface)",
-              border: plan.highlighted ? "none" : "1px solid var(--panel)",
-              color: plan.highlighted ? "#000" : "var(--text)",
+              background: plan.highlighted ? "rgba(0,255,195,0.06)" : "rgba(17,17,20,0.7)",
+              border: plan.highlighted ? "0.5px solid rgba(0,255,195,0.35)" : "0.5px solid rgba(224,224,224,0.09)",
+              boxShadow: plan.highlighted ? "0 0 30px rgba(0,255,195,0.08)" : "none",
             }}
           >
-            <div className="mb-4">
-              <p className="text-xs font-mono uppercase tracking-widest mb-1 opacity-70">{plan.tagline}</p>
-              <h2 className="text-2xl font-serif font-bold">{plan.name}</h2>
+            <div className="mb-5">
+              <p className="font-mono text-[9px] tracking-[0.18em] uppercase mb-1.5" style={{ color: "var(--fg-quaternary)" }}>
+                {plan.tagline}
+              </p>
+              <h2 className="font-serif text-2xl font-semibold" style={{ color: plan.highlighted ? "var(--verdict-neon)" : "var(--fg-primary)" }}>
+                {plan.name}
+              </h2>
             </div>
 
             <div className="mb-6">
               {plan.isPremium ? (
-                <p className="text-3xl font-bold">Custom</p>
+                <p className="font-serif text-3xl font-semibold" style={{ color: "var(--verdict-violet)" }}>Custom</p>
               ) : (
                 <>
-                  <p className="text-4xl font-bold">
+                  <p className="font-serif text-4xl font-semibold" style={{ color: "var(--fg-primary)" }}>
                     {formatPrice(getPrice(plan), region)}
-                    <span className="text-sm font-normal opacity-70">/seat/mo</span>
+                    <span className="text-sm font-normal ml-1" style={{ color: "var(--fg-quaternary)" }}>/seat/mo</span>
                   </p>
                   {region.currency !== "USD" && (
-                    <p className="text-xs opacity-60 mt-1">${plan.usd} USD/seat/mo</p>
+                    <p className="font-mono text-[10px] mt-1" style={{ color: "var(--fg-quaternary)" }}>${plan.usd} USD/seat/mo</p>
                   )}
                 </>
               )}
-              <p className="text-xs mt-2 opacity-70">{plan.budget} · {plan.matterLimit} · {plan.seats}</p>
+              <p className="font-mono text-[10px] tracking-[0.08em] mt-2" style={{ color: "var(--fg-quaternary)" }}>
+                {plan.budget} · {plan.matterLimit} · {plan.seats}
+              </p>
             </div>
 
             <ul className="space-y-2 mb-8 flex-1">
               {plan.features.map((f) => (
-                <li key={f} className="flex items-start gap-2 text-sm">
-                  <span className="mt-0.5 shrink-0">✓</span>
+                <li key={f} className="flex items-start gap-2 text-[13px]" style={{ color: "var(--fg-secondary)" }}>
+                  <span className="mt-0.5 flex-shrink-0" style={{ color: "var(--verdict-neon)" }}>✓</span>
                   <span>{f}</span>
                 </li>
               ))}
@@ -211,12 +221,13 @@ export default function PricingPage() {
             <button
               onClick={() => handleCTA(plan)}
               disabled={loading === plan.id}
-              className="w-full py-3 rounded-lg font-semibold text-sm transition-opacity disabled:opacity-50"
-              style={
-                plan.highlighted
-                  ? { background: "#000", color: "#fff" }
-                  : { background: "var(--emerald)", color: "#000" }
-              }
+              className="w-full py-2.5 rounded font-mono text-[11px] tracking-[0.1em] font-semibold uppercase cursor-pointer disabled:opacity-50 transition-all"
+              style={{
+                background: plan.highlighted ? "var(--verdict-neon)" : "rgba(255,255,255,0.04)",
+                color: plan.highlighted ? "var(--midnight-court)" : "var(--fg-tertiary)",
+                border: plan.highlighted ? "none" : "0.5px solid rgba(224,224,224,0.12)",
+                boxShadow: plan.highlighted ? "0 0 16px rgba(0,255,195,0.3)" : "none",
+              }}
             >
               {loading === plan.id ? "Loading…" : plan.cta}
             </button>
@@ -228,24 +239,33 @@ export default function PricingPage() {
       {showLeadForm && (
         <div
           className="fixed inset-0 flex items-center justify-center z-50 p-4"
-          style={{ background: "rgba(0,0,0,0.7)" }}
+          style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(8px)" }}
           onClick={() => !leadSubmitted && setShowLeadForm(false)}
         >
           <div
-            className="rounded-xl p-8 max-w-md w-full"
-            style={{ background: "var(--surface)" }}
+            className="rounded p-8 max-w-md w-full"
+            style={{
+              background: "rgba(17,17,20,0.92)",
+              border: "0.5px solid rgba(224,224,224,0.12)",
+              boxShadow: "0 0 40px rgba(0,255,195,0.06)",
+            }}
             onClick={(e) => e.stopPropagation()}
           >
             {leadSubmitted ? (
               <div className="text-center">
-                <p className="text-4xl mb-4">✓</p>
-                <h3 className="text-xl font-serif mb-2" style={{ color: "var(--text)" }}>Request received</h3>
-                <p style={{ color: "var(--text-muted)" }} className="text-sm">
+                <div
+                  className="w-12 h-12 rounded flex items-center justify-center mx-auto mb-4"
+                  style={{ background: "rgba(0,255,195,0.08)", border: "0.5px solid rgba(0,255,195,0.28)" }}
+                >
+                  <span style={{ color: "var(--verdict-neon)", fontSize: 20 }}>✓</span>
+                </div>
+                <h3 className="font-serif text-xl font-semibold mb-2" style={{ color: "var(--fg-primary)" }}>Request received</h3>
+                <p className="text-[13px]" style={{ color: "var(--fg-tertiary)" }}>
                   We'll be in touch within 24 hours to schedule a call.
                 </p>
                 <button
-                  className="mt-6 px-6 py-2 rounded-lg text-sm"
-                  style={{ background: "var(--emerald)", color: "#000" }}
+                  className="mt-6 px-6 py-2 rounded font-mono text-[11px] tracking-[0.1em] uppercase cursor-pointer"
+                  style={{ background: "var(--verdict-neon)", color: "var(--midnight-court)", border: "none" }}
                   onClick={() => setShowLeadForm(false)}
                 >
                   Close
@@ -253,41 +273,43 @@ export default function PricingPage() {
               </div>
             ) : (
               <form onSubmit={submitLead} className="space-y-4">
-                <h3 className="text-xl font-serif" style={{ color: "var(--text)" }}>Book a Premium Demo</h3>
-                <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-                  Premium is limited to 1 new client per month. Tell us about your firm.
-                </p>
+                <div>
+                  <h3 className="font-serif text-xl font-semibold" style={{ color: "var(--fg-primary)" }}>Book a Premium Demo</h3>
+                  <p className="text-[12px] mt-1" style={{ color: "var(--fg-quaternary)" }}>
+                    Premium is limited to 1 new client per month. Tell us about your firm.
+                  </p>
+                </div>
                 {[
                   { field: "email", label: "Email", required: true, type: "email" },
                   { field: "full_name", label: "Full Name", required: false, type: "text" },
                   { field: "firm", label: "Firm / Organisation", required: false, type: "text" },
                 ].map(({ field, label, required, type }) => (
                   <div key={field}>
-                    <label className="block text-xs mb-1" style={{ color: "var(--text-muted)" }}>{label}</label>
+                    <label className="block font-mono text-[9px] tracking-[0.18em] uppercase mb-1.5" style={{ color: "var(--fg-quaternary)" }}>{label}</label>
                     <input
                       type={type}
                       required={required}
                       value={leadForm[field as keyof typeof leadForm]}
                       onChange={(e) => setLeadForm((p) => ({ ...p, [field]: e.target.value }))}
-                      className="w-full px-3 py-2 rounded-lg text-sm"
-                      style={{ background: "var(--panel)", color: "var(--text)", border: "1px solid var(--text-muted)" }}
+                      className="w-full px-3 py-2 rounded text-[13px] lex-focus"
+                      style={inputStyle}
                     />
                   </div>
                 ))}
                 <div>
-                  <label className="block text-xs mb-1" style={{ color: "var(--text-muted)" }}>Message (optional)</label>
+                  <label className="block font-mono text-[9px] tracking-[0.18em] uppercase mb-1.5" style={{ color: "var(--fg-quaternary)" }}>Message (optional)</label>
                   <textarea
                     rows={3}
                     value={leadForm.message}
                     onChange={(e) => setLeadForm((p) => ({ ...p, message: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg text-sm resize-none"
-                    style={{ background: "var(--panel)", color: "var(--text)", border: "1px solid var(--text-muted)" }}
+                    className="w-full px-3 py-2 rounded text-[13px] resize-none lex-focus"
+                    style={inputStyle}
                   />
                 </div>
                 <button
                   type="submit"
-                  className="w-full py-3 rounded-lg font-semibold text-sm"
-                  style={{ background: "var(--emerald)", color: "#000" }}
+                  className="w-full py-2.5 rounded font-mono text-[11px] tracking-[0.1em] uppercase font-semibold cursor-pointer"
+                  style={{ background: "var(--verdict-neon)", color: "var(--midnight-court)", border: "none", boxShadow: "0 0 16px rgba(0,255,195,0.3)" }}
                 >
                   Submit Request
                 </button>

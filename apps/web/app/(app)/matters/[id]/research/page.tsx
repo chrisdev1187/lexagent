@@ -91,11 +91,11 @@ export default function ResearchPage() {
     >
       {!hasKey && (
         <div
-          className="rounded-lg px-4 py-3 mb-4 text-xs flex items-center gap-2"
+          className="rounded px-4 py-3 mb-4 text-xs flex items-center gap-2"
           style={{
-            background: "rgba(245,158,11,0.07)",
-            border: "1px solid rgba(245,158,11,0.2)",
-            color: "var(--gold)",
+            background: "rgba(255,184,0,0.06)",
+            border: "0.5px solid rgba(255,184,0,0.28)",
+            color: "var(--verdict-amber)",
           }}
         >
           <AlertTriangle size={13} />
@@ -108,10 +108,10 @@ export default function ResearchPage() {
         {messages.length === 0 && !loading && (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <div
-              className="w-12 h-12 rounded-xl flex items-center justify-center mb-3"
-              style={{ background: "var(--emerald-faint)", border: "1px solid var(--emerald-dim)" }}
+              className="w-12 h-12 rounded flex items-center justify-center mb-3"
+              style={{ background: "rgba(0,255,195,0.06)", border: "0.5px solid rgba(0,255,195,0.22)" }}
             >
-              <Search size={20} style={{ color: "var(--emerald)" }} />
+              <Search size={20} style={{ color: "var(--verdict-neon)" }} />
             </div>
             <p className="text-sm font-medium mb-1" style={{ color: "var(--text)" }}>Ask ARES anything</p>
             <p className="text-xs max-w-sm" style={{ color: "var(--text-muted)" }}>
@@ -123,11 +123,11 @@ export default function ResearchPage() {
         {messages.map((msg, i) => (
           <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
             <div
-              className="max-w-2xl rounded-xl px-4 py-3 text-sm"
+              className="max-w-2xl rounded px-4 py-3 text-sm"
               style={{
-                background: msg.role === "user" ? "var(--emerald-faint)" : "var(--surface)",
-                border: `1px solid ${msg.role === "user" ? "var(--emerald-dim)" : "var(--border)"}`,
-                color: "var(--text)",
+                background: msg.role === "user" ? "rgba(0,255,195,0.06)" : "rgba(17,17,20,0.8)",
+                border: `0.5px solid ${msg.role === "user" ? "rgba(0,255,195,0.22)" : "rgba(224,224,224,0.09)"}`,
+                color: "var(--fg-primary)",
                 lineHeight: 1.7,
                 whiteSpace: "pre-wrap",
               }}
@@ -140,8 +140,8 @@ export default function ResearchPage() {
         {loading && (
           <div className="flex justify-start">
             <div
-              className="rounded-xl px-4 py-3 flex items-center gap-2"
-              style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+              className="rounded px-4 py-3 flex items-center gap-2"
+              style={{ background: "rgba(17,17,20,0.8)", border: "0.5px solid rgba(224,224,224,0.09)" }}
             >
               <div className="flex gap-1">
                 {[0, 1, 2].map(i => (
@@ -149,7 +149,7 @@ export default function ResearchPage() {
                     key={i}
                     className="w-1.5 h-1.5 rounded-full animate-pulse"
                     style={{
-                      background: "var(--emerald)",
+                      background: "var(--verdict-neon)",
                       animationDelay: `${i * 0.15}s`,
                     }}
                   />
@@ -167,8 +167,8 @@ export default function ResearchPage() {
 
       {/* Input */}
       <div
-        className="rounded-xl overflow-hidden"
-        style={{ background: "var(--surface)", border: "1px solid var(--border-hi)" }}
+        className="rounded overflow-hidden"
+        style={{ background: "rgba(17,17,20,0.8)", border: "0.5px solid rgba(0,255,195,0.14)" }}
       >
         <textarea
           ref={inputRef}
@@ -187,7 +187,7 @@ export default function ResearchPage() {
         />
         <div
           className="flex items-center justify-between px-3 py-2"
-          style={{ borderTop: "1px solid var(--border)" }}
+          style={{ borderTop: "0.5px solid rgba(224,224,224,0.08)" }}
         >
           <div className="flex items-center gap-2">
             <LexTooltip content="Clear conversation">
@@ -210,9 +210,9 @@ export default function ResearchPage() {
               className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold cursor-pointer transition-all duration-150"
               style={{
                 background: query.trim() && !loading
-                  ? "linear-gradient(135deg, var(--emerald) 0%, #059669 100%)"
+                  ? "var(--verdict-neon)"
                   : "var(--panel2)",
-                color: query.trim() && !loading ? "#0A0F0D" : "var(--text-muted)",
+                color: query.trim() && !loading ? "var(--midnight-court)" : "var(--text-muted)",
                 border: "none",
               }}
             >

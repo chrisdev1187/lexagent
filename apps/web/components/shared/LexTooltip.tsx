@@ -23,17 +23,18 @@ export function LexTooltip({ content, children, side = "top", delayDuration = 60
           <TooltipPrimitive.Content
             side={side}
             sideOffset={6}
-            className="fade-in max-w-xs rounded-lg px-3 py-2 text-xs leading-relaxed shadow-xl z-50"
+            className="fade-in max-w-xs rounded px-3 py-2 text-[11px] leading-relaxed shadow-xl z-50"
             style={{
-              background: "var(--panel2)",
-              border: "1px solid var(--border-hi)",
-              color: "var(--text-sub)",
+              background: "rgba(17,17,20,0.95)",
+              border: "0.5px solid rgba(224,224,224,0.14)",
+              color: "var(--fg-tertiary)",
               fontFamily: "var(--font-sans)",
+              backdropFilter: "blur(12px)",
             }}
           >
             {content}
             <TooltipPrimitive.Arrow
-              style={{ fill: "var(--border-hi)" }}
+              style={{ fill: "rgba(224,224,224,0.14)" }}
               width={10}
               height={5}
             />

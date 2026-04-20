@@ -23,9 +23,9 @@ function getAlerts(matters: Matter[]) {
 }
 
 const TYPE_STYLE = {
-  overdue: { bg: "rgba(220,38,38,0.08)", border: "rgba(220,38,38,0.25)", color: "var(--crimson)", label: "OVERDUE" },
-  today:   { bg: "rgba(245,158,11,0.08)", border: "rgba(245,158,11,0.25)", color: "var(--gold)",   label: "TODAY" },
-  tomorrow:{ bg: "var(--emerald-faint)",  border: "var(--emerald-dim)",    color: "var(--emerald)", label: "TOMORROW" },
+  overdue: { bg: "rgba(255,51,85,0.05)",  border: "rgba(255,51,85,0.25)",  color: "var(--verdict-crimson)", label: "OVERDUE" },
+  today:   { bg: "rgba(255,184,0,0.05)",  border: "rgba(255,184,0,0.25)",  color: "var(--verdict-amber)",   label: "TODAY" },
+  tomorrow:{ bg: "rgba(0,255,195,0.04)",  border: "rgba(0,255,195,0.20)",  color: "var(--verdict-neon)",    label: "TOMORROW" },
 };
 
 export function DeadlineAlert() {
@@ -51,18 +51,18 @@ export function DeadlineAlert() {
   };
 
   return (
-    <div className="mx-4 mt-3 rounded-xl overflow-hidden" style={{ border: "1px solid rgba(220,38,38,0.25)" }}>
+    <div className="mx-4 mt-3 rounded overflow-hidden" style={{ border: "0.5px solid rgba(255,51,85,0.25)" }}>
       <div
         className="flex items-center justify-between px-4 py-2.5"
-        style={{ background: "rgba(220,38,38,0.08)", borderBottom: "1px solid rgba(220,38,38,0.15)" }}
+        style={{ background: "rgba(255,51,85,0.06)", borderBottom: "0.5px solid rgba(255,51,85,0.15)" }}
       >
         <div className="flex items-center gap-2">
-          <Bell size={13} style={{ color: "var(--crimson)" }} />
-          <span className="text-xs font-semibold font-mono tracking-wider" style={{ color: "var(--crimson)" }}>
+          <Bell size={12} style={{ color: "var(--verdict-crimson)" }} />
+          <span className="font-mono text-[10px] tracking-[0.14em] uppercase font-semibold" style={{ color: "var(--verdict-crimson)" }}>
             {alerts.length} DEADLINE ALERT{alerts.length !== 1 ? "S" : ""}
           </span>
         </div>
-        <button onClick={dismissAll} className="text-xs cursor-pointer" style={{ color: "var(--text-muted)" }}>
+        <button onClick={dismissAll} className="font-mono text-[9px] tracking-[0.12em] uppercase cursor-pointer" style={{ color: "var(--fg-quaternary)" }}>
           Dismiss all
         </button>
       </div>
@@ -72,25 +72,25 @@ export function DeadlineAlert() {
           return (
             <div key={deadline.id} className="flex items-center gap-3 px-4 py-2.5" style={{ background: s.bg }}>
               <span
-                className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded flex-shrink-0"
-                style={{ background: `${s.color}20`, color: s.color, border: `1px solid ${s.border}` }}
+                className="font-mono text-[9px] tracking-[0.14em] uppercase font-semibold px-1.5 py-0.5 rounded flex-shrink-0"
+                style={{ background: `${s.color}15`, color: s.color, border: `0.5px solid ${s.border}` }}
               >
                 {s.label}
               </span>
               <div className="flex-1 min-w-0">
-                <Link href={`/matters/${matterId}/deadlines`} className="text-xs font-medium hover:underline truncate block" style={{ color: "var(--text)" }}>
+                <Link href={`/matters/${matterId}/deadlines`} className="text-[13px] font-medium hover:underline truncate block" style={{ color: "var(--fg-primary)" }}>
                   {deadline.title}
                 </Link>
-                <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>{matterTitle}</span>
+                <span className="font-mono text-[9px] tracking-[0.1em] uppercase" style={{ color: "var(--fg-quaternary)" }}>{matterTitle}</span>
               </div>
-              <button onClick={() => dismiss(deadline.id)} className="flex-shrink-0 cursor-pointer" style={{ color: "var(--text-muted)", background: "none", border: "none" }}>
+              <button onClick={() => dismiss(deadline.id)} className="flex-shrink-0 cursor-pointer" style={{ color: "var(--fg-quaternary)", background: "none", border: "none" }}>
                 <X size={13} />
               </button>
             </div>
           );
         })}
         {alerts.length > 5 && (
-          <div className="px-4 py-2 text-xs" style={{ color: "var(--text-muted)", background: "rgba(220,38,38,0.04)" }}>
+          <div className="px-4 py-2 font-mono text-[9px] tracking-[0.1em] uppercase" style={{ color: "var(--fg-quaternary)", background: "rgba(220,38,38,0.04)" }}>
             +{alerts.length - 5} more — <Link href="/dashboard" className="underline">view all</Link>
           </div>
         )}

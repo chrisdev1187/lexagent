@@ -24,10 +24,10 @@ export function AvatarStack({ users, max = 4 }: AvatarStackProps) {
             width: 26,
             height: 26,
             background: u.color,
-            color: "#0A0F0D",
+            color: "var(--midnight-court)",
             marginLeft: i === 0 ? 0 : -8,
             zIndex: visible.length - i,
-            outline: "2px solid var(--surface)",
+            outline: "2px solid var(--midnight-deep)",
             flexShrink: 0,
           }}
         >
@@ -40,10 +40,10 @@ export function AvatarStack({ users, max = 4 }: AvatarStackProps) {
           style={{
             width: 26,
             height: 26,
-            background: "var(--panel2)",
-            color: "var(--text-muted)",
+            background: "rgba(255,255,255,0.06)",
+            color: "var(--fg-quaternary)",
             marginLeft: -8,
-            outline: "2px solid var(--surface)",
+            outline: "2px solid var(--midnight-deep)",
             flexShrink: 0,
           }}
         >

@@ -40,7 +40,8 @@ export function UsagePill() {
   if (!user || !data) return null;
 
   const pct = data.budget > 0 ? Math.min((data.spent / data.budget) * 100, 100) : 0;
-  const color = pct >= 100 ? "#EF4444" : pct >= 80 ? "#F59E0B" : "#10B981";
+  const color = pct >= 100 ? "var(--verdict-crimson)" : pct >= 80 ? "var(--verdict-amber)" : "var(--verdict-neon)";
+  const borderColor = pct >= 100 ? "rgba(255,51,85,0.3)" : pct >= 80 ? "rgba(255,184,0,0.3)" : "rgba(0,255,195,0.25)";
   const label = isAdmin
     ? `$${data.spent.toFixed(2)} / $${data.budget}`
     : `${Math.round(pct)}% used`;
@@ -48,13 +49,17 @@ export function UsagePill() {
   return (
     <Link
       href="/admin"
-      className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-mono transition-opacity hover:opacity-80"
-      style={{ background: "var(--panel)", color, border: `1px solid ${color}33` }}
+      className="flex items-center gap-1.5 px-2.5 py-1 rounded-full font-mono text-[10px] tracking-[0.1em] transition-opacity hover:opacity-80"
+      style={{
+        background: "rgba(255,255,255,0.03)",
+        color,
+        border: `0.5px solid ${borderColor}`,
+      }}
       title="Monthly AI usage"
     >
       <span
         className="w-1.5 h-1.5 rounded-full"
-        style={{ background: color, flexShrink: 0 }}
+        style={{ background: color, flexShrink: 0, boxShadow: `0 0 4px ${color}` }}
       />
       {label}
     </Link>

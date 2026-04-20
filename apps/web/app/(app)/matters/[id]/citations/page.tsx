@@ -83,8 +83,8 @@ export default function CitationsPage() {
     >
       {/* Input */}
       <div
-        className="rounded-xl p-4 mb-6"
-        style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+        className="rounded p-4 mb-6"
+        style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}
       >
         <div className="flex gap-3 items-center">
           <input
@@ -107,9 +107,9 @@ export default function CitationsPage() {
             className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold flex-shrink-0"
             style={{
               background: citation.trim() && !loading
-                ? "linear-gradient(135deg, var(--emerald) 0%, #059669 100%)"
+                ? "var(--verdict-neon)"
                 : "var(--panel2)",
-              color: citation.trim() && !loading ? "#0A0F0D" : "var(--text-muted)",
+              color: citation.trim() && !loading ? "var(--midnight-court)" : "var(--text-muted)",
               border: "none",
               cursor: citation.trim() && !loading ? "pointer" : "default",
             }}
@@ -123,7 +123,7 @@ export default function CitationsPage() {
       {error && (
         <div
           className="rounded-lg px-4 py-3 mb-4 text-xs"
-          style={{ background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.2)", color: "var(--crimson)" }}
+          style={{ background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.2)", color: "var(--verdict-crimson)" }}
         >
           {error}
         </div>
@@ -132,10 +132,10 @@ export default function CitationsPage() {
       {history.length === 0 && !loading && (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <div
-            className="w-12 h-12 rounded-xl flex items-center justify-center mb-3"
-            style={{ background: "var(--emerald-faint)", border: "1px solid var(--emerald-dim)" }}
+            className="w-12 h-12 rounded flex items-center justify-center mb-3"
+            style={{ background: "rgba(0,255,195,0.06)", border: "1px solid rgba(0,255,195,0.28)" }}
           >
-            <ShieldCheck size={20} style={{ color: "var(--emerald)" }} />
+            <ShieldCheck size={20} style={{ color: "var(--verdict-neon)" }} />
           </div>
           <p className="text-sm font-medium mb-1" style={{ color: "var(--text)" }}>No citations verified yet</p>
           <p className="text-xs max-w-sm" style={{ color: "var(--text-muted)" }}>
@@ -152,17 +152,17 @@ export default function CitationsPage() {
           {history.map(entry => (
             <div
               key={entry.id}
-              className="rounded-xl p-4"
+              className="rounded p-4"
               style={{
-                background: "var(--surface)",
+                background: "rgba(17,17,20,0.7)",
                 border: `1px solid ${entry.verified ? "rgba(16,185,129,0.2)" : "rgba(220,38,38,0.2)"}`,
               }}
             >
               <div className="flex items-start gap-3">
                 <div className="flex-shrink-0 mt-0.5">
                   {entry.verified
-                    ? <CheckCircle size={16} style={{ color: "var(--emerald)" }} />
-                    : <XCircle size={16} style={{ color: "var(--crimson)" }} />
+                    ? <CheckCircle size={16} style={{ color: "var(--verdict-neon)" }} />
+                    : <XCircle size={16} style={{ color: "var(--verdict-crimson)" }} />
                   }
                 </div>
                 <div className="flex-1 min-w-0">
@@ -171,7 +171,7 @@ export default function CitationsPage() {
                       className="text-xs font-semibold px-2 py-0.5 rounded-full"
                       style={{
                         background: entry.verified ? "rgba(16,185,129,0.12)" : "rgba(220,38,38,0.12)",
-                        color: entry.verified ? "var(--emerald)" : "var(--crimson)",
+                        color: entry.verified ? "var(--verdict-neon)" : "var(--verdict-crimson)",
                         border: `1px solid ${entry.verified ? "rgba(16,185,129,0.3)" : "rgba(220,38,38,0.3)"}`,
                       }}
                     >
@@ -192,7 +192,7 @@ export default function CitationsPage() {
                           target="_blank"
                           rel="noopener noreferrer"
                           className="flex items-center gap-1 mt-1"
-                          style={{ color: "var(--emerald)" }}
+                          style={{ color: "var(--verdict-neon)" }}
                         >
                           View on CourtListener <ExternalLink size={11} />
                         </a>

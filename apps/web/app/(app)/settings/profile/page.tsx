@@ -27,11 +27,11 @@ interface UsageEvent {
   created_at: string;
 }
 
-const PLAN_COLORS: Record<string, string> = {
-  starter: "#6B7280",
-  professional: "#10B981",
-  firm: "#F59E0B",
-  premium: "#8B5CF6",
+const PLAN_COLOR: Record<string, string> = {
+  starter:      "var(--fg-tertiary)",
+  professional: "var(--verdict-neon)",
+  firm:         "var(--verdict-amber)",
+  premium:      "var(--verdict-violet)",
 };
 
 export default function ProfilePage() {
@@ -48,30 +48,11 @@ export default function ProfilePage() {
       setLoading(true);
       const now = new Date();
       const [roleRes, monthRes, eventsRes] = await Promise.all([
-        supabase
-          .from("user_roles")
-          .select("plan_id, byok_active, plans(id, name, usd_budget)")
-          .eq("user_id", user!.id)
-          .single(),
-        supabase
-          .from("usage_monthly")
-          .select("total_usd_cost, total_requests")
-          .eq("user_id", user!.id)
-          .eq("year", now.getFullYear())
-          .eq("month", now.getMonth() + 1)
-          .single(),
-        supabase
-          .from("usage_events")
-          .select("tool_name, model, usd_cost, created_at")
-          .eq("user_id", user!.id)
-          .order("created_at", { ascending: false })
-          .limit(20),
+        supabase.from("user_roles").select("plan_id, byok_active, plans(id, name, usd_budget)").eq("user_id", user!.id).single(),
+        supabase.from("usage_monthly").select("total_usd_cost, total_requests").eq("user_id", user!.id).eq("year", now.getFullYear()).eq("month", now.getMonth() + 1).single(),
+        supabase.from("usage_events").select("tool_name, model, usd_cost, created_at").eq("user_id", user!.id).order("created_at", { ascending: false }).limit(20),
       ]);
-
-      if (roleRes.data) {
-        setRole(roleRes.data as UserRole);
-        setPlan((roleRes.data as any).plans as Plan);
-      }
+      if (roleRes.data) { setRole(roleRes.data as UserRole); setPlan((roleRes.data as any).plans as Plan); }
       if (monthRes.data) setMonthly(monthRes.data);
       if (eventsRes.data) setEvents(eventsRes.data as UsageEvent[]);
       setLoading(false);
@@ -84,30 +65,58 @@ export default function ProfilePage() {
   const usdSpent = monthly?.total_usd_cost ?? 0;
   const usdBudget = plan?.usd_budget ?? 8;
   const pct = Math.min((usdSpent / usdBudget) * 100, 100);
-  const barColor = pct >= 100 ? "#EF4444" : pct >= 80 ? "#F59E0B" : "#10B981";
+  const barColor = pct >= 100 ? "var(--verdict-crimson)" : pct >= 80 ? "var(--verdict-amber)" : "var(--verdict-neon)";
 
   return (
     <div className="p-8 max-w-3xl mx-auto space-y-8">
       <div>
-        <h1 className="text-2xl font-serif" style={{ color: "var(--text)" }}>Profile &amp; Usage</h1>
-        <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>{user.email}</p>
+        <span className="font-mono text-[10px] tracking-[0.2em] uppercase" style={{ color: "var(--verdict-neon)" }}>▸</span>
+        <h1 className="font-serif text-2xl font-semibold tracking-tight mt-1" style={{ color: "var(--fg-primary)" }}>
+          Profile &amp; Usage
+        </h1>
+        <p className="font-mono text-[10px] tracking-[0.14em] uppercase mt-1" style={{ color: "var(--fg-quaternary)" }}>
+          {user.email}
+        </p>
       </div>
 
       {loading ? (
-        <p style={{ color: "var(--text-muted)" }}>Loading…</p>
+        <p className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "var(--fg-quaternary)" }}>
+          Loading…
+        </p>
       ) : (
         <>
-          {/* Plan badge */}
-          <div className="rounded-xl p-6" style={{ background: "var(--surface)" }}>
+          {/* Plan card */}
+          <div
+            className="rounded p-5"
+            style={{
+              background: "rgba(17,17,20,0.7)",
+              border: "0.5px solid rgba(224,224,224,0.09)",
+            }}
+          >
             <div className="flex items-center justify-between mb-4">
               <div>
-                <p className="text-xs font-mono uppercase tracking-widest mb-1" style={{ color: "var(--text-muted)" }}>Current Plan</p>
-                <p className="text-xl font-semibold" style={{ color: PLAN_COLORS[role?.plan_id ?? "starter"] ?? "var(--text)" }}>
+                <p
+                  className="font-mono text-[9px] tracking-[0.2em] uppercase mb-1"
+                  style={{ color: "var(--fg-quaternary)" }}
+                >
+                  Current Plan
+                </p>
+                <p
+                  className="font-serif text-xl font-semibold"
+                  style={{ color: PLAN_COLOR[role?.plan_id ?? "starter"] ?? "var(--fg-primary)" }}
+                >
                   {plan?.name ?? role?.plan_id ?? "Starter"}
                 </p>
               </div>
               {role?.byok_active && (
-                <span className="text-xs px-2 py-1 rounded" style={{ background: "var(--panel)", color: "var(--emerald)" }}>
+                <span
+                  className="font-mono text-[9px] tracking-[0.14em] uppercase px-2.5 py-1 rounded-full"
+                  style={{
+                    background: "rgba(0,255,195,0.06)",
+                    border: "0.5px solid rgba(0,255,195,0.25)",
+                    color: "var(--verdict-neon)",
+                  }}
+                >
                   BYOK Active
                 </span>
               )}
@@ -115,50 +124,91 @@ export default function ProfilePage() {
 
             {/* Usage bar */}
             <div>
-              <div className="flex justify-between text-xs mb-1" style={{ color: "var(--text-muted)" }}>
-                <span>AI Usage this month</span>
+              <div
+                className="flex justify-between font-mono text-[10px] tracking-[0.1em] mb-1.5"
+                style={{ color: "var(--fg-quaternary)" }}
+              >
+                <span>AI USAGE THIS MONTH</span>
                 <span>${usdSpent.toFixed(4)} / ${usdBudget}</span>
               </div>
-              <div className="h-2 rounded-full" style={{ background: "var(--panel)" }}>
+              <div
+                className="h-1 rounded-full"
+                style={{ background: "rgba(224,224,224,0.06)" }}
+              >
                 <div
-                  className="h-2 rounded-full transition-all"
-                  style={{ width: `${pct}%`, background: barColor }}
+                  className="h-1 rounded-full transition-all"
+                  style={{
+                    width: `${pct}%`,
+                    background: barColor,
+                    boxShadow: `0 0 6px ${barColor}`,
+                  }}
                 />
               </div>
               {pct >= 80 && (
-                <p className="text-xs mt-1" style={{ color: barColor }}>
-                  {pct >= 100 ? "Budget exhausted — upgrade to continue at full speed." : "Approaching monthly limit."}
+                <p
+                  className="font-mono text-[10px] tracking-[0.1em] mt-1.5"
+                  style={{ color: barColor }}
+                >
+                  {pct >= 100 ? "BUDGET EXHAUSTED — upgrade to continue." : "APPROACHING MONTHLY LIMIT."}
                 </p>
               )}
             </div>
 
-            <div className="mt-4 flex gap-4 text-sm" style={{ color: "var(--text-muted)" }}>
-              <span>{monthly?.total_requests ?? 0} AI requests this month</span>
+            <div
+              className="mt-4 font-mono text-[10px] tracking-[0.1em]"
+              style={{ color: "var(--fg-quaternary)" }}
+            >
+              {monthly?.total_requests ?? 0} AI REQUESTS THIS MONTH
             </div>
           </div>
 
           {/* Recent usage events */}
           <div>
-            <h2 className="text-sm font-semibold mb-3" style={{ color: "var(--text)" }}>Recent AI Calls</h2>
+            <h2
+              className="font-serif text-base font-semibold mb-3 tracking-tight"
+              style={{ color: "var(--fg-primary)" }}
+            >
+              Recent AI Calls
+            </h2>
             {events.length === 0 ? (
-              <p className="text-sm" style={{ color: "var(--text-muted)" }}>No usage recorded yet.</p>
+              <p
+                className="font-mono text-[10px] tracking-[0.14em] uppercase"
+                style={{ color: "var(--fg-quaternary)" }}
+              >
+                No usage recorded yet.
+              </p>
             ) : (
-              <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--panel)" }}>
+              <div
+                className="rounded overflow-hidden"
+                style={{ border: "0.5px solid rgba(224,224,224,0.09)" }}
+              >
                 <table className="w-full text-sm">
                   <thead>
-                    <tr style={{ background: "var(--surface)" }}>
+                    <tr style={{ background: "rgba(255,255,255,0.02)" }}>
                       {["Tool", "Model", "Cost (USD)", "Time"].map((h) => (
-                        <th key={h} className="px-4 py-2 text-left font-normal text-xs" style={{ color: "var(--text-muted)" }}>{h}</th>
+                        <th
+                          key={h}
+                          className="px-4 py-2 text-left font-mono text-[9px] tracking-[0.14em] uppercase"
+                          style={{ color: "var(--fg-quaternary)" }}
+                        >
+                          {h}
+                        </th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {events.map((e, i) => (
-                      <tr key={i} style={{ borderTop: "1px solid var(--panel)", color: "var(--text)" }}>
-                        <td className="px-4 py-2 capitalize">{e.tool_name}</td>
-                        <td className="px-4 py-2 font-mono text-xs">{e.model}</td>
-                        <td className="px-4 py-2 font-mono text-xs">${Number(e.usd_cost).toFixed(6)}</td>
-                        <td className="px-4 py-2 text-xs" style={{ color: "var(--text-muted)" }}>
+                      <tr
+                        key={i}
+                        style={{
+                          borderTop: "0.5px solid rgba(224,224,224,0.06)",
+                          color: "var(--fg-secondary)",
+                        }}
+                      >
+                        <td className="px-4 py-2 capitalize text-[13px]">{e.tool_name}</td>
+                        <td className="px-4 py-2 font-mono text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{e.model}</td>
+                        <td className="px-4 py-2 font-mono text-[10px]" style={{ color: "var(--verdict-neon)" }}>${Number(e.usd_cost).toFixed(6)}</td>
+                        <td className="px-4 py-2 font-mono text-[10px]" style={{ color: "var(--fg-quaternary)" }}>
                           {new Date(e.created_at).toLocaleString()}
                         </td>
                       </tr>
@@ -173,17 +223,25 @@ export default function ProfilePage() {
           <div className="flex gap-3">
             <a
               href="/settings/billing"
-              className="px-4 py-2 rounded-lg text-sm font-semibold"
-              style={{ background: "var(--emerald)", color: "#000" }}
+              className="px-4 py-2 rounded text-[11px] font-mono tracking-[0.1em] font-semibold"
+              style={{
+                background: "var(--verdict-neon)",
+                color: "var(--midnight-court)",
+                boxShadow: "0 0 12px rgba(0,255,195,0.3)",
+              }}
             >
-              Manage Plan
+              MANAGE PLAN
             </a>
             <a
               href="/settings/api-key"
-              className="px-4 py-2 rounded-lg text-sm"
-              style={{ background: "var(--surface)", color: "var(--text)", border: "1px solid var(--panel)" }}
+              className="px-4 py-2 rounded text-[11px] font-mono tracking-[0.1em]"
+              style={{
+                background: "rgba(255,255,255,0.03)",
+                color: "var(--fg-tertiary)",
+                border: "0.5px solid rgba(224,224,224,0.10)",
+              }}
             >
-              BYOK Key Settings
+              BYOK KEY SETTINGS
             </a>
           </div>
         </>

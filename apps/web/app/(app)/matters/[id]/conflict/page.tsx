@@ -106,14 +106,14 @@ export default function ConflictPage() {
           {conflicts.length === 0 ? (
             <span
               className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full"
-              style={{ background: "rgba(16,185,129,0.12)", color: "var(--emerald)", border: "1px solid rgba(16,185,129,0.3)" }}
+              style={{ background: "rgba(16,185,129,0.12)", color: "var(--verdict-neon)", border: "1px solid rgba(16,185,129,0.3)" }}
             >
               <CheckCircle size={11} /> No conflicts detected
             </span>
           ) : (
             <span
               className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full"
-              style={{ background: "rgba(220,38,38,0.12)", color: "var(--crimson)", border: "1px solid rgba(220,38,38,0.3)" }}
+              style={{ background: "rgba(220,38,38,0.12)", color: "var(--verdict-crimson)", border: "1px solid rgba(220,38,38,0.3)" }}
             >
               <AlertTriangle size={11} /> {conflicts.length} potential conflict{conflicts.length !== 1 ? "s" : ""}
             </span>
@@ -125,20 +125,20 @@ export default function ConflictPage() {
             {conflicts.map(c => (
               <div
                 key={c.matterId}
-                className="rounded-xl px-4 py-3"
+                className="rounded px-4 py-3"
                 style={{
-                  background: "var(--surface)",
+                  background: "rgba(17,17,20,0.7)",
                   border: "1px solid rgba(220,38,38,0.2)",
                 }}
               >
                 <div className="flex items-start gap-2">
-                  <AlertTriangle size={14} style={{ color: "var(--crimson)", flexShrink: 0, marginTop: 2 }} />
+                  <AlertTriangle size={14} style={{ color: "var(--verdict-crimson)", flexShrink: 0, marginTop: 2 }} />
                   <div>
                     <p className="text-sm font-medium" style={{ color: "var(--text)" }}>{c.matterTitle}</p>
                     <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
                       Client: {c.client} · {c.caseType}
                     </p>
-                    <p className="text-xs mt-1" style={{ color: "var(--crimson)" }}>{c.reason}</p>
+                    <p className="text-xs mt-1" style={{ color: "var(--verdict-crimson)" }}>{c.reason}</p>
                   </div>
                 </div>
               </div>
@@ -146,10 +146,10 @@ export default function ConflictPage() {
           </div>
         ) : (
           <div
-            className="rounded-xl px-4 py-4 flex items-center gap-3"
-            style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+            className="rounded px-4 py-4 flex items-center gap-3"
+            style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}
           >
-            <CheckCircle size={16} style={{ color: "var(--emerald)", flexShrink: 0 }} />
+            <CheckCircle size={16} style={{ color: "var(--verdict-neon)", flexShrink: 0 }} />
             <div>
               <p className="text-sm" style={{ color: "var(--text)" }}>
                 No matching client names or obvious conflicts found across {matters.length - 1} other matter{matters.length !== 2 ? "s" : ""}.
@@ -173,8 +173,8 @@ export default function ConflictPage() {
             style={{
               background: aiLoading
                 ? "var(--panel2)"
-                : "linear-gradient(135deg, var(--emerald) 0%, #059669 100%)",
-              color: aiLoading ? "var(--text-muted)" : "#0A0F0D",
+                : "var(--verdict-neon)",
+              color: aiLoading ? "var(--text-muted)" : "var(--midnight-court)",
               border: "none",
               cursor: aiLoading ? "default" : "pointer",
             }}
@@ -187,7 +187,7 @@ export default function ConflictPage() {
         {aiError && (
           <div
             className="rounded-lg px-4 py-3 mb-3 text-xs"
-            style={{ background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.2)", color: "var(--crimson)" }}
+            style={{ background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.2)", color: "var(--verdict-crimson)" }}
           >
             {aiError}
           </div>
@@ -200,7 +200,7 @@ export default function ConflictPage() {
                 <div
                   key={i}
                   className="w-1.5 h-1.5 rounded-full animate-pulse"
-                  style={{ background: "var(--emerald)", animationDelay: `${i * 0.15}s` }}
+                  style={{ background: "var(--verdict-neon)", animationDelay: `${i * 0.15}s` }}
                 />
               ))}
             </div>
@@ -210,8 +210,8 @@ export default function ConflictPage() {
 
         {aiAnalysis && !aiLoading && (
           <div
-            className="rounded-xl p-5"
-            style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+            className="rounded p-5"
+            style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}
           >
             <pre
               className="text-sm leading-relaxed whitespace-pre-wrap font-sans"
@@ -224,8 +224,8 @@ export default function ConflictPage() {
 
         {!aiAnalysis && !aiLoading && (
           <div
-            className="rounded-xl px-4 py-6 text-center"
-            style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+            className="rounded px-4 py-6 text-center"
+            style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}
           >
             <p className="text-xs" style={{ color: "var(--text-muted)" }}>
               Click &quot;Run AI Check&quot; for a detailed analysis applying ABA Model Rules 1.7 (current clients), 1.9 (former clients), and 1.10 (imputed conflicts).

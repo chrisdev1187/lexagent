@@ -129,8 +129,8 @@ export default function DeepResearchPage() {
   };
 
   const SOURCE_BADGE: Record<string, { label: string; color: string }> = {
-    congress: { label: "Congress", color: "var(--gold)" },
-    ecfr: { label: "eCFR", color: "var(--emerald)" },
+    congress: { label: "Congress", color: "var(--verdict-amber)" },
+    ecfr: { label: "eCFR", color: "var(--verdict-neon)" },
   };
 
   return (
@@ -147,9 +147,9 @@ export default function DeepResearchPage() {
             onClick={() => { setTab(t); setError(null); }}
             className="px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-all duration-150"
             style={{
-              background: tab === t ? "var(--emerald-faint)" : "var(--panel2)",
-              border: `1px solid ${tab === t ? "var(--emerald-dim)" : "var(--border)"}`,
-              color: tab === t ? "var(--emerald)" : "var(--text-muted)",
+              background: tab === t ? "rgba(0,255,195,0.06)" : "var(--panel2)",
+              border: `1px solid ${tab === t ? "rgba(0,255,195,0.28)" : "var(--border)"}`,
+              color: tab === t ? "var(--verdict-neon)" : "var(--text-muted)",
             }}
           >
             {t === "congress" ? "Congress Bills" : "eCFR Regulations"}
@@ -160,7 +160,7 @@ export default function DeepResearchPage() {
       {/* Search bar */}
       <div
         className="flex gap-2 mb-4"
-        style={{ background: "var(--surface)", borderRadius: 10, border: "1px solid var(--border-hi)", overflow: "hidden" }}
+        style={{ background: "rgba(17,17,20,0.7)", borderRadius: 10, border: "0.5px solid rgba(0,255,195,0.14)", overflow: "hidden" }}
       >
         <input
           value={query}
@@ -176,9 +176,9 @@ export default function DeepResearchPage() {
           className="flex items-center gap-1.5 px-4 text-xs font-semibold cursor-pointer transition-all duration-150"
           style={{
             background: query.trim() && !searching && matter
-              ? "linear-gradient(135deg, var(--emerald) 0%, #059669 100%)"
+              ? "var(--verdict-neon)"
               : "var(--panel2)",
-            color: query.trim() && !searching && matter ? "#0A0F0D" : "var(--text-muted)",
+            color: query.trim() && !searching && matter ? "var(--midnight-court)" : "var(--text-muted)",
             border: "none",
             borderLeft: "1px solid var(--border)",
           }}
@@ -204,7 +204,7 @@ export default function DeepResearchPage() {
             const pid = `congress-${bill.congress}-${bill.type}-${bill.number}`;
             const saved = savedIds.has(pid);
             return (
-              <div key={pid} className="rounded-xl p-3 flex items-start gap-3" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+              <div key={pid} className="rounded p-3 flex items-start gap-3" style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-semibold mb-0.5 line-clamp-2" style={{ color: "var(--text)" }}>{bill.title}</p>
                   <p className="text-xs" style={{ color: "var(--text-muted)" }}>
@@ -225,7 +225,7 @@ export default function DeepResearchPage() {
                   <button
                     onClick={() => !saved && saveCongressBill(bill)}
                     className="p-1.5 rounded-md cursor-pointer"
-                    style={{ color: saved ? "var(--emerald)" : "var(--text-muted)" }}
+                    style={{ color: saved ? "var(--verdict-neon)" : "var(--text-muted)" }}
                     title={saved ? "Saved" : "Save to precedents"}
                   >
                     {saved ? <BookmarkCheck size={13} /> : <Bookmark size={13} />}
@@ -247,7 +247,7 @@ export default function DeepResearchPage() {
             const pid = `ecfr-${r.id}`;
             const saved = savedIds.has(pid);
             return (
-              <div key={pid} className="rounded-xl p-3 flex items-start gap-3" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+              <div key={pid} className="rounded p-3 flex items-start gap-3" style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-semibold mb-0.5" style={{ color: "var(--text)" }}>
                     {r.fr_citation ?? r.label} — {r.label_description}
@@ -262,7 +262,7 @@ export default function DeepResearchPage() {
                 <button
                   onClick={() => !saved && saveEcfrResult(r)}
                   className="p-1.5 rounded-md cursor-pointer flex-shrink-0"
-                  style={{ color: saved ? "var(--emerald)" : "var(--text-muted)" }}
+                  style={{ color: saved ? "var(--verdict-neon)" : "var(--text-muted)" }}
                   title={saved ? "Saved" : "Save to precedents"}
                 >
                   {saved ? <BookmarkCheck size={13} /> : <Bookmark size={13} />}
@@ -283,10 +283,10 @@ export default function DeepResearchPage() {
             {savedPrecedents.map((p) => {
               const badge = SOURCE_BADGE[p.source];
               return (
-                <div key={p.id} className="rounded-xl px-3 py-2.5 flex items-center gap-3" style={{ background: "var(--panel2)", border: "1px solid var(--border)" }}>
+                <div key={p.id} className="rounded px-3 py-2.5 flex items-center gap-3" style={{ background: "var(--panel2)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
                   <span
                     className="font-mono text-[10px] px-1.5 py-0.5 rounded flex-shrink-0"
-                    style={{ background: "var(--surface)", color: badge?.color ?? "var(--text-muted)", border: "1px solid var(--border)" }}
+                    style={{ background: "rgba(17,17,20,0.7)", color: badge?.color ?? "var(--text-muted)", border: "0.5px solid rgba(224,224,224,0.09)" }}
                   >
                     {badge?.label ?? p.source}
                   </span>
@@ -316,7 +316,7 @@ export default function DeepResearchPage() {
 
       {/* Empty states */}
       {!searching && congressResults.length === 0 && ecfrResults.length === 0 && savedPrecedents.length === 0 && (
-        <div className="rounded-xl p-8 text-center" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+        <div className="rounded p-8 text-center" style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
           <ScanSearch size={28} className="mx-auto mb-3" style={{ color: "var(--text-muted)" }} />
           <p className="text-sm mb-1" style={{ color: "var(--text)" }}>Search federal sources</p>
           <p className="text-xs" style={{ color: "var(--text-muted)" }}>

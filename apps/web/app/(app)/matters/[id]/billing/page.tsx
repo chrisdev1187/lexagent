@@ -139,7 +139,7 @@ export default function BillingPage() {
   const inputStyle = {
     background: "var(--panel2)",
     color: "var(--text)",
-    border: "1px solid var(--border)",
+    border: "0.5px solid rgba(224,224,224,0.09)",
     borderRadius: "8px",
     outline: "none",
     fontSize: "0.75rem",
@@ -156,7 +156,7 @@ export default function BillingPage() {
           <button
             onClick={() => setShowForm(v => !v)}
             className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
-            style={{ background: "var(--panel2)", color: "var(--text-muted)", border: "1px solid var(--border)", cursor: "pointer" }}
+            style={{ background: "var(--panel2)", color: "var(--text-muted)", border: "0.5px solid rgba(224,224,224,0.09)", cursor: "pointer" }}
           >
             <Plus size={12} />
             Manual Entry
@@ -165,7 +165,7 @@ export default function BillingPage() {
             <button
               onClick={downloadCsv}
               className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
-              style={{ background: "var(--panel2)", color: "var(--text-muted)", border: "1px solid var(--border)", cursor: "pointer" }}
+              style={{ background: "var(--panel2)", color: "var(--text-muted)", border: "0.5px solid rgba(224,224,224,0.09)", cursor: "pointer" }}
             >
               <Download size={12} />
               Export CSV
@@ -176,8 +176,8 @@ export default function BillingPage() {
               onClick={printInvoice}
               className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
               style={{
-                background: "linear-gradient(135deg, var(--emerald) 0%, #059669 100%)",
-                color: "#0A0F0D",
+                background: "var(--verdict-neon)",
+                color: "var(--midnight-court)",
                 border: "none",
                 cursor: "pointer",
               }}
@@ -191,21 +191,21 @@ export default function BillingPage() {
     >
       {/* Summary cards */}
       <div className="grid grid-cols-3 gap-3 mb-6">
-        <div className="rounded-xl p-4 text-center" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+        <div className="rounded p-4 text-center" style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
           <div className="flex items-center justify-center mb-1">
-            <Clock size={14} style={{ color: "var(--gold)" }} />
+            <Clock size={14} style={{ color: "var(--verdict-amber)" }} />
           </div>
           <p className="text-xl font-bold" style={{ color: "var(--text)" }}>{totalHours.toFixed(1)}h</p>
           <p className="text-xs" style={{ color: "var(--text-muted)" }}>Total Hours</p>
         </div>
-        <div className="rounded-xl p-4 text-center" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+        <div className="rounded p-4 text-center" style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
           <div className="flex items-center justify-center mb-1">
-            <DollarSign size={14} style={{ color: "var(--emerald)" }} />
+            <DollarSign size={14} style={{ color: "var(--verdict-neon)" }} />
           </div>
           <p className="text-xl font-bold" style={{ color: "var(--text)" }}>${totalBilled}</p>
           <p className="text-xs" style={{ color: "var(--text-muted)" }}>Total Billed @ ${rate}/hr</p>
         </div>
-        <div className="rounded-xl p-4 text-center" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>
+        <div className="rounded p-4 text-center" style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
           <div className="flex items-center justify-center mb-1">
             <Receipt size={14} style={{ color: "var(--text-muted)" }} />
           </div>
@@ -216,7 +216,7 @@ export default function BillingPage() {
 
       {/* Manual entry form */}
       {showForm && (
-        <div className="rounded-xl p-4 mb-5" style={{ background: "var(--surface)", border: "1px solid var(--border-hi)" }}>
+        <div className="rounded p-4 mb-5" style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(0,255,195,0.14)" }}>
           <p className="text-xs font-mono tracking-widest mb-3" style={{ color: "var(--text-muted)" }}>MANUAL TIME ENTRY</p>
           <div className="flex gap-3 mb-3">
             <div style={{ flex: "0 0 120px" }}>
@@ -242,7 +242,7 @@ export default function BillingPage() {
             </div>
           </div>
           <div className="flex gap-2 justify-end">
-            <button onClick={() => setShowForm(false)} className="text-xs px-3 py-1.5 rounded-lg" style={{ background: "var(--panel2)", color: "var(--text-muted)", border: "1px solid var(--border)", cursor: "pointer" }}>
+            <button onClick={() => setShowForm(false)} className="text-xs px-3 py-1.5 rounded-lg" style={{ background: "var(--panel2)", color: "var(--text-muted)", border: "0.5px solid rgba(224,224,224,0.09)", cursor: "pointer" }}>
               Cancel
             </button>
             <button
@@ -250,8 +250,8 @@ export default function BillingPage() {
               disabled={!manualMins || parseInt(manualMins) <= 0}
               className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold"
               style={{
-                background: manualMins && parseInt(manualMins) > 0 ? "linear-gradient(135deg, var(--emerald) 0%, #059669 100%)" : "var(--panel2)",
-                color: manualMins && parseInt(manualMins) > 0 ? "#0A0F0D" : "var(--text-muted)",
+                background: manualMins && parseInt(manualMins) > 0 ? "var(--verdict-neon)" : "var(--panel2)",
+                color: manualMins && parseInt(manualMins) > 0 ? "var(--midnight-court)" : "var(--text-muted)",
                 border: "none",
                 cursor: manualMins && parseInt(manualMins) > 0 ? "pointer" : "default",
               }}
@@ -266,17 +266,17 @@ export default function BillingPage() {
       {/* Entries table */}
       {entries.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
-          <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-3" style={{ background: "var(--emerald-faint)", border: "1px solid var(--emerald-dim)" }}>
-            <Clock size={20} style={{ color: "var(--emerald)" }} />
+          <div className="w-12 h-12 rounded flex items-center justify-center mb-3" style={{ background: "rgba(0,255,195,0.06)", border: "1px solid rgba(0,255,195,0.28)" }}>
+            <Clock size={20} style={{ color: "var(--verdict-neon)" }} />
           </div>
           <p className="text-sm font-medium mb-1" style={{ color: "var(--text)" }}>No time entries yet</p>
           <p className="text-xs" style={{ color: "var(--text-muted)" }}>Use the sidebar timer or add a manual entry above</p>
         </div>
       ) : (
-        <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)" }}>
+        <div className="rounded overflow-hidden" style={{ border: "0.5px solid rgba(224,224,224,0.09)" }}>
           <table className="w-full">
             <thead>
-              <tr style={{ background: "var(--surface)", borderBottom: "1px solid var(--border)" }}>
+              <tr style={{ background: "rgba(17,17,20,0.7)", borderBottom: "0.5px solid rgba(224,224,224,0.08)" }}>
                 <th className="text-left px-4 py-2.5 text-xs font-mono tracking-wider" style={{ color: "var(--text-muted)" }}>DATE</th>
                 <th className="text-left px-4 py-2.5 text-xs font-mono tracking-wider" style={{ color: "var(--text-muted)" }}>DESCRIPTION</th>
                 <th className="text-center px-4 py-2.5 text-xs font-mono tracking-wider" style={{ color: "var(--text-muted)" }}>HOURS</th>
@@ -295,7 +295,7 @@ export default function BillingPage() {
                     key={entry.id}
                     style={{
                       background: i % 2 === 0 ? "var(--panel2)" : "transparent",
-                      borderBottom: "1px solid var(--border)",
+                      borderBottom: "0.5px solid rgba(224,224,224,0.08)",
                     }}
                   >
                     <td className="px-4 py-3 text-xs" style={{ color: "var(--text-muted)", whiteSpace: "nowrap" }}>{date}</td>
@@ -320,7 +320,7 @@ export default function BillingPage() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-xs text-center font-mono" style={{ color: "var(--text)" }}>{hrs}</td>
-                    <td className="px-4 py-3 text-xs text-right font-mono" style={{ color: "var(--emerald)" }}>${amt}</td>
+                    <td className="px-4 py-3 text-xs text-right font-mono" style={{ color: "var(--verdict-neon)" }}>${amt}</td>
                     <td className="px-4 py-3">
                       <button onClick={() => deleteEntry(entry)} style={{ color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer" }}>
                         <Trash2 size={12} />
@@ -331,10 +331,10 @@ export default function BillingPage() {
               })}
             </tbody>
             <tfoot>
-              <tr style={{ background: "var(--surface)", borderTop: "2px solid var(--border)" }}>
+              <tr style={{ background: "rgba(17,17,20,0.7)", borderTop: "2px solid var(--border)" }}>
                 <td colSpan={2} className="px-4 py-3 text-xs font-semibold" style={{ color: "var(--text)" }}>Total</td>
                 <td className="px-4 py-3 text-xs text-center font-mono font-semibold" style={{ color: "var(--text)" }}>{totalHours.toFixed(2)}</td>
-                <td className="px-4 py-3 text-xs text-right font-mono font-bold" style={{ color: "var(--emerald)" }}>${totalBilled}</td>
+                <td className="px-4 py-3 text-xs text-right font-mono font-bold" style={{ color: "var(--verdict-neon)" }}>${totalBilled}</td>
                 <td />
               </tr>
             </tfoot>

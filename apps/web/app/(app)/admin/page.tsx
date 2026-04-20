@@ -46,7 +46,7 @@ function Field({ label, tooltip, children }: { label: string; tooltip?: string; 
         {tooltip && (
           <LexTooltip content={tooltip} side="right">
             <span className="w-3.5 h-3.5 rounded-full text-[9px] flex items-center justify-center cursor-help flex-shrink-0"
-              style={{ background: "var(--panel2)", border: "1px solid var(--border-hi)", color: "var(--text-muted)" }}>
+              style={{ background: "var(--panel2)", border: "0.5px solid rgba(0,255,195,0.14)", color: "var(--text-muted)" }}>
               ?
             </span>
           </LexTooltip>
@@ -57,10 +57,10 @@ function Field({ label, tooltip, children }: { label: string; tooltip?: string; 
   );
 }
 
-const inputCls = "w-full rounded-lg px-3.5 py-2.5 text-sm lex-focus transition-all";
+const inputCls = "w-full rounded px-3.5 py-2.5 text-sm lex-focus transition-all";
 const inputStyle = {
   background: "var(--panel)",
-  border: "1px solid var(--border)",
+  border: "0.5px solid rgba(224,224,224,0.09)",
   color: "var(--text)",
   outline: "none",
 };
@@ -114,13 +114,13 @@ function BillingTab() {
   if (!data) return null;
 
   const pct = data.budget > 0 ? Math.min((data.spent / data.budget) * 100, 100) : 0;
-  const barColor = pct >= 100 ? "#EF4444" : pct >= 80 ? "#F59E0B" : "var(--emerald)";
+  const barColor = pct >= 100 ? "var(--verdict-crimson)" : pct >= 80 ? "var(--verdict-amber)" : "var(--verdict-neon)";
   const plan = PLAN_DETAILS[data.plan_id] ?? PLAN_DETAILS.starter;
 
   return (
     <div>
       <SectionHeading>CURRENT PLAN</SectionHeading>
-      <div className="rounded-xl p-4 mb-4" style={{ background: "var(--panel)", border: "1px solid var(--border)" }}>
+      <div className="rounded p-4 mb-4" style={{ background: "var(--panel)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
         <div className="flex items-center justify-between mb-3">
           <div>
             <p className="text-base font-semibold" style={{ color: "var(--text)" }}>{plan.name}</p>
@@ -128,13 +128,13 @@ function BillingTab() {
               <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>${plan.price_usd}/mo</p>
             )}
           </div>
-          <span className="px-2.5 py-1 rounded-full text-xs font-mono" style={{ background: "var(--emerald-faint)", color: "var(--emerald)", border: "1px solid var(--emerald-dim)" }}>
+          <span className="px-2.5 py-1 rounded-full text-xs font-mono" style={{ background: "rgba(0,255,195,0.06)", color: "var(--verdict-neon)", border: "0.5px solid rgba(0,255,195,0.28)" }}>
             Active
           </span>
         </div>
         <div className="flex flex-wrap gap-1.5">
           {plan.features.map((f) => (
-            <span key={f} className="px-2 py-0.5 rounded text-xs" style={{ background: "var(--surface)", color: "var(--text-sub)", border: "1px solid var(--border)" }}>
+            <span key={f} className="px-2 py-0.5 rounded text-xs" style={{ background: "rgba(17,17,20,0.7)", color: "var(--text-sub)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
               {f}
             </span>
           ))}
@@ -146,7 +146,7 @@ function BillingTab() {
       </div>
 
       <SectionHeading>AI USAGE — THIS MONTH</SectionHeading>
-      <div className="rounded-xl p-4 mb-4" style={{ background: "var(--panel)", border: "1px solid var(--border)" }}>
+      <div className="rounded p-4 mb-4" style={{ background: "var(--panel)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
         <div className="flex items-end justify-between mb-2">
           <div>
             {isAdmin ? (
@@ -164,7 +164,7 @@ function BillingTab() {
           </div>
           <span className="text-xs font-mono" style={{ color: barColor }}>{Math.round(pct)}%</span>
         </div>
-        <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: "var(--surface)" }}>
+        <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: "rgba(17,17,20,0.7)" }}>
           <div
             className="h-full rounded-full transition-all duration-500"
             style={{ width: `${pct}%`, background: barColor }}
@@ -173,15 +173,15 @@ function BillingTab() {
       </div>
 
       {data.plan_id !== "premium" && (
-        <div className="rounded-xl p-4" style={{ background: "var(--emerald-faint)", border: "1px solid var(--emerald-dim)" }}>
-          <p className="text-sm font-medium mb-1" style={{ color: "var(--emerald)" }}>Upgrade your plan</p>
+        <div className="rounded p-4" style={{ background: "rgba(0,255,195,0.06)", border: "0.5px solid rgba(0,255,195,0.28)" }}>
+          <p className="text-sm font-medium mb-1" style={{ color: "var(--verdict-neon)" }}>Upgrade your plan</p>
           <p className="text-xs mb-3" style={{ color: "var(--text-sub)" }}>
             Get more matters, seats, and AI quota with a higher plan.
           </p>
           <a
             href="mailto:sales@lexagent.ai?subject=Upgrade%20Request"
-            className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-semibold transition-all cursor-pointer"
-            style={{ background: "var(--emerald)", color: "#0A0F0D" }}
+            className="inline-flex items-center gap-1.5 rounded px-4 py-2 text-xs font-semibold transition-all cursor-pointer"
+            style={{ background: "var(--verdict-neon)", color: "var(--midnight-court)" }}
           >
             Contact Sales
           </a>
@@ -237,15 +237,15 @@ function TeamsTab() {
         <SectionHeading>ALL TEAMS</SectionHeading>
         <button
           onClick={() => setCreating(true)}
-          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold cursor-pointer transition-all"
-          style={{ background: "var(--emerald)", color: "#0A0F0D" }}
+          className="flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-semibold cursor-pointer transition-all"
+          style={{ background: "var(--verdict-neon)", color: "var(--midnight-court)" }}
         >
           <Plus size={12} /> New Team
         </button>
       </div>
 
       {creating && (
-        <div className="rounded-xl p-4 mb-4" style={{ background: "var(--panel)", border: "1px solid var(--border)" }}>
+        <div className="rounded p-4 mb-4" style={{ background: "var(--panel)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
           <p className="text-xs font-mono mb-2" style={{ color: "var(--text-muted)" }}>TEAM NAME</p>
           <div className="flex gap-2">
             <input
@@ -260,15 +260,15 @@ function TeamsTab() {
             <button
               onClick={createTeam}
               disabled={saving || !newTeamName.trim()}
-              className="rounded-lg px-4 py-2 text-xs font-semibold cursor-pointer disabled:opacity-50"
-              style={{ background: "var(--emerald)", color: "#0A0F0D" }}
+              className="rounded px-4 py-2 text-xs font-semibold cursor-pointer disabled:opacity-50"
+              style={{ background: "var(--verdict-neon)", color: "var(--midnight-court)" }}
             >
               {saving ? "…" : "Create"}
             </button>
             <button
               onClick={() => { setCreating(false); setNewTeamName(""); }}
-              className="rounded-lg px-3 py-2 text-xs cursor-pointer"
-              style={{ background: "var(--panel2)", color: "var(--text-muted)", border: "1px solid var(--border)" }}
+              className="rounded px-3 py-2 text-xs cursor-pointer"
+              style={{ background: "var(--panel2)", color: "var(--text-muted)", border: "0.5px solid rgba(224,224,224,0.09)" }}
             >
               Cancel
             </button>
@@ -294,7 +294,7 @@ function TeamsTab() {
             </thead>
             <tbody>
               {teams.map((t) => (
-                <tr key={t.team_id} style={{ borderTop: "1px solid var(--border)" }}>
+                <tr key={t.team_id} style={{ borderTop: "0.5px solid rgba(224,224,224,0.08)" }}>
                   <td className="px-3 py-2.5 font-medium" style={{ color: "var(--text)" }}>{t.team_name}</td>
                   <td className="px-3 py-2.5 text-xs" style={{ color: "var(--text-muted)" }}>{t.owner_email || "—"}</td>
                   <td className="px-3 py-2.5">
@@ -308,7 +308,7 @@ function TeamsTab() {
                     <button
                       onClick={() => deleteTeam(t.team_id)}
                       className="p-1 rounded cursor-pointer opacity-50 hover:opacity-100 transition-opacity"
-                      style={{ color: "var(--crimson)" }}
+                      style={{ color: "var(--verdict-crimson)" }}
                       title="Delete team"
                     >
                       <Trash2 size={13} />
@@ -413,7 +413,7 @@ function UserManagementTab() {
               {filtered.map((u) => {
                 const spent = Number(u.usage_monthly?.total_usd_cost ?? 0);
                 return (
-                  <tr key={u.user_id} style={{ borderTop: "1px solid var(--border)" }}>
+                  <tr key={u.user_id} style={{ borderTop: "0.5px solid rgba(224,224,224,0.08)" }}>
                     <td className="px-3 py-2.5" style={{ color: "var(--text)" }}>
                       {u.profiles?.email ?? "—"}
                     </td>
@@ -427,9 +427,9 @@ function UserManagementTab() {
                         onChange={(e) => changeRole(u.user_id, e.target.value)}
                         className="rounded px-2 py-1 text-xs"
                         style={{
-                          background: u.role === "admin" ? "var(--gold)" : "var(--panel)",
+                          background: u.role === "admin" ? "var(--verdict-amber)" : "var(--panel)",
                           color: u.role === "admin" ? "#000" : "var(--text-muted)",
-                          border: "1px solid var(--border)",
+                          border: "0.5px solid rgba(224,224,224,0.09)",
                         }}
                       >
                         {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
@@ -441,7 +441,7 @@ function UserManagementTab() {
                         disabled={updating === u.user_id}
                         onChange={(e) => changePlan(u.user_id, e.target.value)}
                         className="rounded px-2 py-1 text-xs"
-                        style={{ background: "var(--panel)", color: "var(--text)", border: "1px solid var(--border)" }}
+                        style={{ background: "var(--panel)", color: "var(--text)", border: "0.5px solid rgba(224,224,224,0.09)" }}
                       >
                         {PLANS.map((p) => <option key={p} value={p}>{p}</option>)}
                       </select>
@@ -456,7 +456,7 @@ function UserManagementTab() {
                       <a
                         href={`/settings/profile?uid=${u.user_id}`}
                         className="text-xs"
-                        style={{ color: "var(--emerald)" }}
+                        style={{ color: "var(--verdict-neon)" }}
                       >
                         View
                       </a>
@@ -523,8 +523,8 @@ function AuditLogTab() {
         <button
           onClick={sealCheckpoint}
           disabled={sealing}
-          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold cursor-pointer disabled:opacity-50"
-          style={{ background: "var(--panel2)", color: "var(--text-muted)", border: "1px solid var(--border)" }}
+          className="flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-semibold cursor-pointer disabled:opacity-50"
+          style={{ background: "var(--panel2)", color: "var(--text-muted)", border: "0.5px solid rgba(224,224,224,0.09)" }}
         >
           <Lock size={11} />
           {sealing ? "Sealing…" : "Seal This Month"}
@@ -533,8 +533,8 @@ function AuditLogTab() {
 
       {sealMsg && (
         <div
-          className="rounded-lg px-3 py-2 mb-4 text-xs font-mono break-all"
-          style={{ background: "var(--panel2)", color: "var(--text-muted)", border: "1px solid var(--border)" }}
+          className="rounded px-3 py-2 mb-4 text-xs font-mono break-all"
+          style={{ background: "var(--panel2)", color: "var(--text-muted)", border: "0.5px solid rgba(224,224,224,0.09)" }}
         >
           {sealMsg}
         </div>
@@ -559,14 +559,14 @@ function AuditLogTab() {
               </thead>
               <tbody>
                 {rows.map(r => (
-                  <tr key={r.id} style={{ borderTop: "1px solid var(--border)" }}>
+                  <tr key={r.id} style={{ borderTop: "0.5px solid rgba(224,224,224,0.08)" }}>
                     <td className="px-3 py-2 font-mono whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
                       {new Date(r.created_at).toLocaleString()}
                     </td>
                     <td className="px-3 py-2 max-w-[140px] truncate" style={{ color: "var(--text)" }}>
                       {r.user_email ?? "—"}
                     </td>
-                    <td className="px-3 py-2 font-mono" style={{ color: "var(--emerald)" }}>
+                    <td className="px-3 py-2 font-mono" style={{ color: "var(--verdict-neon)" }}>
                       {r.action}
                     </td>
                     <td className="px-3 py-2 font-mono text-[10px]" style={{ color: "var(--text-muted)" }}>
@@ -584,8 +584,8 @@ function AuditLogTab() {
             <button
               onClick={() => setPage(p => Math.max(0, p - 1))}
               disabled={page === 0}
-              className="text-xs px-3 py-1.5 rounded-lg disabled:opacity-40 cursor-pointer"
-              style={{ background: "var(--panel2)", color: "var(--text-muted)", border: "1px solid var(--border)" }}
+              className="text-xs px-3 py-1.5 rounded disabled:opacity-40 cursor-pointer"
+              style={{ background: "var(--panel2)", color: "var(--text-muted)", border: "0.5px solid rgba(224,224,224,0.09)" }}
             >
               Previous
             </button>
@@ -593,8 +593,8 @@ function AuditLogTab() {
             <button
               onClick={() => setPage(p => p + 1)}
               disabled={rows.length < PAGE}
-              className="text-xs px-3 py-1.5 rounded-lg disabled:opacity-40 cursor-pointer"
-              style={{ background: "var(--panel2)", color: "var(--text-muted)", border: "1px solid var(--border)" }}
+              className="text-xs px-3 py-1.5 rounded disabled:opacity-40 cursor-pointer"
+              style={{ background: "var(--panel2)", color: "var(--text-muted)", border: "0.5px solid rgba(224,224,224,0.09)" }}
             >
               Next
             </button>
@@ -606,7 +606,7 @@ function AuditLogTab() {
 }
 
 function QuotaBar({ label, pct, detail }: { label: string; pct: number; detail: string }) {
-  const color = pct >= 100 ? "#EF4444" : pct >= 80 ? "#F59E0B" : "var(--emerald)";
+  const color = pct >= 100 ? "var(--verdict-crimson)" : pct >= 80 ? "var(--verdict-amber)" : "var(--verdict-neon)";
   return (
     <div className="mb-4">
       <div className="flex items-center justify-between mb-1.5">
@@ -633,7 +633,7 @@ function QuotaTab() {
   return (
     <div>
       <SectionHeading>YOUR USAGE</SectionHeading>
-      <div className="rounded-xl p-5 mb-4" style={{ background: "var(--panel)", border: "1px solid var(--border)" }}>
+      <div className="rounded p-5 mb-4" style={{ background: "var(--panel)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
         <QuotaBar
           label="Matters"
           pct={matterPercent(quota)}
@@ -651,10 +651,10 @@ function QuotaTab() {
         />
       </div>
       <div
-        className="rounded-xl p-3 text-xs font-mono"
-        style={{ background: "var(--panel2)", color: "var(--text-muted)", border: "1px solid var(--border)" }}
+        className="rounded p-3 text-xs font-mono"
+        style={{ background: "var(--panel2)", color: "var(--text-muted)", border: "0.5px solid rgba(224,224,224,0.09)" }}
       >
-        Plan: <span style={{ color: "var(--emerald)" }}>{quota.plan_id}</span>
+        Plan: <span style={{ color: "var(--verdict-neon)" }}>{quota.plan_id}</span>
       </div>
     </div>
   );
@@ -733,11 +733,11 @@ export default function AdminPage() {
                           : [...settings.practiceAreas, area];
                         set("practiceAreas", next);
                       }}
-                      className="px-3 py-1.5 rounded-lg text-xs font-mono tracking-wide cursor-pointer transition-all duration-150"
+                      className="px-3 py-1.5 rounded text-xs font-mono tracking-wide cursor-pointer transition-all duration-150"
                       style={{
-                        background: selected ? "var(--emerald-faint)" : "var(--panel)",
-                        border: `1px solid ${selected ? "var(--emerald-dim)" : "var(--border)"}`,
-                        color: selected ? "var(--emerald)" : "var(--text-muted)",
+                        background: selected ? "rgba(0,255,195,0.06)" : "var(--panel)",
+                        border: `1px solid ${selected ? "rgba(0,255,195,0.28)" : "var(--border)"}`,
+                        color: selected ? "var(--verdict-neon)" : "var(--text-muted)",
                       }}
                     >
                       {area}
@@ -785,15 +785,15 @@ export default function AdminPage() {
             ].map(item => (
               <div
                 key={item.key}
-                className="flex items-center justify-between rounded-xl px-4 py-3.5"
-                style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+                className="flex items-center justify-between rounded px-4 py-3.5"
+                style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}
               >
                 <div className="flex-1 min-w-0 mr-4">
                   <div className="flex items-center gap-1.5">
                     <span className="text-sm font-medium" style={{ color: "var(--text)" }}>{item.label}</span>
                     <LexTooltip content={item.tooltip} side="right">
                       <span className="w-3.5 h-3.5 rounded-full text-[9px] flex items-center justify-center cursor-help"
-                        style={{ background: "var(--panel2)", border: "1px solid var(--border-hi)", color: "var(--text-muted)" }}>
+                        style={{ background: "var(--panel2)", border: "0.5px solid rgba(0,255,195,0.14)", color: "var(--text-muted)" }}>
                         ?
                       </span>
                     </LexTooltip>
@@ -804,8 +804,8 @@ export default function AdminPage() {
                   onClick={() => set(item.key, !(settings as unknown as Record<string, unknown>)[item.key])}
                   className="relative flex-shrink-0 w-11 h-6 rounded-full cursor-pointer transition-all duration-200"
                   style={{
-                    background: (settings as unknown as Record<string, unknown>)[item.key] ? "var(--emerald)" : "var(--panel2)",
-                    border: "1px solid var(--border-hi)",
+                    background: (settings as unknown as Record<string, unknown>)[item.key] ? "var(--verdict-neon)" : "var(--panel2)",
+                    border: "0.5px solid rgba(0,255,195,0.14)",
                   }}
                 >
                   <span
@@ -894,7 +894,7 @@ export default function AdminPage() {
                 value={settings.maxTokens}
                 onChange={e => set("maxTokens", Number(e.target.value))}
                 className="w-full cursor-pointer"
-                style={{ accentColor: "var(--emerald)" }}
+                style={{ accentColor: "var(--verdict-neon)" }}
               />
               <div className="flex justify-between mt-1">
                 <span className="text-xs" style={{ color: "var(--text-muted)" }}>500</span>
@@ -910,7 +910,7 @@ export default function AdminPage() {
                 value={settings.temperature}
                 onChange={e => set("temperature", Number(e.target.value))}
                 className="w-full cursor-pointer"
-                style={{ accentColor: "var(--emerald)" }}
+                style={{ accentColor: "var(--verdict-neon)" }}
               />
               <div className="flex justify-between mt-1">
                 <span className="text-xs" style={{ color: "var(--text-muted)" }}>Precise</span>
@@ -925,8 +925,8 @@ export default function AdminPage() {
           <div>
             <SectionHeading>HALLUCINATION SHIELD</SectionHeading>
             <div
-              className="rounded-xl px-4 py-3.5 mb-4 flex items-center justify-between"
-              style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+              className="rounded px-4 py-3.5 mb-4 flex items-center justify-between"
+              style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}
             >
               <div>
                 <span className="text-sm font-medium" style={{ color: "var(--text)" }}>Auto-Verify Citations</span>
@@ -938,8 +938,8 @@ export default function AdminPage() {
                 onClick={() => set("autoVerify", !settings.autoVerify)}
                 className="relative flex-shrink-0 w-11 h-6 rounded-full cursor-pointer transition-all duration-200 ml-4"
                 style={{
-                  background: settings.autoVerify ? "var(--emerald)" : "var(--panel2)",
-                  border: "1px solid var(--border-hi)",
+                  background: settings.autoVerify ? "var(--verdict-neon)" : "var(--panel2)",
+                  border: "0.5px solid rgba(0,255,195,0.14)",
                 }}
               >
                 <span
@@ -952,10 +952,10 @@ export default function AdminPage() {
               </button>
             </div>
             <div
-              className="rounded-xl px-4 py-3 text-xs"
+              className="rounded px-4 py-3 text-xs"
               style={{
-                background: "var(--emerald-faint)",
-                border: "1px solid var(--emerald-dim)",
+                background: "rgba(0,255,195,0.06)",
+                border: "0.5px solid rgba(0,255,195,0.28)",
                 color: "var(--text-sub)",
                 lineHeight: 1.7,
               }}
@@ -1017,16 +1017,16 @@ export default function AdminPage() {
             ].map(api => (
               <div
                 key={api.name}
-                className="flex items-center justify-between rounded-xl px-4 py-3 mb-2"
-                style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+                className="flex items-center justify-between rounded px-4 py-3 mb-2"
+                style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}
               >
                 <div>
                   <p className="text-sm font-medium" style={{ color: "var(--text)" }}>{api.name}</p>
                   <p className="text-xs" style={{ color: "var(--text-muted)" }}>{api.desc}</p>
                 </div>
                 <button
-                  className="rounded-lg px-3 py-1.5 text-xs font-mono tracking-wide cursor-pointer transition-all duration-150"
-                  style={{ background: "var(--panel2)", border: "1px solid var(--border-hi)", color: "var(--text-muted)" }}
+                  className="rounded px-3 py-1.5 text-xs font-mono tracking-wide cursor-pointer transition-all duration-150"
+                  style={{ background: "var(--panel2)", border: "0.5px solid rgba(0,255,195,0.14)", color: "var(--text-muted)" }}
                 >
                   PING
                 </button>
@@ -1041,10 +1041,10 @@ export default function AdminPage() {
     <div className="flex-1 overflow-y-auto p-6 max-w-4xl mx-auto">
       <div className="flex items-center gap-2.5 mb-6">
         <div
-          className="w-8 h-8 rounded-lg flex items-center justify-center"
-          style={{ background: "var(--emerald-faint)", border: "1px solid var(--emerald-dim)" }}
+          className="w-8 h-8 rounded flex items-center justify-center"
+          style={{ background: "rgba(0,255,195,0.06)", border: "0.5px solid rgba(0,255,195,0.28)" }}
         >
-          <Building2 size={15} style={{ color: "var(--emerald)" }} />
+          <Building2 size={15} style={{ color: "var(--verdict-neon)" }} />
         </div>
         <div>
           <h1 className="text-sm font-semibold" style={{ color: "var(--text)" }}>Administration</h1>
@@ -1061,11 +1061,11 @@ export default function AdminPage() {
               <button
                 key={id}
                 onClick={() => setTab(id)}
-                className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm cursor-pointer transition-all duration-150 text-left"
+                className="w-full flex items-center gap-2.5 rounded px-3 py-2 text-sm cursor-pointer transition-all duration-150 text-left"
                 style={{
-                  background: active ? "var(--emerald-faint)" : "transparent",
-                  borderLeft: `2px solid ${active ? "var(--emerald)" : "transparent"}`,
-                  color: active ? "var(--emerald)" : "var(--text-muted)",
+                  background: active ? "rgba(0,255,195,0.06)" : "transparent",
+                  borderLeft: `2px solid ${active ? "var(--verdict-neon)" : "transparent"}`,
+                  color: active ? "var(--verdict-neon)" : "var(--text-muted)",
                 }}
               >
                 <Icon size={14} className="flex-shrink-0" />
@@ -1079,21 +1079,21 @@ export default function AdminPage() {
         {/* Content */}
         <div className="flex-1 min-w-0">
           <div
-            className="rounded-xl p-5"
-            style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+            className="rounded p-5"
+            style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}
           >
             {renderTab()}
 
-            <div className="flex justify-end mt-6 pt-4" style={{ borderTop: "1px solid var(--border)" }}>
+            <div className="flex justify-end mt-6 pt-4" style={{ borderTop: "0.5px solid rgba(224,224,224,0.08)" }}>
               <button
                 onClick={save}
-                className="flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold cursor-pointer transition-all duration-150"
+                className="flex items-center gap-2 rounded px-5 py-2.5 text-sm font-semibold cursor-pointer transition-all duration-150"
                 style={{
                   background: saved
-                    ? "var(--emerald-faint)"
-                    : "linear-gradient(135deg, var(--emerald) 0%, #059669 100%)",
-                  color: saved ? "var(--emerald)" : "#0A0F0D",
-                  border: saved ? "1px solid var(--emerald-dim)" : "none",
+                    ? "rgba(0,255,195,0.06)"
+                    : "var(--verdict-neon)",
+                  color: saved ? "var(--verdict-neon)" : "var(--midnight-court)",
+                  border: saved ? "0.5px solid rgba(0,255,195,0.28)" : "none",
                 }}
               >
                 {saved ? "Saved" : "Save Changes"}

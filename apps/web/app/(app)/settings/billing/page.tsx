@@ -107,8 +107,9 @@ export default function BillingPage() {
   return (
     <div className="p-8 max-w-4xl mx-auto space-y-8">
       <div>
-        <h1 className="text-2xl font-serif" style={{ color: "var(--text)" }}>Billing &amp; Plan</h1>
-        <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>Manage your subscription</p>
+        <span className="font-mono text-[10px] tracking-[0.2em] uppercase" style={{ color: "var(--verdict-neon)" }}>▸</span>
+        <h1 className="font-serif text-2xl font-semibold tracking-tight mt-1" style={{ color: "var(--fg-primary)" }}>Billing &amp; Plan</h1>
+        <p className="font-mono text-[10px] tracking-[0.14em] uppercase mt-1" style={{ color: "var(--fg-quaternary)" }}>Manage your subscription</p>
       </div>
 
       {loading ? (
@@ -117,7 +118,7 @@ export default function BillingPage() {
         <>
           {/* Current subscription */}
           {sub && (
-            <div className="rounded-xl p-6" style={{ background: "var(--surface)" }}>
+            <div className="rounded p-6" style={{ background: "rgba(17,17,20,0.7)" }}>
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs font-mono uppercase tracking-widest mb-1" style={{ color: "var(--text-muted)" }}>Active Subscription</p>
@@ -132,8 +133,8 @@ export default function BillingPage() {
                   <button
                     onClick={handlePortal}
                     disabled={portalLoading}
-                    className="px-4 py-2 rounded-lg text-sm"
-                    style={{ background: "var(--panel)", color: "var(--text)", border: "1px solid var(--text-muted)" }}
+                    className="px-4 py-2 rounded text-sm"
+                    style={{ background: "var(--panel)", color: "var(--text)", border: "0.5px solid rgba(224,224,224,0.10)" }}
                   >
                     {portalLoading ? "Loading…" : "Manage Billing"}
                   </button>
@@ -154,11 +155,11 @@ export default function BillingPage() {
                   return (
                     <div
                       key={plan.id}
-                      className="rounded-xl p-5"
+                      className="rounded p-5"
                       style={{
-                        background: isCurrent ? "var(--emerald)" : "var(--surface)",
-                        color: isCurrent ? "#000" : "var(--text)",
-                        border: isCurrent ? "none" : "1px solid var(--panel)",
+                        background: isCurrent ? "rgba(0,255,195,0.07)" : "rgba(17,17,20,0.7)",
+                        border: isCurrent ? "0.5px solid rgba(0,255,195,0.35)" : "0.5px solid rgba(224,224,224,0.09)",
+                        boxShadow: isCurrent ? "0 0 20px rgba(0,255,195,0.08)" : "none",
                       }}
                     >
                       <div className="flex items-start justify-between mb-3">
@@ -169,8 +170,8 @@ export default function BillingPage() {
                           </p>
                         </div>
                         {isCurrent && (
-                          <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(0,0,0,0.15)" }}>
-                            Current
+                          <span className="font-mono text-[9px] tracking-[0.14em] uppercase px-2 py-0.5 rounded" style={{ background: "rgba(0,255,195,0.12)", color: "var(--verdict-neon)", border: "0.5px solid rgba(0,255,195,0.3)" }}>
+                            Active
                           </span>
                         )}
                       </div>
@@ -183,8 +184,8 @@ export default function BillingPage() {
                         <button
                           onClick={() => handleCheckout(plan.id)}
                           disabled={checkoutLoading === plan.id}
-                          className="w-full py-2 rounded-lg text-sm font-semibold"
-                          style={{ background: "var(--emerald)", color: "#000" }}
+                          className="w-full py-2 rounded text-sm font-semibold"
+                          style={{ background: "var(--verdict-neon)", color: "var(--midnight-court)", border: "none" }}
                         >
                           {checkoutLoading === plan.id ? "Loading…" : isUpgrade ? "Upgrade" : "Switch"}
                         </button>

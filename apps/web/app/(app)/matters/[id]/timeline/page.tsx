@@ -20,12 +20,12 @@ const EVENT_TYPES: TimelineEvent["eventType"][] = [
 ];
 
 const TYPE_COLORS: Record<TimelineEvent["eventType"], string> = {
-  filing: "var(--emerald)",
-  hearing: "var(--gold)",
+  filing: "var(--verdict-neon)",
+  hearing: "var(--verdict-amber)",
   discovery: "#0ea5e9",
   deposition: "var(--text-sub)",
-  order: "var(--crimson)",
-  settlement: "var(--emerald)",
+  order: "var(--verdict-crimson)",
+  settlement: "var(--verdict-neon)",
   other: "var(--text-muted)",
 };
 
@@ -68,7 +68,7 @@ export default function TimelinePage() {
   const inputStyle = {
     background: "var(--panel2)",
     color: "var(--text)",
-    border: "1px solid var(--border)",
+    border: "0.5px solid rgba(224,224,224,0.09)",
     borderRadius: "8px",
     outline: "none",
     fontSize: "0.75rem",
@@ -83,8 +83,8 @@ export default function TimelinePage() {
     >
       {/* Add form */}
       <div
-        className="rounded-xl p-4 mb-8"
-        style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+        className="rounded p-4 mb-8"
+        style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}
       >
         <div className="flex flex-wrap gap-3 mb-3">
           <input
@@ -124,9 +124,9 @@ export default function TimelinePage() {
             className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold flex-shrink-0"
             style={{
               background: date && title.trim()
-                ? "linear-gradient(135deg, var(--emerald) 0%, #059669 100%)"
+                ? "var(--verdict-neon)"
                 : "var(--panel2)",
-              color: date && title.trim() ? "#0A0F0D" : "var(--text-muted)",
+              color: date && title.trim() ? "var(--midnight-court)" : "var(--text-muted)",
               border: "none",
               cursor: date && title.trim() ? "pointer" : "default",
             }}
@@ -141,10 +141,10 @@ export default function TimelinePage() {
       {sorted.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <div
-            className="w-12 h-12 rounded-xl flex items-center justify-center mb-3"
-            style={{ background: "var(--emerald-faint)", border: "1px solid var(--emerald-dim)" }}
+            className="w-12 h-12 rounded flex items-center justify-center mb-3"
+            style={{ background: "rgba(0,255,195,0.06)", border: "1px solid rgba(0,255,195,0.28)" }}
           >
-            <CalendarDays size={20} style={{ color: "var(--emerald)" }} />
+            <CalendarDays size={20} style={{ color: "var(--verdict-neon)" }} />
           </div>
           <p className="text-sm font-medium mb-1" style={{ color: "var(--text)" }}>No events yet</p>
           <p className="text-xs" style={{ color: "var(--text-muted)" }}>Add your first timeline event above</p>
@@ -169,8 +169,8 @@ export default function TimelinePage() {
                   }}
                 />
                 <div
-                  className="rounded-xl p-4"
-                  style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+                  className="rounded p-4"
+                  style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">

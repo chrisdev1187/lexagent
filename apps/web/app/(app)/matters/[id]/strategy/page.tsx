@@ -85,7 +85,7 @@ Format with clear headers. Use Bluebook citation format.`;
             style={{
               background: "var(--panel2)",
               color: "var(--text-muted)",
-              border: "1px solid var(--border)",
+              border: "0.5px solid rgba(224,224,224,0.09)",
               cursor: loading ? "default" : "pointer",
             }}
           >
@@ -98,7 +98,7 @@ Format with clear headers. Use Bluebook citation format.`;
       {editingUsers.length > 0 && (
         <div
           className="rounded-lg px-4 py-2.5 mb-4 flex items-center gap-2 text-xs"
-          style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)", color: "var(--gold)" }}
+          style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)", color: "var(--verdict-amber)" }}
         >
           <AlertTriangle size={12} />
           {editingUsers.map(u => u.email).join(", ")} {editingUsers.length === 1 ? "is" : "are"} also viewing this strategy — changes may conflict
@@ -108,7 +108,7 @@ Format with clear headers. Use Bluebook citation format.`;
       {error && (
         <div
           className="rounded-lg px-4 py-3 mb-4 text-xs"
-          style={{ background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.2)", color: "var(--crimson)" }}
+          style={{ background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.2)", color: "var(--verdict-crimson)" }}
         >
           {error}
         </div>
@@ -117,10 +117,10 @@ Format with clear headers. Use Bluebook citation format.`;
       {!strategy && !loading && (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <div
-            className="w-16 h-16 rounded-xl flex items-center justify-center mb-4"
-            style={{ background: "var(--emerald-faint)", border: "1px solid var(--emerald-dim)" }}
+            className="w-16 h-16 rounded flex items-center justify-center mb-4"
+            style={{ background: "rgba(0,255,195,0.06)", border: "1px solid rgba(0,255,195,0.28)" }}
           >
-            <Target size={28} style={{ color: "var(--emerald)" }} />
+            <Target size={28} style={{ color: "var(--verdict-neon)" }} />
           </div>
           <p className="text-sm font-medium mb-2" style={{ color: "var(--text)" }}>No strategy generated yet</p>
           <p className="text-xs mb-6 max-w-sm" style={{ color: "var(--text-muted)" }}>
@@ -128,10 +128,10 @@ Format with clear headers. Use Bluebook citation format.`;
           </p>
           <button
             onClick={generate}
-            className="flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold"
+            className="flex items-center gap-2 rounded px-5 py-2.5 text-sm font-semibold"
             style={{
-              background: "linear-gradient(135deg, var(--emerald) 0%, #059669 100%)",
-              color: "#0A0F0D",
+              background: "var(--verdict-neon)",
+              color: "var(--midnight-court)",
               border: "none",
               cursor: "pointer",
             }}
@@ -149,7 +149,7 @@ Format with clear headers. Use Bluebook citation format.`;
               <div
                 key={i}
                 className="w-2 h-2 rounded-full animate-pulse"
-                style={{ background: "var(--emerald)", animationDelay: `${i * 0.15}s` }}
+                style={{ background: "var(--verdict-neon)", animationDelay: `${i * 0.15}s` }}
               />
             ))}
           </div>
@@ -160,8 +160,8 @@ Format with clear headers. Use Bluebook citation format.`;
 
       {strategy && !loading && (
         <div
-          className="rounded-xl p-5"
-          style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+          className="rounded p-5"
+          style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}
         >
           <pre
             className="text-sm leading-relaxed whitespace-pre-wrap font-sans"

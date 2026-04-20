@@ -32,8 +32,6 @@ export default function ApiKeyPage() {
   async function saveKey() {
     if (!user || !keyInput.trim()) return;
     setSaving(true);
-    // In production: encrypt server-side via a dedicated endpoint.
-    // For now, store directly — service-role RLS will protect it.
     await supabase
       .from("user_roles")
       .update({ byok_key: keyInput.trim(), byok_active: true })
@@ -71,36 +69,55 @@ export default function ApiKeyPage() {
   return (
     <div className="p-8 max-w-2xl mx-auto space-y-8">
       <div>
-        <h1 className="text-2xl font-serif" style={{ color: "var(--text)" }}>Bring Your Own Key</h1>
-        <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
-          Use your own Anthropic API key. No plan budget is consumed — you pay Anthropic directly.
+        <span className="font-mono text-[10px] tracking-[0.2em] uppercase" style={{ color: "var(--verdict-neon)" }}>▸</span>
+        <h1 className="font-serif text-2xl font-semibold tracking-tight mt-1" style={{ color: "var(--fg-primary)" }}>
+          Bring Your Own Key
+        </h1>
+        <p className="font-mono text-[10px] tracking-[0.14em] uppercase mt-1" style={{ color: "var(--fg-quaternary)" }}>
+          Use your Anthropic key — no plan budget consumed
         </p>
       </div>
 
       {loading ? (
-        <p style={{ color: "var(--text-muted)" }}>Loading…</p>
+        <p className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "var(--fg-quaternary)" }}>
+          Loading…
+        </p>
       ) : (
         <>
-          {/* Status */}
-          <div className="rounded-xl p-6" style={{ background: "var(--surface)" }}>
+          {/* Status card */}
+          <div
+            className="rounded p-5"
+            style={{
+              background: "rgba(17,17,20,0.7)",
+              border: "0.5px solid rgba(224,224,224,0.09)",
+            }}
+          >
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-semibold" style={{ color: "var(--text)" }}>BYOK Mode</p>
-                <p className="text-sm mt-0.5" style={{ color: "var(--text-muted)" }}>
+                <p
+                  className="font-mono text-[9px] tracking-[0.2em] uppercase mb-1"
+                  style={{ color: "var(--fg-quaternary)" }}
+                >
+                  BYOK Status
+                </p>
+                <p className="text-[13px] font-medium" style={{ color: byokActive ? "var(--verdict-neon)" : "var(--fg-secondary)" }}>
                   {byokActive ? "Active — your key is being used" : "Inactive — using LexAgent shared key"}
                 </p>
               </div>
               {hasKey && (
                 <button
                   onClick={toggleByok}
-                  className="relative inline-flex items-center h-6 rounded-full w-11 transition-colors"
-                  style={{ background: byokActive ? "var(--emerald)" : "var(--panel)" }}
+                  className="relative inline-flex items-center h-5 rounded-full w-9 transition-colors cursor-pointer"
+                  style={{
+                    background: byokActive ? "var(--verdict-neon)" : "rgba(255,255,255,0.08)",
+                    border: `0.5px solid ${byokActive ? "rgba(0,255,195,0.4)" : "rgba(224,224,224,0.12)"}`,
+                  }}
                 >
                   <span
-                    className="inline-block w-4 h-4 transform rounded-full transition-transform"
+                    className="inline-block w-3.5 h-3.5 rounded-full transition-transform"
                     style={{
-                      background: "#fff",
-                      transform: byokActive ? "translateX(24px)" : "translateX(4px)",
+                      background: byokActive ? "var(--midnight-court)" : "var(--fg-tertiary)",
+                      transform: byokActive ? "translateX(18px)" : "translateX(2px)",
                     }}
                   />
                 </button>
@@ -108,51 +125,85 @@ export default function ApiKeyPage() {
             </div>
           </div>
 
-          {/* Key input */}
-          <div className="rounded-xl p-6 space-y-4" style={{ background: "var(--surface)" }}>
-            <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>
-              {hasKey ? "Replace API Key" : "Add API Key"}
-            </p>
-            {hasKey && (
-              <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                A key is stored. Enter a new one to replace it, or remove it below.
+          {/* Key input card */}
+          <div
+            className="rounded p-5 space-y-4"
+            style={{
+              background: "rgba(17,17,20,0.7)",
+              border: "0.5px solid rgba(224,224,224,0.09)",
+            }}
+          >
+            <div>
+              <p
+                className="font-mono text-[9px] tracking-[0.2em] uppercase mb-1"
+                style={{ color: "var(--fg-quaternary)" }}
+              >
+                {hasKey ? "Replace API Key" : "Add API Key"}
               </p>
-            )}
+              {hasKey && (
+                <p className="text-[12px]" style={{ color: "var(--fg-tertiary)" }}>
+                  A key is stored. Enter a new one to replace it.
+                </p>
+              )}
+            </div>
             <div className="flex gap-3">
               <input
                 type="password"
                 placeholder="sk-ant-..."
                 value={keyInput}
                 onChange={(e) => setKeyInput(e.target.value)}
-                className="flex-1 px-3 py-2 rounded-lg text-sm font-mono"
-                style={{ background: "var(--panel)", color: "var(--text)", border: "1px solid var(--text-muted)" }}
+                className="flex-1 px-3 py-2 rounded text-[13px] font-mono lex-focus"
+                style={{
+                  background: "rgba(255,255,255,0.03)",
+                  color: "var(--fg-primary)",
+                  border: "0.5px solid rgba(224,224,224,0.10)",
+                  outline: "none",
+                }}
               />
               <button
                 onClick={saveKey}
                 disabled={saving || !keyInput.trim()}
-                className="px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
-                style={{ background: "var(--emerald)", color: "#000" }}
+                className="px-4 py-2 rounded font-mono text-[11px] tracking-[0.1em] font-semibold disabled:opacity-40 cursor-pointer"
+                style={{
+                  background: "var(--verdict-neon)",
+                  color: "var(--midnight-court)",
+                  boxShadow: keyInput.trim() ? "0 0 12px rgba(0,255,195,0.3)" : "none",
+                  border: "none",
+                }}
               >
-                {saving ? "Saving…" : saved ? "Saved ✓" : "Save"}
+                {saving ? "SAVING…" : saved ? "SAVED ✓" : "SAVE"}
               </button>
             </div>
             {hasKey && (
               <button
                 onClick={removeKey}
-                className="text-xs"
-                style={{ color: "#EF4444" }}
+                className="font-mono text-[10px] tracking-[0.1em] uppercase cursor-pointer"
+                style={{ color: "var(--verdict-crimson)", background: "none", border: "none" }}
               >
                 Remove key and disable BYOK
               </button>
             )}
           </div>
 
-          {/* Info */}
-          <div className="rounded-xl p-5 text-sm space-y-2" style={{ background: "var(--panel)", color: "var(--text-muted)" }}>
-            <p>• Your key is stored encrypted and never logged.</p>
-            <p>• Anthropic bills you directly for all usage when BYOK is active.</p>
-            <p>• Your LexAgent plan limits (matter count, features) still apply.</p>
-            <p>• Disable BYOK at any time to revert to shared key billing.</p>
+          {/* Info card */}
+          <div
+            className="rounded p-5 space-y-2"
+            style={{
+              background: "rgba(255,255,255,0.015)",
+              border: "0.5px solid rgba(224,224,224,0.07)",
+            }}
+          >
+            {[
+              "Your key is stored encrypted and never logged.",
+              "Anthropic bills you directly for all usage when BYOK is active.",
+              "Your LexAgent plan limits (matter count, features) still apply.",
+              "Disable BYOK at any time to revert to shared key billing.",
+            ].map((line, i) => (
+              <p key={i} className="text-[12px] flex gap-2" style={{ color: "var(--fg-tertiary)" }}>
+                <span style={{ color: "var(--verdict-neon)" }}>·</span>
+                {line}
+              </p>
+            ))}
           </div>
         </>
       )}

@@ -105,8 +105,8 @@ export default function JudgePage() {
     >
       {/* Search bar */}
       <div
-        className="rounded-xl p-4 mb-6 flex items-center gap-3"
-        style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+        className="rounded p-4 mb-6 flex items-center gap-3"
+        style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}
       >
         <input
           type="text"
@@ -128,9 +128,9 @@ export default function JudgePage() {
           className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
           style={{
             background: searchName.trim() && !loading
-              ? "linear-gradient(135deg, var(--emerald) 0%, #059669 100%)"
+              ? "var(--verdict-neon)"
               : "var(--panel2)",
-            color: searchName.trim() && !loading ? "#0A0F0D" : "var(--text-muted)",
+            color: searchName.trim() && !loading ? "var(--midnight-court)" : "var(--text-muted)",
             border: "none",
             cursor: searchName.trim() && !loading ? "pointer" : "default",
           }}
@@ -143,7 +143,7 @@ export default function JudgePage() {
       {error && (
         <div
           className="rounded-lg px-4 py-3 mb-4 text-xs"
-          style={{ background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.2)", color: "var(--crimson)" }}
+          style={{ background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.2)", color: "var(--verdict-crimson)" }}
         >
           {error}
         </div>
@@ -156,7 +156,7 @@ export default function JudgePage() {
               <div
                 key={i}
                 className="w-1.5 h-1.5 rounded-full animate-pulse"
-                style={{ background: "var(--emerald)", animationDelay: `${i * 0.15}s` }}
+                style={{ background: "var(--verdict-neon)", animationDelay: `${i * 0.15}s` }}
               />
             ))}
           </div>
@@ -174,8 +174,8 @@ export default function JudgePage() {
         <div className="space-y-6">
           {/* Judge card */}
           <div
-            className="rounded-xl p-5"
-            style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+            className="rounded p-5"
+            style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}
           >
             <h3 className="text-base font-semibold mb-3" style={{ color: "var(--text)" }}>
               {judge.name_full}
@@ -227,7 +227,7 @@ export default function JudgePage() {
                   <div
                     key={i}
                     className="rounded-lg px-4 py-3 flex items-start justify-between gap-3"
-                    style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+                    style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}
                   >
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate" style={{ color: "var(--text)" }}>
@@ -236,7 +236,7 @@ export default function JudgePage() {
                       <div className="flex items-center gap-3 mt-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
                         {op.court && <span>{op.court}</span>}
                         {op.dateFiled && <span>{new Date(op.dateFiled).toLocaleDateString()}</span>}
-                        {op.citation && <span style={{ color: "var(--emerald)" }}>{op.citation}</span>}
+                        {op.citation && <span style={{ color: "var(--verdict-neon)" }}>{op.citation}</span>}
                       </div>
                     </div>
                     {op.absoluteUrl && (
@@ -244,7 +244,7 @@ export default function JudgePage() {
                         href={op.absoluteUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        style={{ color: "var(--emerald)", flexShrink: 0 }}
+                        style={{ color: "var(--verdict-neon)", flexShrink: 0 }}
                       >
                         <ExternalLink size={13} />
                       </a>

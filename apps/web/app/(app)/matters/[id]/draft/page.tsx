@@ -81,7 +81,7 @@ export default function DraftPage() {
   const selectStyle = {
     background: "var(--panel2)",
     color: "var(--text)",
-    border: "1px solid var(--border)",
+    border: "0.5px solid rgba(224,224,224,0.09)",
     borderRadius: "8px",
     outline: "none",
     fontSize: "0.75rem",
@@ -96,8 +96,8 @@ export default function DraftPage() {
     >
       {/* Controls */}
       <div
-        className="rounded-xl p-4 mb-6 space-y-4"
-        style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+        className="rounded p-4 mb-6 space-y-4"
+        style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}
       >
         <div>
           <label className="text-xs mb-1.5 block font-medium" style={{ color: "var(--text-muted)" }}>
@@ -124,7 +124,7 @@ export default function DraftPage() {
             style={{
               background: "var(--panel2)",
               color: "var(--text)",
-              border: "1px solid var(--border)",
+              border: "0.5px solid rgba(224,224,224,0.09)",
               borderRadius: "8px",
               outline: "none",
               padding: "8px 12px",
@@ -134,12 +134,12 @@ export default function DraftPage() {
         <button
           onClick={generate}
           disabled={loading}
-          className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold w-full justify-center"
+          className="flex items-center gap-2 rounded px-4 py-2.5 text-sm font-semibold w-full justify-center"
           style={{
             background: loading
               ? "var(--panel2)"
-              : "linear-gradient(135deg, var(--emerald) 0%, #059669 100%)",
-            color: loading ? "var(--text-muted)" : "#0A0F0D",
+              : "var(--verdict-neon)",
+            color: loading ? "var(--text-muted)" : "var(--midnight-court)",
             border: "none",
             cursor: loading ? "default" : "pointer",
           }}
@@ -154,7 +154,7 @@ export default function DraftPage() {
       {error && (
         <div
           className="rounded-lg px-4 py-3 mb-4 text-xs"
-          style={{ background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.2)", color: "var(--crimson)" }}
+          style={{ background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.2)", color: "var(--verdict-crimson)" }}
         >
           {error}
         </div>
@@ -167,7 +167,7 @@ export default function DraftPage() {
               <div
                 key={i}
                 className="w-2 h-2 rounded-full animate-pulse"
-                style={{ background: "var(--emerald)", animationDelay: `${i * 0.15}s` }}
+                style={{ background: "var(--verdict-neon)", animationDelay: `${i * 0.15}s` }}
               />
             ))}
           </div>
@@ -187,7 +187,7 @@ export default function DraftPage() {
                 style={{
                   background: "var(--panel2)",
                   color: "var(--text-muted)",
-                  border: "1px solid var(--border)",
+                  border: "0.5px solid rgba(224,224,224,0.09)",
                   cursor: "pointer",
                 }}
               >
@@ -199,7 +199,7 @@ export default function DraftPage() {
                 className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
                 style={{
                   background: copied ? "rgba(16,185,129,0.12)" : "var(--panel2)",
-                  color: copied ? "var(--emerald)" : "var(--text-muted)",
+                  color: copied ? "var(--verdict-neon)" : "var(--text-muted)",
                   border: `1px solid ${copied ? "rgba(16,185,129,0.3)" : "var(--border)"}`,
                   cursor: "pointer",
                 }}
@@ -210,10 +210,10 @@ export default function DraftPage() {
             </div>
           </div>
           <div
-            className="rounded-xl p-5 overflow-auto"
+            className="rounded p-5 overflow-auto"
             style={{
-              background: "var(--surface)",
-              border: "1px solid var(--border)",
+              background: "rgba(17,17,20,0.7)",
+              border: "0.5px solid rgba(224,224,224,0.09)",
               maxHeight: "600px",
             }}
           >
