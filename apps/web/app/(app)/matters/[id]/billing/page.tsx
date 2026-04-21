@@ -24,7 +24,6 @@ export default function BillingPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDesc, setEditDesc] = useState("");
 
-  // Manual entry form
   const [showForm, setShowForm] = useState(false);
   const [manualMins, setManualMins] = useState("");
   const [manualDesc, setManualDesc] = useState("");
@@ -137,10 +136,10 @@ export default function BillingPage() {
   };
 
   const inputStyle = {
-    background: "var(--panel2)",
-    color: "var(--text)",
-    border: "0.5px solid rgba(224,224,224,0.09)",
-    borderRadius: "8px",
+    background: "var(--bg-raised)",
+    color: "var(--fg-primary)",
+    border: "0.5px solid var(--border-hair)",
+    borderRadius: "var(--radius-md)",
     outline: "none",
     fontSize: "0.75rem",
     padding: "6px 12px",
@@ -149,23 +148,21 @@ export default function BillingPage() {
   return (
     <PanelShell
       icon={Receipt}
-      title="Billing & Time"
+      title="Billing & time"
       description="Billable hours log and invoice generator"
       actions={
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowForm(v => !v)}
-            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
-            style={{ background: "var(--panel2)", color: "var(--text-muted)", border: "0.5px solid rgba(224,224,224,0.09)", cursor: "pointer" }}
+            className="lex-btn lex-btn--secondary"
           >
             <Plus size={12} />
-            Manual Entry
+            Manual entry
           </button>
           {entries.length > 0 && (
             <button
               onClick={downloadCsv}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
-              style={{ background: "var(--panel2)", color: "var(--text-muted)", border: "0.5px solid rgba(224,224,224,0.09)", cursor: "pointer" }}
+              className="lex-btn lex-btn--secondary"
             >
               <Download size={12} />
               Export CSV
@@ -174,16 +171,10 @@ export default function BillingPage() {
           {entries.length > 0 && (
             <button
               onClick={printInvoice}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
-              style={{
-                background: "var(--verdict-neon)",
-                color: "var(--midnight-court)",
-                border: "none",
-                cursor: "pointer",
-              }}
+              className="lex-btn lex-btn--primary"
             >
               <Printer size={12} />
-              Print Invoice
+              Print invoice
             </button>
           )}
         </div>
@@ -191,36 +182,37 @@ export default function BillingPage() {
     >
       {/* Summary cards */}
       <div className="grid grid-cols-3 gap-3 mb-6">
-        <div className="rounded p-4 text-center" style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
-          <div className="flex items-center justify-center mb-1">
+        <div className="lex-card text-center">
+          <p className="lex-micro lex-micro--amber mb-2">Total hours</p>
+          <div className="flex items-center justify-center gap-2 mb-1">
             <Clock size={14} style={{ color: "var(--verdict-amber)" }} />
+            <span className="font-serif text-xl font-semibold" style={{ color: "var(--fg-primary)" }}>{totalHours.toFixed(1)}h</span>
           </div>
-          <p className="text-xl font-bold" style={{ color: "var(--text)" }}>{totalHours.toFixed(1)}h</p>
-          <p className="text-xs" style={{ color: "var(--text-muted)" }}>Total Hours</p>
         </div>
-        <div className="rounded p-4 text-center" style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
-          <div className="flex items-center justify-center mb-1">
+        <div className="lex-card text-center">
+          <p className="lex-micro lex-micro--neon mb-2">Total billed</p>
+          <div className="flex items-center justify-center gap-2 mb-1">
             <DollarSign size={14} style={{ color: "var(--verdict-neon)" }} />
+            <span className="font-serif text-xl font-semibold" style={{ color: "var(--fg-primary)" }}>${totalBilled}</span>
           </div>
-          <p className="text-xl font-bold" style={{ color: "var(--text)" }}>${totalBilled}</p>
-          <p className="text-xs" style={{ color: "var(--text-muted)" }}>Total Billed @ ${rate}/hr</p>
+          <p className="font-mono text-[10px]" style={{ color: "var(--fg-quaternary)" }}>@ ${rate}/hr</p>
         </div>
-        <div className="rounded p-4 text-center" style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
-          <div className="flex items-center justify-center mb-1">
-            <Receipt size={14} style={{ color: "var(--text-muted)" }} />
+        <div className="lex-card text-center">
+          <p className="lex-micro mb-2">Time entries</p>
+          <div className="flex items-center justify-center gap-2 mb-1">
+            <Receipt size={14} style={{ color: "var(--fg-tertiary)" }} />
+            <span className="font-serif text-xl font-semibold" style={{ color: "var(--fg-primary)" }}>{entries.length}</span>
           </div>
-          <p className="text-xl font-bold" style={{ color: "var(--text)" }}>{entries.length}</p>
-          <p className="text-xs" style={{ color: "var(--text-muted)" }}>Time Entries</p>
         </div>
       </div>
 
       {/* Manual entry form */}
       {showForm && (
-        <div className="rounded p-4 mb-5" style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(0,255,195,0.14)" }}>
-          <p className="text-xs font-mono tracking-widest mb-3" style={{ color: "var(--text-muted)" }}>MANUAL TIME ENTRY</p>
+        <div className="lex-card mb-5" style={{ borderColor: "var(--border-neon)" }}>
+          <p className="lex-micro lex-micro--neon mb-3">Manual time entry</p>
           <div className="flex gap-3 mb-3">
             <div style={{ flex: "0 0 120px" }}>
-              <label className="text-xs mb-1 block" style={{ color: "var(--text-muted)" }}>Minutes *</label>
+              <label className="text-xs mb-1 block" style={{ color: "var(--fg-tertiary)" }}>Minutes *</label>
               <input
                 type="number"
                 value={manualMins}
@@ -231,7 +223,7 @@ export default function BillingPage() {
               />
             </div>
             <div style={{ flex: "1 1 auto" }}>
-              <label className="text-xs mb-1 block" style={{ color: "var(--text-muted)" }}>Description (optional)</label>
+              <label className="text-xs mb-1 block" style={{ color: "var(--fg-tertiary)" }}>Description (optional)</label>
               <input
                 type="text"
                 value={manualDesc}
@@ -242,22 +234,16 @@ export default function BillingPage() {
             </div>
           </div>
           <div className="flex gap-2 justify-end">
-            <button onClick={() => setShowForm(false)} className="text-xs px-3 py-1.5 rounded-lg" style={{ background: "var(--panel2)", color: "var(--text-muted)", border: "0.5px solid rgba(224,224,224,0.09)", cursor: "pointer" }}>
+            <button onClick={() => setShowForm(false)} className="lex-btn lex-btn--ghost">
               Cancel
             </button>
             <button
               onClick={addManualEntry}
               disabled={!manualMins || parseInt(manualMins) <= 0}
-              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold"
-              style={{
-                background: manualMins && parseInt(manualMins) > 0 ? "var(--verdict-neon)" : "var(--panel2)",
-                color: manualMins && parseInt(manualMins) > 0 ? "var(--midnight-court)" : "var(--text-muted)",
-                border: "none",
-                cursor: manualMins && parseInt(manualMins) > 0 ? "pointer" : "default",
-              }}
+              className="lex-btn lex-btn--primary"
             >
               <Plus size={12} />
-              Add Entry
+              Add entry
             </button>
           </div>
         </div>
@@ -265,23 +251,23 @@ export default function BillingPage() {
 
       {/* Entries table */}
       {entries.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <div className="w-12 h-12 rounded flex items-center justify-center mb-3" style={{ background: "rgba(0,255,195,0.06)", border: "1px solid rgba(0,255,195,0.28)" }}>
+        <div className="lex-empty">
+          <div className="lex-empty__icon">
             <Clock size={20} style={{ color: "var(--verdict-neon)" }} />
           </div>
-          <p className="text-sm font-medium mb-1" style={{ color: "var(--text)" }}>No time entries yet</p>
-          <p className="text-xs" style={{ color: "var(--text-muted)" }}>Use the sidebar timer or add a manual entry above</p>
+          <p className="lex-empty__title">No time entries yet</p>
+          <p className="lex-empty__body">Use the sidebar timer or add a manual entry above</p>
         </div>
       ) : (
-        <div className="rounded overflow-hidden" style={{ border: "0.5px solid rgba(224,224,224,0.09)" }}>
-          <table className="w-full">
+        <div className="lex-table-wrap">
+          <table className="lex-table">
             <thead>
-              <tr style={{ background: "rgba(17,17,20,0.7)", borderBottom: "0.5px solid rgba(224,224,224,0.08)" }}>
-                <th className="text-left px-4 py-2.5 text-xs font-mono tracking-wider" style={{ color: "var(--text-muted)" }}>DATE</th>
-                <th className="text-left px-4 py-2.5 text-xs font-mono tracking-wider" style={{ color: "var(--text-muted)" }}>DESCRIPTION</th>
-                <th className="text-center px-4 py-2.5 text-xs font-mono tracking-wider" style={{ color: "var(--text-muted)" }}>HOURS</th>
-                <th className="text-right px-4 py-2.5 text-xs font-mono tracking-wider" style={{ color: "var(--text-muted)" }}>AMOUNT</th>
-                <th className="px-4 py-2.5" />
+              <tr>
+                <th>Date</th>
+                <th>Description</th>
+                <th style={{ textAlign: "center" }}>Hours</th>
+                <th style={{ textAlign: "right" }}>Amount</th>
+                <th />
               </tr>
             </thead>
             <tbody>
@@ -291,21 +277,18 @@ export default function BillingPage() {
                 const date = new Date(entry.startedAt).toLocaleDateString();
                 const isEditing = editingId === entry.id;
                 return (
-                  <tr
-                    key={entry.id}
-                    style={{
-                      background: i % 2 === 0 ? "var(--panel2)" : "transparent",
-                      borderBottom: "0.5px solid rgba(224,224,224,0.08)",
-                    }}
-                  >
-                    <td className="px-4 py-3 text-xs" style={{ color: "var(--text-muted)", whiteSpace: "nowrap" }}>{date}</td>
-                    <td className="px-4 py-3 text-xs" style={{ color: "var(--text)" }}>
+                  <tr key={entry.id}>
+                    <td style={{ color: "var(--fg-tertiary)", whiteSpace: "nowrap" }}>{date}</td>
+                    <td>
                       {isEditing ? (
                         <input
                           autoFocus
                           defaultValue={entry.description ?? ""}
                           onBlur={e => saveDescription(entry.id, e.target.value)}
-                          onKeyDown={e => { if (e.key === "Enter") saveDescription(entry.id, (e.target as HTMLInputElement).value); if (e.key === "Escape") setEditingId(null); }}
+                          onKeyDown={e => {
+                            if (e.key === "Enter") saveDescription(entry.id, (e.target as HTMLInputElement).value);
+                            if (e.key === "Escape") setEditingId(null);
+                          }}
                           style={{ ...inputStyle, width: "100%", padding: "3px 8px" }}
                         />
                       ) : (
@@ -313,16 +296,20 @@ export default function BillingPage() {
                           className="cursor-pointer hover:underline"
                           onClick={() => { setEditingId(entry.id); setEditDesc(entry.description ?? ""); }}
                           title="Click to edit description"
-                          style={{ color: entry.description ? "var(--text)" : "var(--text-muted)" }}
+                          style={{ color: entry.description ? "var(--fg-primary)" : "var(--fg-tertiary)" }}
                         >
                           {entry.description || "Legal services — click to add description"}
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-xs text-center font-mono" style={{ color: "var(--text)" }}>{hrs}</td>
-                    <td className="px-4 py-3 text-xs text-right font-mono" style={{ color: "var(--verdict-neon)" }}>${amt}</td>
-                    <td className="px-4 py-3">
-                      <button onClick={() => deleteEntry(entry)} style={{ color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer" }}>
+                    <td className="font-mono text-center" style={{ color: "var(--fg-primary)" }}>{hrs}</td>
+                    <td className="font-mono text-right" style={{ color: "var(--verdict-neon)" }}>${amt}</td>
+                    <td>
+                      <button
+                        onClick={() => deleteEntry(entry)}
+                        className="lex-btn lex-btn--icon lex-btn--ghost"
+                        style={{ padding: 4 }}
+                      >
                         <Trash2 size={12} />
                       </button>
                     </td>
@@ -331,10 +318,10 @@ export default function BillingPage() {
               })}
             </tbody>
             <tfoot>
-              <tr style={{ background: "rgba(17,17,20,0.7)", borderTop: "2px solid var(--border)" }}>
-                <td colSpan={2} className="px-4 py-3 text-xs font-semibold" style={{ color: "var(--text)" }}>Total</td>
-                <td className="px-4 py-3 text-xs text-center font-mono font-semibold" style={{ color: "var(--text)" }}>{totalHours.toFixed(2)}</td>
-                <td className="px-4 py-3 text-xs text-right font-mono font-bold" style={{ color: "var(--verdict-neon)" }}>${totalBilled}</td>
+              <tr style={{ borderTop: "0.5px solid var(--border-line)" }}>
+                <td colSpan={2} className="font-semibold" style={{ color: "var(--fg-primary)" }}>Total</td>
+                <td className="font-mono font-semibold text-center" style={{ color: "var(--fg-primary)" }}>{totalHours.toFixed(2)}</td>
+                <td className="font-mono font-bold text-right" style={{ color: "var(--verdict-neon)" }}>${totalBilled}</td>
                 <td />
               </tr>
             </tfoot>
