@@ -52,9 +52,9 @@ export default function ClientsPage() {
     <div className="flex-1 overflow-y-auto p-6 max-w-5xl mx-auto">
       {/* Header */}
       <div className="mb-6">
-        <span className="font-mono text-[10px] tracking-[0.2em] uppercase" style={{ color: "var(--verdict-neon)" }}>▸</span>
-        <h1 className="font-serif text-2xl font-semibold tracking-tight mt-1" style={{ color: "var(--fg-primary)" }}>Clients</h1>
-        <p className="font-mono text-[10px] tracking-[0.14em] uppercase mt-1" style={{ color: "var(--fg-quaternary)" }}>
+        <span className="lex-micro lex-micro--neon">▸</span>
+        <h1 className="font-serif text-2xl font-semibold tracking-tight" style={{ color: "var(--fg-primary)" }}>Clients</h1>
+        <p className="lex-micro" style={{ color: "var(--fg-quaternary)" }}>
           {clients.length} client{clients.length !== 1 ? "s" : ""} · {matters.length} matter{matters.length !== 1 ? "s" : ""}
         </p>
       </div>
@@ -66,14 +66,13 @@ export default function ClientsPage() {
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search clients…"
-          className="w-full pl-9 pr-4 py-2.5 rounded text-sm"
-          style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)", color: "var(--text)", outline: "none" }}
+          className="w-full pl-9 pr-4 py-2.5 rounded text-sm lex-input"
         />
       </div>
 
       {/* Client list */}
       {filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
+        <div className="flex flex-col items-center justify-center py-20 text-center lex-empty">
           <Users size={32} className="mb-3" style={{ color: "var(--text-muted)" }} />
           <p className="text-sm" style={{ color: "var(--text-muted)" }}>
             {matters.length === 0 ? "No matters yet — add a matter with a client name to see them here." : "No clients match your search."}
@@ -90,8 +89,7 @@ export default function ClientsPage() {
             return (
               <div
                 key={client.name}
-                className="rounded p-4"
-                style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}
+                className="lex-card"
               >
                 <div className="flex items-start justify-between gap-4 mb-3">
                   <div>
@@ -108,8 +106,8 @@ export default function ClientsPage() {
                         <span className="text-xs" style={{ color: "var(--text-muted)" }}>{hours}h billed</span>
                       </div>
                       <span
-                        className="font-mono text-[10px] tracking-wide"
-                        style={{ color: STATUS_COLOR[dominantStatus] ?? "var(--text-muted)" }}
+                        className="lex-chip lex-chip--neon"
+                        style={{ background: "none", color: STATUS_COLOR[dominantStatus] }}
                       >
                         {dominantStatus}
                       </span>
@@ -126,8 +124,7 @@ export default function ClientsPage() {
                       <Link
                         key={m.id}
                         href={`/matters/${m.id}/overview`}
-                        className="flex items-center gap-3 rounded px-3 py-2 group cursor-pointer"
-                        style={{ background: "var(--panel2)", border: "0.5px solid rgba(224,224,224,0.09)" }}
+                        className="flex items-center gap-3 rounded px-3 py-2 group lex-btn lex-btn--ghost"
                       >
                         <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: statusColor }} />
                         <div className="flex-1 min-w-0">
