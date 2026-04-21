@@ -10,8 +10,7 @@ interface UpgradeCTAProps {
 export function UpgradeCTA({ reason, onClose }: UpgradeCTAProps) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(6px)" }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 glass-blur"
     >
       <div
         className="lex-card lex-card--raised"
@@ -26,18 +25,16 @@ export function UpgradeCTA({ reason, onClose }: UpgradeCTAProps) {
         <div
           className="w-9 h-9 rounded flex items-center justify-center mb-4 lex-chip lex-chip--amber"
         >
-          <Zap size={16} style={{ color: "var(--verdict-amber)" }} />
+          <Zap size={16} className="text-verdict-amber" />
         </div>
 
         <h2
-          className="font-serif font-semibold text-base mb-1.5 tracking-tight"
-          style={{ color: "var(--fg-primary)" }}
+          className="font-serif font-semibold text-base mb-1.5 tracking-tight text-fg-primary"
         >
           Upgrade your plan
         </h2>
         <p
-          className="text-sm mb-5 leading-relaxed"
-          style={{ color: "var(--fg-secondary)" }}
+          className="text-sm mb-5 leading-relaxed text-fg-secondary"
         >
           {reason}
         </p>
