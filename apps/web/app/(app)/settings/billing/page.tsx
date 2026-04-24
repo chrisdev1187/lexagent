@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { getApiHeaders } from "@/lib/api";
+import { useToast } from "@/hooks/useToast";
 import { CreditCard, ExternalLink } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
@@ -30,19 +31,18 @@ const PLAN_COLOR: Record<string, string> = {
 export default function BillingSettingsPage() {
   const { user } = useAuth();
   const searchParams = useSearchParams();
+  const toast = useToast();
   const [role, setRole] = useState<UserRole | null>(null);
   const [plan, setPlan] = useState<Plan | null>(null);
   const [loading, setLoading] = useState(true);
   const [portalLoading, setPortalLoading] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
 
   useEffect(() => {
     if (searchParams.get("success") === "1") {
-      setShowSuccess(true);
-      const t = setTimeout(() => setShowSuccess(false), 6000);
-      return () => clearTimeout(t);
+      toast.success("Subscription activated — welcome aboard!");
     }
-  }, [searchParams]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -80,20 +80,6 @@ export default function BillingSettingsPage() {
 
   return (
     <div className="p-8 max-w-2xl mx-auto space-y-8">
-      {showSuccess && (
-        <div
-          className="rounded px-4 py-3 flex items-center gap-3 font-mono text-[11px] tracking-[0.1em]"
-          style={{
-            background: "rgba(0,255,195,0.08)",
-            border: "0.5px solid rgba(0,255,195,0.35)",
-            color: "var(--verdict-neon)",
-          }}
-        >
-          <span>✓</span>
-          <span>Subscription activated — welcome aboard!</span>
-        </div>
-      )}
-
       <div>
         <span className="font-mono text-[10px] tracking-[0.2em] uppercase" style={{ color: "var(--verdict-neon)" }}>▸</span>
         <h1 className="font-serif text-2xl font-semibold tracking-tight mt-1" style={{ color: "var(--fg-primary)" }}>

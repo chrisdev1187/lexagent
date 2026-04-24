@@ -10,6 +10,7 @@ import { useMatters, Matter } from "@/providers/matters-provider";
 import { NewMatterModal } from "@/components/shared/NewMatterModal";
 import { LexTooltip } from "@/components/shared/LexTooltip";
 import { DeadlineAlert } from "@/components/shared/DeadlineAlert";
+import { FirstMatterWizard } from "@/components/shared/FirstMatterWizard";
 
 const STATUS_DOT: Record<string, string> = {
   Active: "var(--verdict-neon)",
@@ -188,6 +189,8 @@ export default function DashboardPage() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("All");
   const [showNewMatter, setShowNewMatter] = useState(false);
+  const [wizardDismissed, setWizardDismissed] = useState(false);
+  const showWizard = loaded && matters.length === 0 && !wizardDismissed && !showNewMatter;
 
   const statusFilters = ["All", "Active", "Pending", "Urgent", "Closed"];
 
@@ -351,6 +354,7 @@ export default function DashboardPage() {
           )}
 
           {showNewMatter && <NewMatterModal onClose={() => setShowNewMatter(false)} />}
+          {showWizard && <FirstMatterWizard onDismiss={() => setWizardDismissed(true)} />}
         </div>
       </div>
     </div>

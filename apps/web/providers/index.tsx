@@ -6,6 +6,7 @@ import { SettingsProvider } from "./settings-provider";
 import { TooltipSettingsProvider } from "./tooltip-provider";
 import { RegionProvider } from "./region-provider";
 import { TeamsProvider } from "./teams-provider";
+import { ToastProvider } from "./toast-provider";
 import { warmRender } from "@/lib/health";
 
 export function AppProviders({ children }: { children: ReactNode }) {
@@ -16,7 +17,9 @@ export function AppProviders({ children }: { children: ReactNode }) {
         <SettingsProvider>
           <TeamsProvider>
             <TooltipSettingsProvider>
-              {children}
+              <ToastProvider>
+                {children}
+              </ToastProvider>
             </TooltipSettingsProvider>
           </TeamsProvider>
         </SettingsProvider>

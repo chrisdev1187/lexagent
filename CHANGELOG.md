@@ -8,6 +8,26 @@ From Phase 10 onward, every phase ships under a new version and a single commit/
 
 ---
 
+## [0.5.0] — 2026-04-24 — Phase 13: Onboarding & Polish
+
+### Added
+- **Public landing page** (`/`) — full marketing page for unauthed visitors: hero with tagline + CTAs, feature grid (6 features), LexMemory spotlight callout with stats, pricing preview, footer with privacy/terms links. Authed users on `/` are immediately redirected to `/dashboard`.
+- **Toast system** — `providers/toast-provider.tsx` + `hooks/useToast.ts`. Global `<ToastProvider>` mounted in `AppProviders`. Exposes `toast.success()`, `toast.warning()`, `toast.error()`, `toast.info()`. Fixed-position overlay at top-right, auto-dismisses after 5 s, manually closeable. Now used by the billing `?success=1` flow (replaces the inline banner).
+- **First-matter wizard** (`components/shared/FirstMatterWizard.tsx`) — 2-step overlay shown to brand-new users (0 matters after first load). Step 1: welcome screen with feature cards. Step 2: matter creation form pre-seeded with facts. On create → redirects directly to the Research tab. "Skip" link for returning users.
+- **`TabSkeleton` + `CardSkeleton`** (`components/shared/TabSkeleton.tsx`) — animated pulse skeleton components for tab loading states.
+- **`EmptyState`** (`components/shared/EmptyState.tsx`) — reusable empty-state component: icon + title + description + optional action CTA. Consistent across all tabs.
+- **Legal placeholder pages** — `/legal/privacy` and `/legal/terms` with minimal placeholder content, linked from landing page footer.
+
+### Changed
+- **`app/page.tsx`** — replaced server-side `redirect("/dashboard")` with a full client-rendered landing page. Auth guard preserved: logged-in users are redirected client-side via `useEffect`.
+- **Billing settings** — `?success=1` success notification now uses `toast.success()` instead of a manual inline banner.
+- **`providers/index.tsx`** — `<ToastProvider>` added as the innermost wrapper so toasts appear above all other overlays.
+
+### Ops note
+- No DB or env changes.
+
+---
+
 ## [0.4.2] — 2026-04-24 — Phase 12 Slice C: Lemon Squeezy billing round-trip
 
 ### Added

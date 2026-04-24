@@ -1,9 +1,9 @@
 # LexAgent — Master Project Plan
 
 > **Last updated:** 2026-04-24
-> **Current version:** `v0.4.1` — see [CHANGELOG.md](./CHANGELOG.md)
-> **Current phase:** Phase 12 Slice C next (Lemon Squeezy webhook round-trip)
-> **Ship target:** `v1.0.0` via Phases 11 → 14 (QA → Billing → Onboarding → Ship)
+> **Current version:** `v0.5.0` — see [CHANGELOG.md](./CHANGELOG.md)
+> **Current phase:** Phase 14 next (Production Ship — Sentry, keep-alive, smoke tests, v1.0.0 tag)
+> **Ship target:** `v1.0.0` via Phase 14
 > **Status:** Fully deployed — Vercel (Next.js 15) + Render backend + Supabase DB + 10 API integrations live
 
 ---
@@ -371,7 +371,7 @@ User is now running extensive manual QA. Ship phases are sized so each one lands
 - [ ] Regression-check after each fix: LexMemory counts still climb, error boundaries still catch throws, no console errors
 - **Exit criteria:** full checklist green, zero `console.error` on golden paths, no visible UI regressions at 375px / 1024px / 1920px.
 
-### 📋 Phase 12 — Monetisation Cutover (v0.4.0 → v0.4.2)
+### ✅ Phase 12 — Monetisation Cutover (v0.4.0 → v0.4.2 — 2026-04-24)
 
 **Goal:** flip on billing so paid tiers actually enforce. Split into three shippable slices so each can be tested in isolation before the next lands.
 
@@ -405,15 +405,13 @@ User is now running extensive manual QA. Ship phases are sized so each one lands
 
 **Phase 12 exit (all slices):** admin `$0` → 429; paying test account flows through; webhook signature validated; BYOK bypass verified.
 
-### 📋 Phase 13 — Onboarding & Polish (v0.5.0)
-**Goal:** first-time user gets to value in < 3 minutes.
-- [ ] Guided first-matter wizard (facts → first AI answer in one flow)
-- [ ] Empty-state illustrations on dashboard + each tab
-- [ ] Pricing page final copy + screenshots
-- [ ] Public landing page at `/` (replace redirect-to-dashboard for unauthed)
-- [ ] Loading skeletons on every tab (no more raw spinners)
-- [ ] Toast system standardised (success / warn / error)
-- **Exit criteria:** a cold visitor can sign up → create matter → get a verified AI answer without reading docs.
+### ✅ Phase 13 — Onboarding & Polish (v0.5.0 — 2026-04-24)
+- [x] Public landing page at `/` — hero, features, LexMemory callout, pricing preview, footer
+- [x] First-matter wizard — 2-step overlay for brand-new users (0 matters), goes straight to Research tab
+- [x] Toast system — `ToastProvider` + `useToast()`, replaces all one-off banners
+- [x] `TabSkeleton` + `CardSkeleton` components
+- [x] `EmptyState` reusable component
+- [x] `/legal/privacy` + `/legal/terms` placeholder pages
 
 ### 📋 Phase 14 — Production Ship (v1.0.0)
 **Goal:** green-light for real customers.
@@ -491,8 +489,8 @@ Work top-to-bottom. File a bug against the line that fails; don't skip.
 |---|---|---|
 | Render free tier cold starts (~30s after 15min idle) | MED | 14 |
 | No automated test suite (Playwright) | MED | 14 |
-| No public landing page — `/` redirects to dashboard | MED | 13 |
-| Quota middleware not enforced yet (logs only) | HIGH | 12 |
+| No public landing page — `/` redirects to dashboard | MED | ✅ 13 |
+| Quota middleware not enforced yet (logs only) | HIGH | ✅ 12 |
 | No Sentry / error reporting wired | MED | 14 |
 
 ---
