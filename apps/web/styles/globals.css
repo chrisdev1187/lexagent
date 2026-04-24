@@ -1,7 +1,99 @@
 @import "tailwindcss";
 
 /* ==========================================================================
-   LEX PROTOCOL — Midnight Court Design System
+   LEX PROTOCOL — Tailwind v4 theme registration
+   Maps Midnight Court tokens → Tailwind utilities.
+   Without this, `text-sm`, `p-4`, `font-serif` etc. generate NOTHING.
+   ========================================================================== */
+
+@theme {
+  /* ── Fonts ────────────────────────────────────────────────────────────── */
+  --font-sans:  "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-serif: "Fraunces", "Editorial New", Georgia, serif;
+  --font-mono:  "JetBrains Mono", "Berkeley Mono", ui-monospace, Menlo, monospace;
+
+  /* ── Color palette (exposed as bg-*, text-*, border-*) ───────────────── */
+  --color-midnight-court:    #050505;
+  --color-midnight-deep:     #0a0a0c;
+  --color-midnight-raised:   #111114;
+  --color-midnight-elev:     #17171c;
+  --color-midnight-line:     #1f1f26;
+  --color-midnight-mute:     #2a2a33;
+
+  --color-gavel-chrome:      #e0e0e0;
+  --color-gavel-silver:      #b8b8bc;
+  --color-gavel-steel:       #7a7a82;
+  --color-gavel-graphite:    #4a4a52;
+
+  --color-verdict-neon:      #00ffc3;
+  --color-verdict-neon-dim:  #00b386;
+  --color-verdict-violet:    #6a00ff;
+  --color-verdict-violet-dim:#4a00b8;
+  --color-verdict-amber:     #ffb800;
+  --color-verdict-crimson:   #ff3355;
+
+  /* Semantic aliases (so text-fg, bg-panel, etc. work) */
+  --color-fg:              #e0e0e0;
+  --color-fg-secondary:    #b8b8bc;
+  --color-fg-tertiary:     #7a7a82;
+  --color-fg-quaternary:   #4a4a52;
+  --color-bg:              #050505;
+  --color-bg-panel:        #0a0a0c;
+  --color-bg-raised:       #111114;
+  --color-bg-elev:         #17171c;
+
+  /* ── Font sizes — legal-editorial cadence ────────────────────────────── */
+  /* Each: [size, { line-height, letter-spacing }] */
+  --text-2xs:     10px;
+  --text-2xs--line-height: 14px;
+  --text-2xs--letter-spacing: 0.18em;
+
+  --text-xs:      11px;
+  --text-xs--line-height: 16px;
+
+  --text-sm:      13px;
+  --text-sm--line-height: 20px;
+
+  --text-base:    15px;
+  --text-base--line-height: 24px;
+
+  --text-lg:      17px;
+  --text-lg--line-height: 26px;
+
+  --text-xl:      20px;
+  --text-xl--line-height: 28px;
+  --text-xl--letter-spacing: -0.01em;
+
+  --text-2xl:     24px;
+  --text-2xl--line-height: 32px;
+  --text-2xl--letter-spacing: -0.01em;
+
+  --text-3xl:     32px;
+  --text-3xl--line-height: 38px;
+  --text-3xl--letter-spacing: -0.02em;
+
+  --text-4xl:     44px;
+  --text-4xl--line-height: 48px;
+  --text-4xl--letter-spacing: -0.02em;
+
+  --text-5xl:     56px;
+  --text-5xl--line-height: 60px;
+  --text-5xl--letter-spacing: -0.02em;
+
+  /* ── Radii — industrial ──────────────────────────────────────────────── */
+  --radius-xs:   2px;
+  --radius-sm:   4px;
+  --radius-md:   6px;
+  --radius-lg:   10px;
+  --radius-xl:   16px;
+
+  /* ── Easing / motion ─────────────────────────────────────────────────── */
+  --ease-terminal: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-crisp:    cubic-bezier(0.2, 0.6, 0.2, 1);
+}
+
+/* ==========================================================================
+   LEX PROTOCOL — Midnight Court design-system variables
    ========================================================================== */
 
 :root {
@@ -36,7 +128,7 @@
   --bg-raised:         var(--midnight-raised);
   --bg-elev:           var(--midnight-elev);
 
-  /* Borders — always 0.5px in JS: border: "0.5px solid var(--border-hair)" */
+  /* Borders */
   --border-hair:       rgba(224,224,224,0.08);
   --border-line:       rgba(224,224,224,0.14);
   --border-neon:       rgba(0,255,195,0.35);
@@ -73,11 +165,6 @@
     0 40px 80px rgba(0,0,0,0.8),
     0 0 0 0.5px rgba(0,255,195,0.10);
 
-  /* Fonts */
-  --font-serif:   'Fraunces', 'Georgia', serif;
-  --font-mono:    'JetBrains Mono', 'Berkeley Mono', ui-monospace, Menlo, monospace;
-  --font-sans:    'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-
   /* Motion */
   --ease-terminal: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-crisp:    cubic-bezier(0.2, 0.6, 0.2, 1);
@@ -97,7 +184,6 @@
   --border:         rgba(224,224,224,0.08);
   --border-hi:      rgba(224,224,224,0.14);
 
-  /* Viridian emerald → Verdict Neon */
   --emerald:          #00ffc3;
   --emerald-bright:   #00ffc3;
   --emerald-dark:     #00b386;
@@ -162,7 +248,9 @@ html, body, #__next {
   height: 100%;
   background: var(--bg);
   color: var(--text);
-  font-family: var(--font-sans);
+  font-family: var(--font-sans), "Inter", system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -191,7 +279,6 @@ html, body, #__next {
 /*  Utility classes — Lex Protocol                                             */
 /* ========================================================================== */
 
-/* Glass surface */
 .glass-blur {
   background: var(--glass-bg);
   backdrop-filter: blur(18px) saturate(160%);
@@ -205,7 +292,6 @@ html, body, #__next {
   -webkit-backdrop-filter: blur(32px) saturate(180%);
 }
 
-/* Blueprint grid background */
 .bg-blueprint {
   background-color: var(--bg-base);
   background-image:
@@ -214,7 +300,6 @@ html, body, #__next {
   background-size: 48px 48px;
 }
 
-/* Micro label — CASE IDs, section headers */
 .micro-label {
   font-family: var(--font-mono);
   font-size: 10px;
@@ -224,21 +309,18 @@ html, body, #__next {
   color: var(--fg-tertiary);
 }
 .micro-label--neon  { color: var(--verdict-neon);   text-shadow: var(--glow-neon-sm); }
-.micro-label--violet{ color: var(--verdict-violet);  text-shadow: var(--glow-violet-md); }
+.micro-label--violet{ color: var(--verdict-violet); text-shadow: var(--glow-violet-md); }
 .micro-label--amber { color: var(--verdict-amber); }
 
-/* Glow helpers */
 .neon-glow     { box-shadow: var(--glow-neon-md); }
 .neon-glow--sm { box-shadow: var(--glow-neon-sm); }
 .neon-glow--lg { box-shadow: var(--glow-neon-lg); }
 .neon-text     { color: var(--verdict-neon); text-shadow: var(--glow-neon-sm); }
 .violet-text   { color: var(--verdict-violet); text-shadow: var(--glow-violet-md); }
 
-/* Hairline borders */
 .hair-border  { border: 0.5px solid var(--border-hair); }
 .neon-border  { border: 0.5px solid var(--border-neon); }
 
-/* Subtle noise texture */
 .texture-check { position: relative; }
 .texture-check::after {
   content: "";
@@ -249,7 +331,6 @@ html, body, #__next {
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
 }
 
-/* Scanline — loading indicator */
 @keyframes scanline { 0% { transform: translateY(-100%); } 100% { transform: translateY(100%); } }
 .scanline { position: relative; overflow: hidden; }
 .scanline::before {
@@ -260,7 +341,6 @@ html, body, #__next {
   pointer-events: none;
 }
 
-/* Entry trace — terminal-render entrance */
 @keyframes trace-in {
   0%   { clip-path: inset(0 100% 0 0); opacity: 0; filter: blur(1px); }
   60%  { clip-path: inset(0 0 0 0); opacity: 1; filter: blur(0); }
@@ -268,7 +348,6 @@ html, body, #__next {
 }
 .trace-in { animation: trace-in var(--dur-reveal) var(--ease-terminal) both; }
 
-/* Terminal cursor blink */
 @keyframes term-blink { 50% { opacity: 0; } }
 .term-cursor::after {
   content: "▌";
@@ -334,7 +413,6 @@ html, body, #__next {
   margin: 0.875rem 0;
 }
 
-/* Citation badges */
 .cite-verified {
   font-size: 0.6875rem;
   color: var(--verdict-neon);
@@ -394,7 +472,6 @@ html, body, #__next {
 /*  Layout / component helpers                                                 */
 /* ========================================================================== */
 
-/* Sidebar */
 .sidebar-rail {
   transition: width 0.22s var(--ease-terminal), min-width 0.22s var(--ease-terminal);
 }
@@ -409,14 +486,12 @@ html, body, #__next {
   pointer-events: none;
 }
 
-/* Focus ring */
 .lex-focus:focus {
   outline: none;
   border-color: rgba(0,255,195,0.45) !important;
   box-shadow: 0 0 0 3px rgba(0,255,195,0.12) !important;
 }
 
-/* Matter card hover */
 .matter-card {
   transition: border-color 0.16s var(--ease-terminal), background 0.16s, transform 0.12s;
   cursor: pointer;
@@ -427,7 +502,6 @@ html, body, #__next {
   transform: translateY(-1px);
 }
 
-/* Tab scroll */
 .tab-scroll {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
@@ -438,10 +512,8 @@ html, body, #__next {
 }
 .tab-scroll::-webkit-scrollbar { display: none; }
 
-/* Mobile touch targets */
 @media (max-width: 639px) {
   .tab-scroll a { min-height: 44px; display: flex; align-items: center; }
 }
 
-/* Utility */
 .truncate-1 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
