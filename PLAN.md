@@ -1,8 +1,8 @@
 # LexAgent — Master Project Plan
 
 > **Last updated:** 2026-04-24
-> **Current version:** `v0.3.0` — see [CHANGELOG.md](./CHANGELOG.md)
-> **Current phase:** Phase 11 — Manual QA + Bug Triage (active)
+> **Current version:** `v0.3.3` — see [CHANGELOG.md](./CHANGELOG.md)
+> **Current phase:** Phase 11 (QA) parallel with Phase 12 Slice A (backend quota wiring)
 > **Ship target:** `v1.0.0` via Phases 11 → 14 (QA → Billing → Onboarding → Ship)
 > **Status:** Fully deployed — Vercel (Next.js 15) + Render backend + Supabase DB + 10 API integrations live
 
@@ -371,15 +371,39 @@ User is now running extensive manual QA. Ship phases are sized so each one lands
 - [ ] Regression-check after each fix: LexMemory counts still climb, error boundaries still catch throws, no console errors
 - **Exit criteria:** full checklist green, zero `console.error` on golden paths, no visible UI regressions at 375px / 1024px / 1920px.
 
-### 📋 Phase 12 — Monetisation Cutover (v0.4.0)
-**Goal:** flip on billing so paid tiers actually enforce.
-- [ ] Wire `apps/api/src/middleware/quota.ts` — deny requests over monthly budget
-- [ ] Log every AI call into `usage_events` with cents + tokens
-- [ ] Render `UsagePill` in TopBar with live spent / budget
-- [ ] Verify Lemon Squeezy checkout → `subscriptions` upsert round-trip
-- [ ] Settings → Billing → Portal link opens LS customer portal
-- [ ] BYOK key path bypasses quota (unlimited for users with own key)
-- **Exit criteria:** admin account with $0 budget gets 429; paying test account flows through; webhook signature validated.
+### 📋 Phase 12 — Monetisation Cutover (v0.4.0 → v0.4.2)
+
+**Goal:** flip on billing so paid tiers actually enforce. Split into three shippable slices so each can be tested in isolation before the next lands.
+
+**Scaffolding already in place** (built earlier, never wired):
+- `apps/api/src/middleware/quota.ts` — `checkQuota` (pre-call enforcement) + `logUsage` (post-call event row)
+- Supabase tables `usage_events`, `usage_monthly` with RLS + admin RPCs
+- Frontend `UsagePill`, `useMyTokenUsage`, `useAdminTokenUsage` — all wired to tables
+- BYOK detection path — bypasses enforcement when `byok_active && byok_key`
+
+#### 🔄 Slice A — Wire quota + usage logging (v0.4.0) *[backend only, low UX risk]*
+- [ ] `anthropic.ts` → mount `checkQuota` middleware after `requireAuth`, before `rateLimit`
+- [ ] Call `logUsage(userId, {toolName, model, inputTokens, outputTokens, matterId}, byok)` after every successful provider response (admin waterfall + user Anthropic)
+- [ ] Add optional `matter_id` field to `BodySchema` (frontend already passes matter context; just accept + forward)
+- [ ] Emit response headers: `X-Budget-USD-Spent`, `X-Budget-USD-Budget`, `X-Budget-Status` (ok/warning/rate_limited/exceeded)
+- [ ] Fire-and-forget semantics: `logUsage` errors must never block the response
+- **Exit criteria:** admin account with `plan_id='free'` ($0 budget) → 429 after one call; `usage_events` row appears with correct token counts + USD cost; UsagePill in sidebar ticks up in real time after each AI call.
+
+#### 📋 Slice B — Frontend quota warnings (v0.4.1)
+- [ ] `anthropicFetch` reads `X-Budget-*` headers, throws `QuotaWarningError` at ≥80%, `QuotaExceededError` at ≥110%
+- [ ] Show amber warning banner at 80–100% band across Research / Strategy / Draft / Judge tabs
+- [ ] Existing `<UpgradeCTA>` continues to fire on hard block — just now reachable through header path, not only 429 body
+- [ ] `useMyTokenUsage` hook re-fetches after every successful AI call so UsagePill is near-live
+- **Exit criteria:** crossing 80% shows amber banner; crossing 110% hard-blocks with Upgrade CTA; banner dismisses when user lowers usage (new month) without reload.
+
+#### 📋 Slice C — Lemon Squeezy round-trip (v0.4.2)
+- [ ] Audit `/api/billing/webhook` signature validation — confirm `x-signature` HMAC check is tight
+- [ ] Handle `subscription_created`, `subscription_updated`, `subscription_cancelled` → upsert `user_roles.plan_id`
+- [ ] `/settings/billing` "Manage" button → opens LS customer portal via `customer_portal_url`
+- [ ] Post-checkout redirect lands on `/settings/billing?success=1` with a toast
+- **Exit criteria:** buy Starter on LS test mode → webhook flips `plan_id` → UsagePill budget jumps from `$8 → $40` within 5 s; cancel in LS portal → plan flips back to free on next webhook.
+
+**Phase 12 exit (all slices):** admin `$0` → 429; paying test account flows through; webhook signature validated; BYOK bypass verified.
 
 ### 📋 Phase 13 — Onboarding & Polish (v0.5.0)
 **Goal:** first-time user gets to value in < 3 minutes.
