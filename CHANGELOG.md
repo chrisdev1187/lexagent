@@ -8,6 +8,23 @@ From Phase 10 onward, every phase ships under a new version and a single commit/
 
 ---
 
+## [0.4.1] — 2026-04-24 — Phase 12 Slice B: Frontend budget banners + near-live UsagePill
+
+### Added
+- **`lib/budget-store.ts`** — zero-dependency pub/sub singleton. `setBudgetState()` / `getBudgetState()` / `subscribeBudget()`. Carries `status`, `spent`, `budget`, and a monotonic `seq` counter bumped on every update.
+- **`hooks/useBudgetStatus.ts`** — React hook that subscribes to the budget store and returns live `BudgetState`.
+- **`components/shared/BudgetWarningBanner`** — amber (`warning`) / crimson (`rate_limited`) dismissible bar rendered below the TabBar in all matter tabs. Shows usage percentage + "Upgrade" link to `/settings/billing`. Auto re-shows if a subsequent AI call tips back into a warning band.
+
+### Changed
+- **`lib/api.ts` — `anthropicFetch()`** now reads `X-Budget-USD-Spent`, `X-Budget-USD-Budget`, `X-Budget-Status` headers from every backend response and calls `setBudgetState()`. Non-blocking — no throw for warning status; `QuotaExceededError` (429) continues as before.
+- **`UsagePill`** subscribes to `useBudgetStatus().seq` — re-fetches `usage_monthly` from Supabase after every AI call completes, making the sidebar pill near-live without polling.
+- **`matters/[id]/layout.tsx`** mounts `<BudgetWarningBanner />` between TabBar and the page content, so the warning appears on all 11 matter tabs with zero per-page changes.
+
+### Ops note
+- No DB or env changes. Works without Supabase / API (budget store stays at defaults, banner stays hidden).
+
+---
+
 ## [0.4.0] — 2026-04-24 — Phase 12 Slice A: Wire quota + usage logging
 
 ### Added

@@ -1,3 +1,5 @@
+import { setBudgetState, BudgetStatus } from "@/lib/budget-store";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 let _anthropicKey: string = process.env.NEXT_PUBLIC_ANTHROPIC_KEY ?? "";
@@ -32,6 +34,15 @@ export async function anthropicFetch(
     headers,
     body: JSON.stringify(body),
   });
+
+  // Read budget headers on every response (headers absent when hitting Anthropic directly).
+  const spent  = parseFloat(res.headers.get("X-Budget-USD-Spent")  ?? "0");
+  const budget = parseFloat(res.headers.get("X-Budget-USD-Budget") ?? "0");
+  const rawStatus = (res.headers.get("X-Budget-Status") ?? "ok") as BudgetStatus;
+  if (budget > 0 || rawStatus !== "ok") {
+    setBudgetState({ status: rawStatus, spent, budget });
+  }
+
   if (res.status === 429) throw new QuotaExceededError();
   return res;
 }

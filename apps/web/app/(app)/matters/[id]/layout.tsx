@@ -10,6 +10,7 @@ import {
 import { useMatters } from "@/providers/matters-provider";
 import { LexTooltip } from "@/components/shared/LexTooltip";
 import { AvatarStack } from "@/components/shared/AvatarStack";
+import { BudgetWarningBanner } from "@/components/shared/BudgetWarningBanner";
 import { usePresence } from "@/hooks/usePresence";
 import { TABS } from "@/lib/settings";
 
@@ -182,6 +183,7 @@ export default function MatterLayout({ children }: { children: React.ReactNode }
       </div>
 
       <TabBar />
+      <BudgetWarningBanner />
 
       <div className="flex-1 overflow-y-auto">
         {children}

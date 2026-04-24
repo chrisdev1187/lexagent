@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
+import { useBudgetStatus } from "@/hooks/useBudgetStatus";
 import Link from "next/link";
 
 interface UsageData {
@@ -13,6 +14,8 @@ interface UsageData {
 export function UsagePill() {
   const { user, isAdmin } = useAuth();
   const [data, setData] = useState<UsageData | null>(null);
+  // seq bumps on every AI call completion — triggers a near-live Supabase refetch.
+  const { seq } = useBudgetStatus();
 
   useEffect(() => {
     if (!user) return;
@@ -35,7 +38,8 @@ export function UsagePill() {
       const budget = Number((roleRes.data?.plans as any)?.usd_budget ?? 8);
       setData({ spent, budget });
     });
-  }, [user]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, seq]);
 
   if (!user || !data) return null;
 
