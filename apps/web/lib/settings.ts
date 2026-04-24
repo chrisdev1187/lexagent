@@ -152,7 +152,7 @@ export const JURISDICTIONS = [
 export const TABS = [
   { id: "overview",     label: "Overview",      icon: "LayoutDashboard", tooltip: "Matter summary — details, stats, and quick actions" },
   { id: "research",     label: "Research",      icon: "Search",     tooltip: "AI-powered case law research using CourtListener (9M+ opinions)" },
-  { id: "deepresearch", label: "Deep Research",  icon: "ScanSearch", tooltip: "Multi-source legal research: Congress, eCFR, EDGAR, USPTO, OpenStates" },
+  { id: "deep-research", label: "Deep Research",  icon: "ScanSearch", tooltip: "Multi-source legal research: Congress, eCFR, EDGAR, USPTO, OpenStates" },
   { id: "vault",        label: "Vault",          icon: "FileText",   tooltip: "Secure document storage — upload PDFs, evidence, discovery materials" },
   { id: "strategy",     label: "Strategy",       icon: "Target",     tooltip: "AI-generated case strategy with argument strength analysis" },
   { id: "judge",        label: "Judge Intel",    icon: "Users",      tooltip: "Judge profile: career history, rulings, political affiliations (CourtListener)" },

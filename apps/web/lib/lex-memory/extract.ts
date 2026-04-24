@@ -49,6 +49,30 @@ function stableId(prefix: string, content: string): string {
   return `${prefix}_${Math.abs(hash).toString(36)}`;
 }
 
+// Build a verified authority node from CourtListener-confirmed citation.
+// Use from citations page to promote a verified citation into LexMemory.
+export function authorityFromVerified(args: {
+  citation: string;
+  caseName?: string;
+  court?: string;
+  tab: TabId;
+}): Level3Authority {
+  const shortCite = (args.caseName ?? args.citation).substring(0, 40);
+  const tier = inferCourtTier(args.court ?? args.citation);
+  return {
+    kind: "authority",
+    id: stableId("auth", args.citation),
+    citation: args.citation,
+    shortCite,
+    authorityKind: "case",
+    courtTier: tier,
+    verified: true,
+    confirmedBy: [args.tab],
+    lastRefAt: Date.now(),
+    confidence: 3,
+  };
+}
+
 export function extractDelta(responseText: string, tab: TabId): LexMemoryDelta {
   const now = Date.now();
   const nodes: LexMemoryDelta["nodes"] = [];

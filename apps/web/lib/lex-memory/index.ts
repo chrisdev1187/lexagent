@@ -3,5 +3,5 @@ export { withLexMemory } from "./with-lex-memory";
 export { bootstrapMemory } from "./bootstrap";
 export { buildContext } from "./build-context";
 export { mergeMemory } from "./merge";
-export { extractDelta } from "./extract";
+export { extractDelta, authorityFromVerified } from "./extract";
 export { estimateTokens } from "./tokens";

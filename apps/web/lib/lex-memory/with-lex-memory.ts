@@ -13,6 +13,8 @@ export interface LexMemoryOpts {
   budget?: number;
 }
 
+export type UpdateMatterFn = (updated: Matter | ((prev: Matter) => Matter)) => Promise<void>;
+
 function getOrBootstrap(matter: Matter): LexMemory {
   const stored = matter.lexMemory as LexMemory | undefined;
   if (stored?.version === 1) return stored;
@@ -32,12 +34,10 @@ function extractText(json: unknown): string | null {
 function extractUsage(json: unknown): { input_tokens: number; output_tokens: number } | null {
   if (!json || typeof json !== "object") return null;
   const j = json as Record<string, unknown>;
-  // Anthropic format: { usage: { input_tokens, output_tokens } }
   const usage = j["usage"] as Record<string, unknown> | undefined;
   if (usage && typeof usage["input_tokens"] === "number" && typeof usage["output_tokens"] === "number") {
     return { input_tokens: usage["input_tokens"] as number, output_tokens: usage["output_tokens"] as number };
   }
-  // OpenAI-compat format: { usage: { prompt_tokens, completion_tokens } }
   if (usage && typeof usage["prompt_tokens"] === "number") {
     return {
       input_tokens: usage["prompt_tokens"] as number,
@@ -49,7 +49,7 @@ function extractUsage(json: unknown): { input_tokens: number; output_tokens: num
 
 export function withLexMemory(
   matter: Matter,
-  updateMatter: (m: Matter) => Promise<void>,
+  updateMatter: UpdateMatterFn,
   opts: LexMemoryOpts
 ) {
   return async function lexFetch(
@@ -62,14 +62,12 @@ export function withLexMemory(
       currentTab: opts.tab,
     });
 
-    // Prepend memory context to system prompt
     const patchedBody = ctxBlock
       ? { ...body, system: `${ctxBlock}\n\n${body["system"] ?? ""}`.trim() }
       : body;
 
     const res = await anthropicFetch(patchedBody, extraHeaders);
 
-    // Fire-and-forget: extract from response, persist, log usage
     const clone = res.clone();
     void (async () => {
       try {
@@ -77,10 +75,15 @@ export function withLexMemory(
         const text = extractText(json);
         if (text) {
           const delta = extractDelta(text, opts.tab);
-          const updated = mergeMemory(mem, delta);
-          await updateMatter({ ...matter, lexMemory: updated });
+          // Functional update: re-reads fresh matter from state, avoids clobbering
+          // concurrent writes made between call-time and extraction completion.
+          await updateMatter((prev) => {
+            if (prev.id !== matter.id) return prev;
+            const currentMem = getOrBootstrap(prev);
+            const merged = mergeMemory(currentMem, delta);
+            return { ...prev, lexMemory: merged };
+          });
         }
-        // Log token usage (best-effort, never throws)
         const usage = extractUsage(json);
         await logAiUsage({
           matterId: matter.id,
@@ -90,11 +93,11 @@ export function withLexMemory(
           memInjected,
           model: (body["model"] as string) ?? "unknown",
         }).catch(() => {});
-      } catch {
-        // Extraction failure must never break the UI
+      } catch (e) {
+        console.warn("[lex-memory] extraction failed:", (e as Error).message);
       }
     })();
 
-    return res; // original Response, untouched
+    return res;
   };
 }

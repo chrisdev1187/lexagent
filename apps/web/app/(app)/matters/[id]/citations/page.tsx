@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { useMatters } from "@/providers/matters-provider";
 import { citationLookup, CLLookupResult } from "@/lib/courtlistener";
 import { PanelShell } from "@/components/panels/PanelShell";
+import { bootstrapMemory, mergeMemory, authorityFromVerified, LexMemory } from "@/lib/lex-memory";
 
 interface VerifiedEntry extends CLLookupResult {
   uid: string;
@@ -74,7 +75,27 @@ export default function CitationsPage() {
     if (!matter || !entry.bluebook) return;
     const existing = (matter.verifiedCitations as string[] | undefined) ?? [];
     if (existing.includes(entry.bluebook)) return;
-    await updateMatter({ ...matter, verifiedCitations: [...existing, entry.bluebook] });
+
+    const authority = authorityFromVerified({
+      citation: entry.bluebook,
+      caseName: entry.caseName,
+      court: entry.reporter,
+      tab: "citations",
+    });
+
+    await updateMatter((prev) => {
+      if (prev.id !== matter.id) return prev;
+      const current = (prev.lexMemory as LexMemory | undefined)?.version === 1
+        ? (prev.lexMemory as LexMemory)
+        : bootstrapMemory(prev);
+      const merged = mergeMemory(current, { nodes: [authority] });
+      const list = (prev.verifiedCitations as string[] | undefined) ?? [];
+      return {
+        ...prev,
+        verifiedCitations: list.includes(entry.bluebook!) ? list : [...list, entry.bluebook!],
+        lexMemory: merged,
+      };
+    });
     setResults(prev =>
       prev.map(r => r.uid === entry.uid ? { ...r, savedToMatter: true } : r)
     );

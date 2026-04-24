@@ -5,10 +5,11 @@ import { useParams } from "next/navigation";
 import {
   LayoutDashboard, Clock, Calendar, FileText,
   BookOpen, ShieldCheck, Receipt, Search, ScanSearch, FileEdit, Target,
-  Users, CalendarDays, Scale, Gavel,
+  Users, CalendarDays, Scale, Gavel, Brain,
 } from "lucide-react";
 import { useMatters } from "@/providers/matters-provider";
 import { PanelShell } from "@/components/panels/PanelShell";
+import type { LexMemory } from "@/lib/lex-memory";
 
 interface Deadline {
   id: string;
@@ -111,6 +112,14 @@ export default function OverviewPage() {
     .filter(d => d.dueDate && new Date(d.dueDate) >= new Date())
     .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
     .slice(0, 3);
+
+  const lexMem = matter.lexMemory as LexMemory | undefined;
+  const hasMem = lexMem?.version === 1;
+  const nodeCount = hasMem ? lexMem.nodes.length : 0;
+  const episodeCount = hasMem ? lexMem.episodes.length : 0;
+  const lastEpisode = hasMem ? [...lexMem.episodes].sort((a, b) => b.createdAt - a.createdAt)[0] : null;
+  const verifiedAuth = hasMem ? lexMem.nodes.filter(n => n.kind === "authority" && "verified" in n && n.verified).length : 0;
+  const theme = hasMem ? lexMem.theme : null;
 
   return (
     <PanelShell
@@ -231,6 +240,69 @@ export default function OverviewPage() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* LexMemory state */}
+      <div
+        className="rounded p-4 mb-6"
+        style={{
+          background: "rgba(17,17,20,0.7)",
+          border: "0.5px solid rgba(0,255,195,0.22)",
+        }}
+      >
+        <div className="flex items-center justify-between mb-3">
+          <span className="flex items-center gap-2 font-mono text-[9px] tracking-[0.2em] uppercase" style={{ color: "var(--verdict-neon)" }}>
+            <Brain size={11} />
+            LexMemory
+          </span>
+          <span className="font-mono text-[9px] tracking-[0.14em] uppercase" style={{ color: "var(--fg-quaternary)" }}>
+            {hasMem ? `v${lexMem.version}` : "not initialized"}
+          </span>
+        </div>
+
+        {!hasMem ? (
+          <p className="text-[13px]" style={{ color: "var(--fg-tertiary)" }}>
+            Memory will initialize on your first AI call. The system compresses case context into ~250 tokens per call, saving 60–80% on input tokens over a matter&apos;s lifetime.
+          </p>
+        ) : (
+          <>
+            <div className="grid grid-cols-3 gap-2 mb-3">
+              <div className="rounded px-3 py-2" style={{ background: "rgba(0,255,195,0.04)", border: "0.5px solid rgba(0,255,195,0.14)" }}>
+                <div className="font-serif text-base font-semibold leading-none" style={{ color: "var(--fg-primary)" }}>{nodeCount}</div>
+                <div className="font-mono text-[9px] tracking-[0.14em] uppercase mt-1" style={{ color: "var(--fg-quaternary)" }}>Nodes</div>
+              </div>
+              <div className="rounded px-3 py-2" style={{ background: "rgba(0,255,195,0.04)", border: "0.5px solid rgba(0,255,195,0.14)" }}>
+                <div className="font-serif text-base font-semibold leading-none" style={{ color: "var(--fg-primary)" }}>{verifiedAuth}</div>
+                <div className="font-mono text-[9px] tracking-[0.14em] uppercase mt-1" style={{ color: "var(--fg-quaternary)" }}>Verified</div>
+              </div>
+              <div className="rounded px-3 py-2" style={{ background: "rgba(0,255,195,0.04)", border: "0.5px solid rgba(0,255,195,0.14)" }}>
+                <div className="font-serif text-base font-semibold leading-none" style={{ color: "var(--fg-primary)" }}>{episodeCount}</div>
+                <div className="font-mono text-[9px] tracking-[0.14em] uppercase mt-1" style={{ color: "var(--fg-quaternary)" }}>Episodes</div>
+              </div>
+            </div>
+
+            {theme && (theme.primaryTheory || theme.posture || theme.statuteRefs.length > 0) && (
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {theme.primaryTheory && (
+                  <span className="lex-chip lex-chip--neon">{theme.primaryTheory}</span>
+                )}
+                {theme.posture && (
+                  <span className="lex-chip lex-chip--amber">{theme.posture}</span>
+                )}
+                {theme.statuteRefs.slice(0, 3).map(s => (
+                  <span key={s} className="lex-chip lex-chip--violet">{s}</span>
+                ))}
+              </div>
+            )}
+
+            {lastEpisode && (
+              <p className="text-[12px] leading-relaxed font-mono line-clamp-2" style={{ color: "var(--fg-tertiary)" }}>
+                <span style={{ color: "var(--fg-quaternary)" }}>[{lastEpisode.tab}] </span>
+                {lastEpisode.summary}
+              </p>
+            )}
+          </>
+        )}
       </div>
 
       {/* Quick navigation */}
