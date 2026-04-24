@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Users, Search, ExternalLink, Loader2 } from "lucide-react";
+import { Users, Search, ExternalLink, Loader2, Zap, Target } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useMatters } from "@/providers/matters-provider";
-import { COURTLISTENER_BASE, getApiHeaders } from "@/lib/api";
+import { useSettings } from "@/providers/settings-provider";
+import { COURTLISTENER_BASE, getApiHeaders, anthropicFetch } from "@/lib/api";
 import { PanelShell } from "@/components/panels/PanelShell";
+import { Markdown } from "@/components/shared/Markdown";
 
 interface JudgePosition {
   court: string;
@@ -32,15 +34,19 @@ interface Opinion {
 
 export default function JudgePage() {
   const { id } = useParams<{ id: string }>();
-  const { getMatter } = useMatters();
+  const { getMatter, updateMatter } = useMatters();
+  const { settings } = useSettings();
   const matter = getMatter(id);
 
   const [searchName, setSearchName] = useState(matter?.judgeName ?? "");
   const [judge, setJudge] = useState<JudgeResult | null>(null);
   const [opinions, setOpinions] = useState<Opinion[]>([]);
   const [loading, setLoading] = useState(false);
+  const [synthesizing, setSynthesizing] = useState(false);
   const [searched, setSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const judgeAnalysis = matter?.judgeAnalysis as string | undefined;
 
   const search = async (name: string) => {
     if (!name.trim()) return;
@@ -52,7 +58,6 @@ export default function JudgePage() {
     try {
       const headers = getApiHeaders();
 
-      // Fetch judge profile
       const judgeRes = await fetch(
         `${COURTLISTENER_BASE}/people/?full_name=${encodeURIComponent(name)}`,
         { headers }
@@ -61,7 +66,6 @@ export default function JudgePage() {
       const foundJudge = judgeData.results?.[0] ?? null;
       setJudge(foundJudge);
 
-      // Fetch recent opinions
       const opinionRes = await fetch(
         `${COURTLISTENER_BASE}/search/?q=${encodeURIComponent(`judge:${name}`)}&type=o&page_size=10`,
         { headers }
@@ -90,6 +94,68 @@ export default function JudgePage() {
     }
   };
 
+  const synthesize = async () => {
+    if (!judge || !matter) return;
+    setSynthesizing(true);
+    try {
+      const positionsText = judge.positions
+        .slice(0, 5)
+        .map(p => `${p.court} (${p.position_type})${p.date_start ? `, ${new Date(p.date_start).getFullYear()}` : ""}${p.date_termination ? `–${new Date(p.date_termination).getFullYear()}` : "–present"}`)
+        .join("; ");
+
+      const opinionsText = opinions
+        .slice(0, 10)
+        .map((o, i) => `${i + 1}. ${o.caseName}${o.citation ? `, ${o.citation}` : ""} (${o.court}${o.dateFiled ? `, ${new Date(o.dateFiled).getFullYear()}` : ""})`)
+        .join("\n");
+
+      const content = `Synthesize a strategic intelligence brief on Judge ${judge.name_full} for the following case:
+
+Matter: ${matter.title}
+Case Type: ${matter.caseType ?? "N/A"}
+Jurisdiction: ${matter.jurisdiction ?? "N/A"}
+
+JUDGE DATA:
+- Name: ${judge.name_full}
+- Political Affiliation: ${judge.political_affiliation || "Unknown"}
+- ABA Rating: ${judge.aba_rating || "Unknown"}
+- Positions: ${positionsText || "None listed"}
+
+RECENT OPINIONS (CourtListener):
+${opinionsText || "None available"}
+
+Provide:
+## JUDICIAL PROFILE
+Career overview and judicial philosophy based on available data.
+
+## TENDENCIES
+Based on opinions listed, identify any patterns in rulings relevant to this case type.
+
+## STRATEGIC RECOMMENDATIONS
+Specific advice on framing arguments, tone, and approach for this judge.
+
+## RISK FLAGS
+Any potential concerns or preferences to avoid.
+
+Be direct and actionable. This is for attorney preparation only.`;
+
+      const res = await anthropicFetch({
+        model: settings.model,
+        max_tokens: 4000,
+        system: settings.systemPrompt,
+        messages: [{ role: "user", content }],
+      });
+      const data = await res.json() as { content?: Array<{ type: string; text: string }>; error?: { message: string } };
+      const text = data.content?.[0]?.text ?? data.error?.message ?? "No response.";
+      if (matter) {
+        await updateMatter({ ...matter, judgeAnalysis: text });
+      }
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSynthesizing(false);
+    }
+  };
+
   useEffect(() => {
     if (matter?.judgeName) {
       search(matter.judgeName);
@@ -101,7 +167,7 @@ export default function JudgePage() {
     <PanelShell
       icon={Users}
       title="Judge Intel"
-      description="Judge profile, career history, and recent opinions via CourtListener"
+      description="Judge profile, career history, and AI-synthesized strategic brief"
     >
       {/* Search bar */}
       <div
@@ -115,12 +181,7 @@ export default function JudgePage() {
           onKeyDown={e => e.key === "Enter" && search(searchName)}
           placeholder="Judge full name…"
           className="flex-1 text-sm"
-          style={{
-            background: "transparent",
-            color: "var(--fg-primary)",
-            border: "none",
-            outline: "none",
-          }}
+          style={{ background: "transparent", color: "var(--fg-primary)", border: "none", outline: "none" }}
         />
         <button
           onClick={() => search(searchName)}
@@ -134,7 +195,7 @@ export default function JudgePage() {
 
       {error && (
         <div
-          className="rounded-lg px-4 py-3 mb-4 text-xs"
+          className="rounded px-4 py-3 mb-4 text-xs"
           style={{ background: "rgba(255,51,85,0.08)", border: "0.5px solid rgba(255,51,85,0.3)", color: "var(--verdict-crimson)" }}
         >
           {error}
@@ -206,7 +267,35 @@ export default function JudgePage() {
                 </div>
               </div>
             )}
+
+            {/* Synthesize button */}
+            <div className="mt-4 pt-4" style={{ borderTop: "0.5px solid rgba(224,224,224,0.08)" }}>
+              <button
+                onClick={synthesize}
+                disabled={synthesizing}
+                className="lex-btn lex-btn--primary"
+              >
+                {synthesizing ? <Loader2 size={12} className="animate-spin" /> : <Zap size={12} />}
+                {synthesizing ? "Synthesizing…" : judgeAnalysis ? "Re-synthesize Intelligence" : "Generate AI Intelligence Brief"}
+              </button>
+            </div>
           </div>
+
+          {/* AI synthesis */}
+          {judgeAnalysis && (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Target size={13} style={{ color: "var(--verdict-neon)" }} />
+                <span className="text-xs font-mono tracking-wide" style={{ color: "var(--verdict-neon)" }}>AI STRATEGIC BRIEF</span>
+              </div>
+              <div
+                className="rounded p-4 overflow-auto"
+                style={{ background: "rgba(17,17,20,0.8)", border: "0.5px solid rgba(0,255,195,0.14)", maxHeight: "480px" }}
+              >
+                <Markdown text={judgeAnalysis} />
+              </div>
+            </div>
+          )}
 
           {/* Recent opinions */}
           {opinions.length > 0 && (
@@ -218,7 +307,7 @@ export default function JudgePage() {
                 {opinions.map((op, i) => (
                   <div
                     key={i}
-                    className="rounded-lg px-4 py-3 flex items-start justify-between gap-3"
+                    className="rounded px-4 py-3 flex items-start justify-between gap-3"
                     style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}
                   >
                     <div className="flex-1 min-w-0">

@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Target, RefreshCw, Zap, AlertTriangle } from "lucide-react";
+import { Target, RefreshCw, Zap, AlertTriangle, Copy, Check } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useMatters } from "@/providers/matters-provider";
 import { useSettings } from "@/providers/settings-provider";
 import { anthropicFetch, QuotaExceededError } from "@/lib/api";
 import { UpgradeCTA } from "@/components/shared/UpgradeCTA";
 import { PanelShell } from "@/components/panels/PanelShell";
+import { Markdown } from "@/components/shared/Markdown";
 import { usePresence } from "@/hooks/usePresence";
 
 export default function StrategyPage() {
@@ -21,31 +22,61 @@ export default function StrategyPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showUpgrade, setShowUpgrade] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const strategy = matter?.strategy as string | undefined;
+  const verifiedCitations = (matter?.verifiedCitations as string[] | undefined) ?? [];
+  const judgeAnalysis = matter?.judgeAnalysis as string | undefined;
+
+  const copyStrategy = async () => {
+    if (!strategy) return;
+    await navigator.clipboard.writeText(strategy);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const generate = async () => {
     if (!matter) return;
     setLoading(true);
     setError(null);
     try {
+      const citationsBlock = verifiedCitations.length > 0
+        ? `\n\nVERIFIED AUTHORITIES (prioritize these in your analysis):\n${verifiedCitations.map((c, i) => `${i + 1}. ${c}`).join("\n")}`
+        : "";
+
+      const judgeBlock = judgeAnalysis
+        ? `\n\nJUDGE INTELLIGENCE:\n${judgeAnalysis}`
+        : "";
+
       const userContent = `Analyze this legal matter and produce a comprehensive case strategy report:
 
 Matter: ${matter.title}
-Case Type: ${matter.caseType}
-Jurisdiction: ${matter.jurisdiction}
-Court: ${matter.court}
-Judge: ${matter.judgeName}
-Facts: ${matter.facts}
+Case Type: ${matter.caseType ?? "N/A"}
+Jurisdiction: ${matter.jurisdiction ?? "N/A"}
+Court: ${matter.court ?? "N/A"}
+Judge: ${matter.judgeName ?? "Unknown"}
+Facts: ${matter.facts ?? "N/A"}${citationsBlock}${judgeBlock}
 
 Provide:
-1. CASE ASSESSMENT — strengths and weaknesses (2-3 sentences each)
-2. KEY LEGAL ARGUMENTS — top 3 arguments with supporting precedent citations
-3. OPPOSING ARGUMENTS — anticipated defense/prosecution arguments and rebuttals
-4. RECOMMENDED STRATEGY — specific tactical recommendations
-5. RISK FACTORS — what could go wrong and mitigation steps
+## CASE ASSESSMENT
+Strengths and weaknesses (2-3 sentences each)
 
-Format with clear headers. Use Bluebook citation format.`;
+## KEY LEGAL ARGUMENTS
+Top 3-5 arguments with supporting Bluebook citations. Lead with the strongest.
+
+## OPPOSING ARGUMENTS
+Anticipated counterarguments and specific rebuttals.
+
+## RECOMMENDED STRATEGY
+Concrete tactical recommendations with priority order.
+
+## RISK FACTORS
+What could go wrong and specific mitigation steps.
+
+## BOTTOM LINE
+Practical 2-3 sentence summary of the recommended approach.
+
+Use Bluebook citation format. Flag any circuit splits.`;
 
       const res = await anthropicFetch({
         model: settings.model,
@@ -78,14 +109,24 @@ Format with clear headers. Use Bluebook citation format.`;
         description="AI-generated comprehensive case strategy and analysis"
         actions={
           strategy ? (
-            <button
-              onClick={generate}
-              disabled={loading}
-              className="lex-btn lex-btn--secondary"
-            >
-              <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
-              Regenerate
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={copyStrategy}
+                className="lex-btn lex-btn--secondary"
+                style={copied ? { color: "var(--verdict-neon)" } : {}}
+              >
+                {copied ? <Check size={12} /> : <Copy size={12} />}
+                {copied ? "Copied" : "Copy"}
+              </button>
+              <button
+                onClick={generate}
+                disabled={loading}
+                className="lex-btn lex-btn--secondary"
+              >
+                <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
+                Regenerate
+              </button>
+            </div>
           ) : undefined
         }
       >
@@ -141,13 +182,8 @@ Format with clear headers. Use Bluebook citation format.`;
         )}
 
         {strategy && !loading && (
-          <div className="lex-card">
-            <pre
-              className="text-sm leading-relaxed whitespace-pre-wrap"
-              style={{ color: "var(--fg-primary)", fontFamily: "var(--font-sans)" }}
-            >
-              {strategy}
-            </pre>
+          <div className="lex-card overflow-auto" style={{ maxHeight: "720px" }}>
+            <Markdown text={strategy} />
           </div>
         )}
       </PanelShell>

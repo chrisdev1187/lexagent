@@ -7,6 +7,7 @@ import { useMatters } from "@/providers/matters-provider";
 import { useAuth } from "@/lib/auth";
 import { PanelShell } from "@/components/panels/PanelShell";
 import { CONGRESS_BASE, ECFR_BASE } from "@/lib/api";
+import { searchOpinions, CLOpinion } from "@/lib/courtlistener";
 
 interface CongressBill {
   congress: number;
@@ -29,14 +30,23 @@ interface EcfrResult {
 
 interface SavedPrecedent {
   id: string;
-  source: "congress" | "ecfr";
+  source: "congress" | "ecfr" | "opinion";
   title: string;
   citation: string;
   url?: string;
   savedAt: number;
 }
 
-type Tab = "congress" | "ecfr";
+type Tab = "congress" | "ecfr" | "opinions";
+
+function formatBillCitation(bill: CongressBill): string {
+  const typeMap: Record<string, string> = {
+    HR: "H.R.", S: "S.", HJRES: "H.J. Res.", SJRES: "S.J. Res.",
+    HCONRES: "H. Con. Res.", SCONRES: "S. Con. Res.", HRES: "H. Res.", SRES: "S. Res.",
+  };
+  const typeLabel = typeMap[bill.type.toUpperCase()] ?? bill.type;
+  return `${typeLabel} ${bill.number}, ${bill.congress}th Cong. (${new Date().getFullYear()})`;
+}
 
 export default function DeepResearchPage() {
   const { id } = useParams<{ id: string }>();
@@ -44,11 +54,12 @@ export default function DeepResearchPage() {
   const { session } = useAuth();
   const matter = getMatter(id);
 
-  const [tab, setTab] = useState<Tab>("congress");
+  const [tab, setTab] = useState<Tab>("opinions");
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const [congressResults, setCongressResults] = useState<CongressBill[]>([]);
   const [ecfrResults, setEcfrResults] = useState<EcfrResult[]>([]);
+  const [opinionResults, setOpinionResults] = useState<CLOpinion[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const savedPrecedents = (matter?.precedents ?? []) as SavedPrecedent[];
@@ -90,10 +101,24 @@ export default function DeepResearchPage() {
     }
   };
 
+  const searchOpinionResults = async () => {
+    setSearching(true);
+    setError(null);
+    try {
+      const results = await searchOpinions(query, 20);
+      setOpinionResults(results);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSearching(false);
+    }
+  };
+
   const handleSearch = () => {
     if (!query.trim() || searching || !matter) return;
     if (tab === "congress") searchCongress();
-    else searchEcfr();
+    else if (tab === "ecfr") searchEcfr();
+    else searchOpinionResults();
   };
 
   const savePrecedent = (p: SavedPrecedent) => {
@@ -108,40 +133,34 @@ export default function DeepResearchPage() {
 
   const saveCongressBill = (bill: CongressBill) => {
     const pid = `congress-${bill.congress}-${bill.type}-${bill.number}`;
-    savePrecedent({
-      id: pid,
-      source: "congress",
-      title: bill.title,
-      citation: `${bill.type} ${bill.number}, ${bill.congress}th Congress`,
-      url: bill.url,
-      savedAt: Date.now(),
-    });
+    savePrecedent({ id: pid, source: "congress", title: bill.title, citation: formatBillCitation(bill), url: bill.url, savedAt: Date.now() });
   };
 
   const saveEcfrResult = (r: EcfrResult) => {
-    savePrecedent({
-      id: `ecfr-${r.id}`,
-      source: "ecfr",
-      title: r.label_description ?? r.label,
-      citation: r.fr_citation ?? r.label,
-      savedAt: Date.now(),
-    });
+    savePrecedent({ id: `ecfr-${r.id}`, source: "ecfr", title: r.label_description ?? r.label, citation: r.fr_citation ?? r.label, savedAt: Date.now() });
+  };
+
+  const saveOpinion = (op: CLOpinion) => {
+    savePrecedent({ id: `opinion-${op.id}`, source: "opinion", title: op.caseName, citation: op.citation, url: op.absoluteUrl, savedAt: Date.now() });
   };
 
   const SOURCE_BADGE: Record<string, { label: string; color: string }> = {
     congress: { label: "Congress", color: "var(--verdict-amber)" },
-    ecfr: { label: "eCFR", color: "var(--verdict-neon)" },
+    ecfr:     { label: "eCFR",    color: "var(--verdict-neon)" },
+    opinion:  { label: "Opinion", color: "var(--verdict-violet)" },
   };
+
+  const TAB_LABELS: Record<Tab, string> = { congress: "Congress Bills", ecfr: "eCFR Regs", opinions: "Case Opinions" };
 
   return (
     <PanelShell
       icon={ScanSearch}
       title="Deep Research"
-      description="Multi-source legal research: Congress bills, eCFR regulations"
+      description="Multi-source legal research: opinions, Congress bills, eCFR regulations"
     >
       {/* Source tabs */}
       <div className="flex gap-1 mb-4">
-        {(["congress", "ecfr"] as Tab[]).map((t) => (
+        {(["opinions", "congress", "ecfr"] as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => { setTab(t); setError(null); }}
@@ -152,7 +171,7 @@ export default function DeepResearchPage() {
               color: tab === t ? "var(--verdict-neon)" : "var(--fg-tertiary)",
             }}
           >
-            {t === "congress" ? "Congress Bills" : "eCFR Regulations"}
+            {TAB_LABELS[t]}
           </button>
         ))}
       </div>
@@ -166,7 +185,11 @@ export default function DeepResearchPage() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-          placeholder={tab === "congress" ? "Search bills — e.g. 'immigration reform'…" : "Search CFR — e.g. 'clean air emissions'…"}
+          placeholder={
+            tab === "congress" ? "Search bills — e.g. 'immigration reform'…"
+            : tab === "ecfr" ? "Search CFR — e.g. 'clean air emissions'…"
+            : "Search case opinions — e.g. 'fourth amendment search'…"
+          }
           className="flex-1 px-4 py-2.5 text-sm"
           style={{ background: "transparent", color: "var(--fg-primary)", outline: "none", border: "none" }}
         />
@@ -187,6 +210,48 @@ export default function DeepResearchPage() {
         </div>
       )}
 
+      {/* Opinion results */}
+      {tab === "opinions" && opinionResults.length > 0 && (
+        <div className="space-y-2 mb-6">
+          <p className="text-xs font-mono tracking-wider mb-2" style={{ color: "var(--fg-tertiary)" }}>
+            CASE OPINIONS ({opinionResults.length})
+          </p>
+          {opinionResults.map((op) => {
+            const pid = `opinion-${op.id}`;
+            const saved = savedIds.has(pid);
+            return (
+              <div key={pid} className="rounded p-3 flex items-start gap-3" style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold mb-0.5" style={{ color: "var(--fg-primary)" }}>{op.caseName}</p>
+                  <p className="text-xs font-mono" style={{ color: "var(--verdict-neon)" }}>{op.citation}</p>
+                  <p className="text-xs mt-0.5" style={{ color: "var(--fg-tertiary)" }}>
+                    {op.court}{op.dateFiled ? ` · ${new Date(op.dateFiled).toLocaleDateString("en-US", { year: "numeric", month: "short" })}` : ""}
+                  </p>
+                  {op.snippet && (
+                    <p className="text-xs mt-1 line-clamp-2" style={{ color: "var(--fg-secondary)" }}>{op.snippet}</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  {op.absoluteUrl && (
+                    <a href={op.absoluteUrl} target="_blank" rel="noreferrer" className="p-1.5 rounded-md cursor-pointer" style={{ color: "var(--fg-tertiary)" }}>
+                      <ExternalLink size={13} />
+                    </a>
+                  )}
+                  <button
+                    onClick={() => !saved && saveOpinion(op)}
+                    className="p-1.5 rounded-md cursor-pointer"
+                    style={{ color: saved ? "var(--verdict-neon)" : "var(--fg-tertiary)" }}
+                    title={saved ? "Saved" : "Save to precedents"}
+                  >
+                    {saved ? <BookmarkCheck size={13} /> : <Bookmark size={13} />}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* Congress results */}
       {tab === "congress" && congressResults.length > 0 && (
         <div className="space-y-2 mb-6">
@@ -200,9 +265,8 @@ export default function DeepResearchPage() {
               <div key={pid} className="rounded p-3 flex items-start gap-3" style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-semibold mb-0.5 line-clamp-2" style={{ color: "var(--fg-primary)" }}>{bill.title}</p>
-                  <p className="text-xs" style={{ color: "var(--fg-tertiary)" }}>
-                    {bill.type} {bill.number} · {bill.congress}th Congress · {bill.originChamber}
-                  </p>
+                  <p className="text-xs font-mono" style={{ color: "var(--verdict-amber)" }}>{formatBillCitation(bill)}</p>
+                  <p className="text-xs mt-0.5" style={{ color: "var(--fg-tertiary)" }}>{bill.originChamber}</p>
                   {bill.latestAction && (
                     <p className="text-xs mt-0.5" style={{ color: "var(--fg-secondary)" }}>
                       {bill.latestAction.actionDate}: {bill.latestAction.text}
@@ -266,7 +330,7 @@ export default function DeepResearchPage() {
         </div>
       )}
 
-      {/* Saved precedents for this matter */}
+      {/* Saved precedents */}
       {savedPrecedents.length > 0 && (
         <div>
           <p className="text-xs font-mono tracking-wider mb-2" style={{ color: "var(--fg-tertiary)" }}>
@@ -285,7 +349,7 @@ export default function DeepResearchPage() {
                   </span>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium truncate" style={{ color: "var(--fg-primary)" }}>{p.title}</p>
-                    <p className="text-xs" style={{ color: "var(--fg-tertiary)" }}>{p.citation}</p>
+                    <p className="text-xs font-mono" style={{ color: "var(--fg-tertiary)" }}>{p.citation}</p>
                   </div>
                   {p.url && (
                     <a href={p.url} target="_blank" rel="noreferrer" className="p-1 rounded cursor-pointer flex-shrink-0" style={{ color: "var(--fg-tertiary)" }}>
@@ -295,7 +359,7 @@ export default function DeepResearchPage() {
                   <button
                     onClick={() => removePrecedent(p.id)}
                     className="p-1 rounded cursor-pointer flex-shrink-0"
-                    style={{ color: "var(--fg-tertiary)" }}
+                    style={{ color: "var(--fg-tertiary)", background: "none", border: "none" }}
                     title="Remove"
                   >
                     <Trash2 size={12} />
@@ -307,13 +371,13 @@ export default function DeepResearchPage() {
         </div>
       )}
 
-      {/* Empty states */}
-      {!searching && congressResults.length === 0 && ecfrResults.length === 0 && savedPrecedents.length === 0 && (
+      {/* Empty state */}
+      {!searching && opinionResults.length === 0 && congressResults.length === 0 && ecfrResults.length === 0 && savedPrecedents.length === 0 && (
         <div className="rounded p-8 text-center" style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
           <ScanSearch size={28} className="mx-auto mb-3" style={{ color: "var(--fg-tertiary)" }} />
           <p className="text-sm mb-1" style={{ color: "var(--fg-primary)" }}>Search federal sources</p>
           <p className="text-xs" style={{ color: "var(--fg-tertiary)" }}>
-            Congress bills and eCFR regulations. Save relevant sources to this matter's record.
+            Case opinions, Congress bills, and eCFR regulations. Save sources to this matter&apos;s record.
           </p>
         </div>
       )}

@@ -8,6 +8,7 @@ import { useSettings } from "@/providers/settings-provider";
 import { anthropicFetch, QuotaExceededError } from "@/lib/api";
 import { UpgradeCTA } from "@/components/shared/UpgradeCTA";
 import { PanelShell } from "@/components/panels/PanelShell";
+import { Markdown } from "@/components/shared/Markdown";
 
 const DOC_TYPES = [
   "Motion to Dismiss",
@@ -20,6 +21,10 @@ const DOC_TYPES = [
   "Memo of Law",
   "Client Letter",
   "Subpoena",
+  "Complaint",
+  "Answer",
+  "Reply Brief",
+  "Notice of Appeal",
 ];
 
 export default function DraftPage() {
@@ -36,12 +41,39 @@ export default function DraftPage() {
   const [copied, setCopied] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
 
+  const verifiedCitations = (matter?.verifiedCitations as string[] | undefined) ?? [];
+
   const generate = async () => {
     if (!matter) return;
     setLoading(true);
     setError(null);
     try {
-      const userContent = `Draft a ${docType} for the following matter:\n\nMatter: ${matter.title}\nCase Type: ${matter.caseType}\nJurisdiction: ${matter.jurisdiction}\nCourt: ${matter.court}\nFacts: ${matter.facts}\n\nSpecial Instructions: ${instructions || "None"}\n\nInclude all required legal elements, proper formatting, and Bluebook citations where applicable.`;
+      // Build firm/attorney context
+      const firmBlock = settings.firmName
+        ? `\n\nATTORNEY/FIRM:\n${settings.firmName}${settings.firmAddress ? `\n${settings.firmAddress}` : ""}${settings.firmCity ? `, ${settings.firmCity}` : ""}${settings.firmState ? `, ${settings.firmState}` : ""}${settings.firmZip ? ` ${settings.firmZip}` : ""}${settings.barNumber ? `\nBar No. ${settings.barNumber}${settings.barJurisdiction ? ` (${settings.barJurisdiction})` : ""}` : ""}`
+        : "";
+
+      const citationsBlock = verifiedCitations.length > 0
+        ? `\n\nAPPROVED CITATIONS (use these as primary authorities; do not fabricate others):\n${verifiedCitations.map((c, i) => `${i + 1}. ${c}`).join("\n")}`
+        : "";
+
+      const userContent = `Draft a complete, court-ready ${docType} for the following matter:
+
+Matter: ${matter.title}
+Case Type: ${matter.caseType ?? "N/A"}
+Jurisdiction: ${matter.jurisdiction ?? "N/A"}
+Court: ${matter.court ?? "N/A"}
+Facts: ${matter.facts ?? "N/A"}${firmBlock}${citationsBlock}
+
+Special Instructions: ${instructions || "None"}
+
+DRAFTING REQUIREMENTS:
+- Include proper caption block (Court, Parties, Case No., Document Title)
+- Use correct Bluebook citations throughout (Rule 10 for cases, Rule 12 for statutes)
+- Structure with numbered sections and proper headings
+- Include Certificate of Service at the end
+- All margins 1 inch, font Times New Roman 12pt, double-spaced argument sections
+- End with signature block including firm name, bar number, and contact info`;
 
       const res = await anthropicFetch({
         model: settings.model,
@@ -64,11 +96,20 @@ export default function DraftPage() {
     if (!draft) return;
     const win = window.open("", "_blank");
     if (!win) return;
+    const firmHeader = settings.firmName
+      ? `<div style="text-align:center;margin-bottom:24pt;border-bottom:1px solid #000;padding-bottom:12pt">
+          <div style="font-size:14pt;font-weight:bold">${settings.firmName}</div>
+          ${settings.firmAddress ? `<div>${settings.firmAddress}${settings.firmCity ? `, ${settings.firmCity}` : ""}${settings.firmState ? `, ${settings.firmState}` : ""}${settings.firmZip ? ` ${settings.firmZip}` : ""}</div>` : ""}
+          ${settings.firmPhone ? `<div>Tel: ${settings.firmPhone}</div>` : ""}
+          ${settings.firmEmail ? `<div>${settings.firmEmail}</div>` : ""}
+        </div>`
+      : "";
+    const escaped = draft.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${docType}</title><style>
-      body { font-family: "Times New Roman", serif; font-size: 12pt; line-height: 1.8; margin: 0; color: #000; }
+      body { font-family: "Times New Roman", serif; font-size: 12pt; line-height: 2; margin: 0; color: #000; }
       @page { margin: 1in; }
       pre { white-space: pre-wrap; word-wrap: break-word; font-family: inherit; font-size: inherit; }
-    </style></head><body><pre>${draft.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</pre></body></html>`);
+    </style></head><body>${firmHeader}<pre>${escaped}</pre></body></html>`);
     win.document.close();
     setTimeout(() => { win.focus(); win.print(); }, 300);
   };
@@ -100,8 +141,8 @@ export default function DraftPage() {
       )}
       <PanelShell
         icon={FileEdit}
-        title="AI document drafting"
-        description="Generate legal documents with AI — motions, briefs, letters, and more"
+        title="AI Document Drafting"
+        description="Generate court-ready legal documents — motions, briefs, letters, and more"
       >
         {/* Controls */}
         <div className="lex-card mb-6 space-y-4">
@@ -115,6 +156,16 @@ export default function DraftPage() {
               {DOC_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
           </div>
+
+          {verifiedCitations.length > 0 && (
+            <div
+              className="rounded px-3 py-2 text-xs"
+              style={{ background: "rgba(0,255,195,0.04)", border: "0.5px solid rgba(0,255,195,0.14)", color: "var(--fg-tertiary)" }}
+            >
+              {verifiedCitations.length} verified citation{verifiedCitations.length !== 1 ? "s" : ""} will be injected as authorities
+            </div>
+          )}
+
           <div>
             <label className="lex-micro mb-1.5 block">Special instructions (optional)</label>
             <textarea
@@ -135,7 +186,7 @@ export default function DraftPage() {
           </div>
           <button
             onClick={generate}
-            disabled={loading}
+            disabled={loading || !matter}
             className="lex-btn lex-btn--primary w-full justify-center"
           >
             {loading
@@ -166,7 +217,7 @@ export default function DraftPage() {
               ))}
             </div>
             <p className="text-sm" style={{ color: "var(--fg-tertiary)" }}>Drafting {docType}…</p>
-            <p className="text-xs mt-1" style={{ color: "var(--fg-tertiary)" }}>This may take 20-40 seconds</p>
+            <p className="text-xs mt-1" style={{ color: "var(--fg-tertiary)" }}>This may take 20–40 seconds</p>
           </div>
         )}
 
@@ -191,14 +242,9 @@ export default function DraftPage() {
             </div>
             <div
               className="lex-card overflow-auto"
-              style={{ maxHeight: "600px" }}
+              style={{ maxHeight: "680px" }}
             >
-              <pre
-                className="text-sm leading-relaxed whitespace-pre-wrap"
-                style={{ color: "var(--fg-primary)", fontFamily: "var(--font-sans)" }}
-              >
-                {draft}
-              </pre>
+              <Markdown text={draft} />
             </div>
           </div>
         )}
