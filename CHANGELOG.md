@@ -8,6 +8,28 @@ From Phase 10 onward, every phase ships under a new version and a single commit/
 
 ---
 
+## [0.4.0] — 2026-04-24 — Phase 12 Slice A: Wire quota + usage logging
+
+### Added
+- **`checkQuota` middleware** mounted on `/api/anthropic/messages` between `requireAuth` and `rateLimit`. Loads the caller's plan budget and current-month spend, hard-blocks at ≥110% with a 429, and surfaces budget state to the client via response headers.
+- **Response headers** on every `/messages` reply (admin waterfall + user Anthropic):
+  - `X-Budget-USD-Spent` — month-to-date spend in USD
+  - `X-Budget-USD-Budget` — plan budget in USD
+  - `X-Budget-Status` — `ok` | `warning` (≥80%) | `rate_limited` (≥100%) | `exceeded` (≥110%)
+- **Usage attribution fields** on `BodySchema`: optional `matter_id` (UUID) and `tool_name`. Frontend now passes both via `withLexMemory` (research / strategy / draft / judge) and the conflict tab's direct `anthropicFetch` call.
+- **`logUsage` fire-and-forget** after every successful provider response — admin-waterfall calls log with `provider/model` so we can attribute volume to the actual upstream; user-path Anthropic calls log with the requested model + parsed `usage` from the JSON body. Errors are caught and never block the response.
+
+### Changed
+- **`BodySchema`** now accepts `matter_id` + `tool_name`; both stripped before forwarding to Anthropic so the upstream call doesn't 400 on unknown fields.
+- **User-path `Response`** explicitly attaches `X-Budget-*` headers (Hono's `c.header()` set in middleware is bypassed by raw `new Response(...)` returns).
+- **BYOK + no-Supabase paths** in `checkQuota` now also emit budget headers (`Spent=0`, `Status=ok`) so the frontend has a single uniform contract.
+
+### Ops note
+- No DB migration. All required tables (`usage_events`, `usage_monthly`) and RPCs already shipped in `003_monetisation.sql`.
+- Exit criteria for this slice: an account with `plan_id='free'` ($0 budget) → 429 after one call; `usage_events` row appears with correct token counts; UsagePill ticks up after each AI call. Frontend banners + UpgradeCTA wiring lands in v0.4.1 (Slice B).
+
+---
+
 ## [0.3.3] — 2026-04-24 — Phase 11: Admin version badge + account menu + usage routing
 
 ### Added

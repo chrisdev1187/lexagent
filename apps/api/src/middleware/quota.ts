@@ -36,6 +36,9 @@ export const checkQuota = createMiddleware(async (c, next) => {
     c.set("byok", false);
     c.set("usdBudget", 999);
     c.set("usdSpent", 0);
+    c.header("X-Budget-USD-Spent",  "0");
+    c.header("X-Budget-USD-Budget", "999");
+    c.header("X-Budget-Status",     "ok");
     return next();
   }
 
@@ -54,6 +57,9 @@ export const checkQuota = createMiddleware(async (c, next) => {
 
   if (byok) {
     c.set("usdSpent", 0);
+    c.header("X-Budget-USD-Spent",  "0");
+    c.header("X-Budget-USD-Budget", usdBudget.toFixed(2));
+    c.header("X-Budget-Status",     "ok");
     return next(); // BYOK users bypass budget enforcement
   }
 
@@ -70,8 +76,12 @@ export const checkQuota = createMiddleware(async (c, next) => {
   const usdSpent: number = Number(monthRow?.total_usd_cost ?? 0);
   c.set("usdSpent", usdSpent);
 
+  c.header("X-Budget-USD-Spent",  usdSpent.toFixed(4));
+  c.header("X-Budget-USD-Budget", usdBudget.toFixed(2));
+
   // Hard block at 110%
   if (usdSpent >= usdBudget * 1.1) {
+    c.header("X-Budget-Status", "exceeded");
     return c.json(
       {
         error: "budget_exceeded",
@@ -83,11 +93,12 @@ export const checkQuota = createMiddleware(async (c, next) => {
     );
   }
 
-  // Rate-limit at 100% — allow but add header so frontend can warn
   if (usdSpent >= usdBudget) {
     c.header("X-Budget-Status", "rate_limited");
   } else if (usdSpent >= usdBudget * 0.8) {
     c.header("X-Budget-Status", "warning");
+  } else {
+    c.header("X-Budget-Status", "ok");
   }
 
   return next();

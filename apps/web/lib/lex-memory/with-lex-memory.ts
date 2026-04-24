@@ -62,9 +62,13 @@ export function withLexMemory(
       currentTab: opts.tab,
     });
 
-    const patchedBody = ctxBlock
+    const baseBody = ctxBlock
       ? { ...body, system: `${ctxBlock}\n\n${body["system"] ?? ""}`.trim() }
-      : body;
+      : { ...body };
+
+    // Phase 12 Slice A — usage attribution. Backend reads these to write
+    // usage_events.matter_id and usage_events.tool_name.
+    const patchedBody = { ...baseBody, matter_id: matter.id, tool_name: opts.tab };
 
     const res = await anthropicFetch(patchedBody, extraHeaders);
 

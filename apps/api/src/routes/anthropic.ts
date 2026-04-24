@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { requireAuth } from "../middleware/auth.js";
 import { rateLimit } from "../middleware/ratelimit.js";
+import { checkQuota, logUsage } from "../middleware/quota.js";
 import { supabase } from "../lib/supabase.js";
 
 const anthropicRpm = Number(process.env.ANTHROPIC_RPM ?? 60);
@@ -245,6 +246,10 @@ const BodySchema = z.object({
   system: z.string().optional(),
   tools: z.array(z.any()).optional(),
   stream: z.boolean().optional(),
+  // Phase 12 Slice A — usage attribution. Both optional for backward compat
+  // with any caller that hasn't been updated yet.
+  matter_id: z.string().uuid().optional(),
+  tool_name: z.string().max(64).optional(),
 });
 
 // ── Router ────────────────────────────────────────────────────────────────────
@@ -254,6 +259,7 @@ export const anthropicRouter = new Hono();
 anthropicRouter.post(
   "/messages",
   requireAuth,
+  checkQuota,
   rateLimit("anthropic", anthropicRpm),
   async (c) => {
     const parsed = BodySchema.safeParse(await c.req.json());
@@ -261,9 +267,12 @@ anthropicRouter.post(
       return c.json({ error: "Invalid request body", details: parsed.error.flatten() }, 400);
     }
 
-    const { model, max_tokens, messages, system } = parsed.data;
+    // Strip metadata fields before forwarding to Anthropic (would 400 otherwise).
+    const { matter_id: matterId, tool_name: toolName, ...aiPayload } = parsed.data;
+    const { model, max_tokens, messages, system } = aiPayload;
 
     const userId = c.get("userId");
+    const byok    = c.get("byok");
     const { role, byokKey } = await resolveRoleContext(userId);
 
     // ── Admin path: free 9-provider waterfall (testing, zero-cost) ────────
@@ -284,6 +293,18 @@ anthropicRouter.post(
       }
       try {
         const result = await tryProviders(messages, system, max_tokens, model);
+        // Fire-and-forget: errors must never break the response.
+        void logUsage(
+          userId,
+          {
+            toolName: toolName ?? "unknown",
+            model: `${result.provider}/${model}`,
+            inputTokens: result.inputTokens,
+            outputTokens: result.outputTokens,
+            matterId,
+          },
+          byok
+        ).catch((e) => console.warn("[quota] logUsage failed (admin):", e));
         return c.json({
           id: `msg_${Date.now()}`,
           type: "message",
@@ -330,13 +351,44 @@ anthropicRouter.post(
         "x-api-key": keyToUse,
         "anthropic-version": "2023-06-01",
       },
-      body: JSON.stringify(parsed.data),
+      body: JSON.stringify(aiPayload),
     });
 
     const responseBody = await upstream.text();
+
+    // Best-effort usage parse — log on success only. Failures are silent.
+    if (upstream.ok) {
+      try {
+        const json = JSON.parse(responseBody) as {
+          usage?: { input_tokens?: number; output_tokens?: number };
+        };
+        const inputTokens  = json.usage?.input_tokens  ?? 0;
+        const outputTokens = json.usage?.output_tokens ?? 0;
+        if (inputTokens > 0 || outputTokens > 0) {
+          void logUsage(
+            userId,
+            {
+              toolName: toolName ?? "unknown",
+              model,
+              inputTokens,
+              outputTokens,
+              matterId,
+            },
+            !!byokKey
+          ).catch((e) => console.warn("[quota] logUsage failed (user):", e));
+        }
+      } catch {
+        // body not JSON or no usage field — skip logging
+      }
+    }
+
     const headers: Record<string, string> = {
       "Content-Type": upstream.headers.get("Content-Type") ?? "application/json",
       "X-Tier": byokKey ? "byok" : "platform",
+      // Forward budget headers set by checkQuota — Hono's c.header() is bypassed
+      // when we return a raw Response, so attach them explicitly.
+      "X-Budget-USD-Spent":  String(c.get("usdSpent")  ?? 0),
+      "X-Budget-USD-Budget": String(c.get("usdBudget") ?? 0),
     };
     return new Response(responseBody, { status: upstream.status, headers });
   }

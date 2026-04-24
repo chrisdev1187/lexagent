@@ -1,8 +1,8 @@
 # LexAgent — Master Project Plan
 
 > **Last updated:** 2026-04-24
-> **Current version:** `v0.3.3` — see [CHANGELOG.md](./CHANGELOG.md)
-> **Current phase:** Phase 11 (QA) parallel with Phase 12 Slice A (backend quota wiring)
+> **Current version:** `v0.4.0` — see [CHANGELOG.md](./CHANGELOG.md)
+> **Current phase:** Phase 12 Slice B next (frontend budget banners + UpgradeCTA wiring)
 > **Ship target:** `v1.0.0` via Phases 11 → 14 (QA → Billing → Onboarding → Ship)
 > **Status:** Fully deployed — Vercel (Next.js 15) + Render backend + Supabase DB + 10 API integrations live
 

@@ -80,6 +80,8 @@ export default function ConflictPage() {
         max_tokens: settings.maxTokens,
         system: settings.systemPrompt,
         messages: [{ role: "user", content: userContent }],
+        matter_id: matter.id,
+        tool_name: "conflict",
       });
       const data = await res.json() as { content?: Array<{ type: string; text: string }>; error?: { message: string } };
       const text = data.content?.[0]?.text ?? data.error?.message ?? "No response.";
