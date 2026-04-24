@@ -1,6 +1,5 @@
-import { LexMemoryDelta, Level3Authority, Level3Strategy, Level3OpenQuestion, Level2Episode, Level1Raw, TabId, AuthorityKind, CourtTier } from "./types";
+import { LexMemoryDelta, Level3Authority, Level3Strategy, Level3OpenQuestion, Level2Episode, Level1Raw, TabId, CourtTier } from "./types";
 import { cavemanCompress } from "./compress";
-import crypto from "crypto";
 
 // ── Regex patterns ────────────────────────────────────────────────────────
 
