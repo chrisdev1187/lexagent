@@ -1,9 +1,9 @@
 # LexAgent — Master Project Plan
 
 > **Last updated:** 2026-04-24
-> **Current version:** `v1.0.0` — see [CHANGELOG.md](./CHANGELOG.md)
-> **Current phase:** Phase 14 complete — SHIPPED
-> **Ship target:** ACHIEVED — v1.0.0 live
+> **Current version:** `v1.1.0` — see [CHANGELOG.md](./CHANGELOG.md)
+> **Current phase:** Phase 15 complete — SHIPPED
+> **Ship target:** ACHIEVED — v1.1.0 live
 > **Status:** Fully deployed — Vercel (Next.js 15) + Render backend + Supabase DB + 10 API integrations live
 
 ---
@@ -61,9 +61,10 @@ lexagent/
 │       │       ├── dashboard/     # Matter cards, stats overview
 │       │       ├── matters/[id]/  # Matter shell + 11 URL-routed tabs
 │       │       ├── settings/
-│       │       │   ├── profile/   # Usage stats, plan status, BYOK key
-│       │       │   ├── billing/   # Upgrade, portal, invoices
-│       │       │   └── api-key/   # BYOK Anthropic key management
+│       │       │   ├── page.tsx   # Consolidated tabbed settings (?tab=profile/billing/api-key)
+│       │       │   ├── profile/   # Legacy route (still mounted)
+│       │       │   ├── billing/   # Legacy route (still mounted)
+│       │       │   └── api-key/   # Legacy route (still mounted)
 │       │       └── admin/         # 7-tab settings + full user management
 │       ├── components/
 │       │   ├── layout/            # Sidebar (collapsible), TopBar (mobile)
@@ -419,10 +420,20 @@ User is now running extensive manual QA. Ship phases are sized so each one lands
 - [x] Sentry wired (web + api) with release tagging using `NEXT_PUBLIC_APP_VERSION` / `APP_VERSION`
 - [x] Privacy policy + terms at `/legal/privacy`, `/legal/terms` — full legal content
 - [x] Status page at `/status` — live latency checker, auto-refresh
-- [ ] Rate-limit tuning per tier verified under load (post-launch monitoring)
 - [x] Smoke-test suite: `e2e/smoke.spec.ts` via Playwright
 - [x] `v1.0.0` tag + "Launch" CHANGELOG entry
-- **Exit criteria:** tag `v1.0.0` shipped, all smoke tests green, pricing page live, no critical open bugs.
+
+### ✅ Phase 15 — UI Polish (v1.1.0 — 2026-04-24)
+**Goal:** consistency pass, fix silent UI bugs, consolidate settings.
+- [x] Fix `MatterCard` hover chevron — `group` class was missing from card wrapper; `group-hover:opacity-100` chevron permanently invisible
+- [x] Add `.lex-prose` to `globals.css` — class referenced in `<Markdown>` but undefined
+- [x] Consolidated `/settings` — merged 3 separate pages into single tabbed page (`?tab=profile/billing/api-key`); Stripe `?success=1` deep-link preserved
+- [x] Sidebar user menu — links updated to `/settings?tab=*`
+- [x] `v1.1.0` bump + CHANGELOG entry
+
+### 🔄 Phase 16 — Next UI review pass
+**Goal:** further visual polish based on live review of deployed v1.1.0.
+- [ ] TBD — user reviewing deployed app and filing findings
 
 ---
 
@@ -487,11 +498,10 @@ Work top-to-bottom. File a bug against the line that fails; don't skip.
 
 | Issue | Severity | Phase |
 |---|---|---|
-| Render free tier cold starts (~30s after 15min idle) | MED | 14 |
-| No automated test suite (Playwright) | MED | 14 |
-| No public landing page — `/` redirects to dashboard | MED | ✅ 13 |
-| Quota middleware not enforced yet (logs only) | HIGH | ✅ 12 |
-| No Sentry / error reporting wired | MED | 14 |
+| Render free tier cold starts (~30s after 15min idle) | MED | Keep-alive cron mitigates; monitor post-launch |
+| Sentry needs DSN env vars set on Vercel + Render | MED | Set `NEXT_PUBLIC_SENTRY_DSN` + `SENTRY_DSN` to activate |
+| Legacy `/settings/profile`, `/settings/billing`, `/settings/api-key` still mounted | LOW | Can be deleted once consolidated `/settings` is verified |
+| Rate-limit tuning per tier not verified under load | LOW | Post-launch monitoring |
 
 ---
 
