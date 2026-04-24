@@ -4,7 +4,8 @@
 
 **Live:** https://lexagent-ochre.vercel.app  
 **API:** https://lexagent-0o5u.onrender.com  
-**GitHub:** https://github.com/chrisdev1187/lexagent
+**GitHub:** https://github.com/chrisdev1187/lexagent  
+**Version:** v0.3.0 — see [CHANGELOG.md](./CHANGELOG.md) · visit `/changelog` in-app
 
 ---
 
@@ -286,20 +287,35 @@ Harvey AI pricing: ~$1,200+/seat/month. LexAgent operates at near-zero marginal 
 
 ---
 
-## Current Status (2026-04-18)
+## Current Status (2026-04-24) — v0.3.0
 
-**Phase 4 — UI Overhaul Complete:**
-- Migrated from Vite + React 18 → Next.js 15 App Router + React 19
-- Lex Viridian design system: Tailwind v4 + @radix-ui, emerald/near-black premium aesthetic
-- Premium collapsible sidebar, mobile-responsive TopBar with drawer
-- URL-based matter routing (`/matters/[id]/research` etc.)
-- Full 7-tab Admin page: Firm Profile, UI Preferences, API Keys, Model, Shield, Prompt, Telemetry
-- Global tooltip system (enable/disable in Admin → UI Preferences)
-- Zero TypeScript errors, clean `next build`
+**Phase 10 — Version System (shipped):**
+- Keep-a-Changelog + SemVer — every change lands as a versioned release
+- In-app `/changelog` route, sidebar `VersionPill` links to it
+- `NEXT_PUBLIC_APP_VERSION` sourced from `apps/web/package.json` at build time
 
-**Next up:**
-- Wire remaining panel stubs to existing API logic (Deep Research, Vault, Strategy, etc.)
-- Resolve Vercel env var injection for `NEXT_PUBLIC_*` prefix
-- User roles, packages, and Stripe billing integration
+**Phase 9 — Hardening & Visibility (v0.2.1):**
+- Race-safe LexMemory merges — `updateMatter` functional updater pattern
+- Root error boundaries (`error.tsx`, `global-error.tsx`, `not-found.tsx`)
+- LexMemory overview panel — live node/episode/verified-authority counts + theme chips
+- Citations page now persists verified authorities into Level 3 memory
 
-See `PLAN.md` for full roadmap.
+**Phase 8 — LexMemory 4-Level Hierarchy (v0.2.0):**
+- L1 Raw → L2 Episodes → L3 Semantic Nodes → L4 Theme
+- `withLexMemory()` fire-and-forget extraction HOF wrapped around AI calls
+- Supabase JSONB persistence via `metadata` field
+
+**Next up (Phase 11):** manual QA + token-flow validation. See `PLAN.md` and `CHANGELOG.md`.
+
+## Release Process
+
+From v0.3.0 onward, every ship follows this workflow:
+
+1. Plan the change (`/plan` or PLAN.md update)
+2. Implement + typecheck clean
+3. Bump `version` in root `package.json` and `apps/web/package.json` (SemVer)
+4. Add entry to `CHANGELOG.md` (Keep-a-Changelog format, newest first)
+5. Tag commit `Phase N: <title>` with bullet summary
+6. Push to master → Vercel auto-deploy picks up new `NEXT_PUBLIC_APP_VERSION`
+
+No untagged changes. No undocumented features. Every version is a release.

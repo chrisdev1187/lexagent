@@ -1,8 +1,25 @@
 # LexAgent — Master Project Plan
 
-> **Last updated:** 2026-04-18 (Session 10)
-> **Current phase:** Phase 6 — Monetisation & Admin (Active)
+> **Last updated:** 2026-04-24
+> **Current version:** `v0.3.0` — see [CHANGELOG.md](./CHANGELOG.md)
+> **Current phase:** Phase 10 — Version System (shipped)
+> **Next phase:** Phase 11 — Manual QA + token-flow validation
 > **Status:** Fully deployed — Vercel (Next.js 15) + Render backend + Supabase DB + 10 API integrations live
+
+---
+
+## Release Process (Phase 10+)
+
+Every phase ships as a single versioned release:
+
+1. `/plan` the phase, get user approval.
+2. Implement, typecheck, push.
+3. Bump `package.json` version (patch / minor / major per SemVer).
+4. Prepend entry to `CHANGELOG.md`.
+5. Tag `vX.Y.Z` on the merge commit.
+6. Commit message format: `Phase N: Title\n\n<body>` with a `Co-Authored-By` footer.
+
+Visual surfaces: `<VersionPill>` in Sidebar footer → `/changelog` route renders the full release history.
 
 ---
 

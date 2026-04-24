@@ -1,10 +1,16 @@
 import type { NextConfig } from "next";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, resolve } from "node:path";
+
+const here = dirname(fileURLToPath(import.meta.url));
+const pkg = JSON.parse(readFileSync(resolve(here, "package.json"), "utf8")) as { version: string };
 
 const nextConfig: NextConfig = {
-  // Allow standalone output for Docker / Render deploys
-  // output: "standalone",
+  env: {
+    NEXT_PUBLIC_APP_VERSION: pkg.version,
+  },
 
-  // Suppress noisy build warnings from pdfjs worker
   webpack(config) {
     config.resolve.alias.canvas = false;
     return config;

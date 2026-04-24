@@ -12,6 +12,7 @@ import { useSettings } from "@/providers/settings-provider";
 import { useMatters, Matter } from "@/providers/matters-provider";
 import { LexTooltip } from "@/components/shared/LexTooltip";
 import { UsagePill } from "@/components/shared/UsagePill";
+import { VersionPill } from "@/components/shared/VersionPill";
 
 const STATUS_DOT: Record<string, string> = {
   Active: "var(--verdict-neon)",
@@ -344,6 +345,9 @@ export function Sidebar({ onNewMatter }: SidebarProps) {
             </>
           )}
         </div>
+
+        {/* Version */}
+        <VersionPill collapsed={collapsed} />
 
         {/* Collapse */}
         <button
