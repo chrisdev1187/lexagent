@@ -2,8 +2,8 @@
 
 > **Last updated:** 2026-04-24
 > **Current version:** `v0.3.0` — see [CHANGELOG.md](./CHANGELOG.md)
-> **Current phase:** Phase 10 — Version System (shipped)
-> **Next phase:** Phase 11 — Manual QA + token-flow validation
+> **Current phase:** Phase 11 — Manual QA + Bug Triage (active)
+> **Ship target:** `v1.0.0` via Phases 11 → 14 (QA → Billing → Onboarding → Ship)
 > **Status:** Fully deployed — Vercel (Next.js 15) + Render backend + Supabase DB + 10 API integrations live
 
 ---
@@ -337,26 +337,139 @@ Tab stubs wired to "coming soon" — will be activated after monetisation is liv
   - `LEMON_SQUEEZY_VARIANT_IDS` (JSON: starter/pro/firm variant IDs)
   - `ANTHROPIC_API_KEY` (server-side — for proxied calls)
 
-### 📋 Phase 7 — Panel Wiring (Planned)
-Wire all 10 stub tabs to live AI + API calls.
+### ✅ Phase 7 — Panel Wiring (Complete: 2026-04-22)
+All 10 stub tabs wired to live AI + API calls.
 
-### 📋 Phase 8 — Scale & Hardening (Planned)
-- Render keep-alive ping (eliminate 30s cold starts)
-- Error boundaries
-- Automated test suite
-- Monitoring / alerting
+### ✅ Phase 8 — LexMemory 4-Level Hierarchy (v0.2.0 — 2026-04-23)
+- L1 Raw → L2 Episodes → L3 Semantic Nodes → L4 Theme
+- `withLexMemory()` fire-and-forget extraction HOF wrapped around AI calls
+- Supabase JSONB persistence via `metadata` field
+
+### ✅ Phase 9 — Hardening & Visibility (v0.2.1 — 2026-04-24)
+- Race-safe LexMemory merges via `updateMatter` functional updater
+- Root error boundaries (`error.tsx`, `global-error.tsx`, `not-found.tsx`)
+- LexMemory overview panel with live node/episode/verified counts
+- Citations page persists verified authorities into Level 3 memory
+
+### ✅ Phase 10 — Version System (v0.3.0 — 2026-04-24)
+- Keep-a-Changelog + SemVer, `CHANGELOG.md` at repo root
+- `NEXT_PUBLIC_APP_VERSION` from `apps/web/package.json`
+- `<VersionPill>` in Sidebar → `/changelog` route
+- Release Process workflow documented
+
+---
+
+## MVP → Ship Roadmap (v0.3.0 → v1.0.0)
+
+User is now running extensive manual QA. Ship phases are sized so each one lands as a single tagged release.
+
+### 🔄 Phase 11 — Manual QA + Bug Triage (Active — v0.3.x patches)
+**Goal:** burn down every defect the user finds during hands-on testing.
+- [ ] Walk the **QA Checklist** (below) on production (`lexagent-ochre.vercel.app`)
+- [ ] File findings as numbered bugs in this section as we go
+- [ ] Each fix ships as a patch release (v0.3.1, v0.3.2, …) with a CHANGELOG entry
+- [ ] Regression-check after each fix: LexMemory counts still climb, error boundaries still catch throws, no console errors
+- **Exit criteria:** full checklist green, zero `console.error` on golden paths, no visible UI regressions at 375px / 1024px / 1920px.
+
+### 📋 Phase 12 — Monetisation Cutover (v0.4.0)
+**Goal:** flip on billing so paid tiers actually enforce.
+- [ ] Wire `apps/api/src/middleware/quota.ts` — deny requests over monthly budget
+- [ ] Log every AI call into `usage_events` with cents + tokens
+- [ ] Render `UsagePill` in TopBar with live spent / budget
+- [ ] Verify Lemon Squeezy checkout → `subscriptions` upsert round-trip
+- [ ] Settings → Billing → Portal link opens LS customer portal
+- [ ] BYOK key path bypasses quota (unlimited for users with own key)
+- **Exit criteria:** admin account with $0 budget gets 429; paying test account flows through; webhook signature validated.
+
+### 📋 Phase 13 — Onboarding & Polish (v0.5.0)
+**Goal:** first-time user gets to value in < 3 minutes.
+- [ ] Guided first-matter wizard (facts → first AI answer in one flow)
+- [ ] Empty-state illustrations on dashboard + each tab
+- [ ] Pricing page final copy + screenshots
+- [ ] Public landing page at `/` (replace redirect-to-dashboard for unauthed)
+- [ ] Loading skeletons on every tab (no more raw spinners)
+- [ ] Toast system standardised (success / warn / error)
+- **Exit criteria:** a cold visitor can sign up → create matter → get a verified AI answer without reading docs.
+
+### 📋 Phase 14 — Production Ship (v1.0.0)
+**Goal:** green-light for real customers.
+- [ ] Render keep-alive ping (eliminate 30s cold starts)
+- [ ] Sentry wired (web + api) with release tagging using `NEXT_PUBLIC_APP_VERSION`
+- [ ] Privacy policy + terms at `/legal/privacy`, `/legal/terms`
+- [ ] Status page (even a static one) at `/status`
+- [ ] Rate-limit tuning per tier verified under load
+- [ ] Smoke-test suite: Playwright script walking the QA Checklist
+- [ ] `v1.0.0` tag + "Launch" CHANGELOG entry + announcement draft
+- **Exit criteria:** tag `v1.0.0` shipped, all smoke tests green, pricing page live, no critical open bugs.
+
+---
+
+## QA Checklist (Phase 11 — run on production)
+
+Work top-to-bottom. File a bug against the line that fails; don't skip.
+
+### Auth + Shell
+- [ ] `/` unauthed → redirects to `/login`
+- [ ] Sign-up email → confirmation → `/dashboard` with empty state
+- [ ] Log out → redirected to `/login`, localStorage cleared
+- [ ] Sidebar: collapse toggle persists across reloads; VersionPill shows `v0.3.0`
+- [ ] Mobile (≤768px): TopBar drawer opens, sidebar hidden by default
+
+### Dashboard
+- [ ] "New Matter" modal: required fields validated, save creates row in Supabase
+- [ ] Matter cards render status dot, badge, last-activity
+- [ ] Search + status filter work; empty state when no matches
+
+### Matter shell (open any matter)
+- [ ] 11 tabs render in correct order; URL updates per tab
+- [ ] Browser back/forward preserves tab state
+- [ ] Matter title/client editable inline; saves to Supabase
+
+### Tab-by-tab AI path (use the same matter throughout — builds LexMemory)
+- [ ] **Research:** ask a question → citations appear → verified badges present
+- [ ] **Deep Research:** multi-source run, results from ≥2 databases
+- [ ] **Vault:** upload a PDF → summarise → output coherent
+- [ ] **Strategy:** generates argument list with strength tags
+- [ ] **Judge Intel:** lookup real judge, profile loads
+- [ ] **Deadlines:** SOL calc for a known jurisdiction returns correct date
+- [ ] **Timeline:** add event, reorder, delete
+- [ ] **Citations (Shield):** paste mixed citations, verified/unconfirmed/not-found classification correct; clicking "Save" increments L3 authority count on Overview
+- [ ] **Draft:** generates doc, inline edit works, print preview opens
+- [ ] **Notes / Evidence:** add, edit, delete persist
+- [ ] **Conflict:** keyword check returns expected flag
+
+### LexMemory (the differentiator — verify across the above)
+- [ ] Overview panel counts climb as you use tabs (L1 → L2 → L3)
+- [ ] Theme chips appear after 3+ episodes
+- [ ] Last episode summary reflects most recent tab activity
+- [ ] Reload matter → counts persist (Supabase round-trip)
+
+### Error boundaries
+- [ ] Visit unknown route → `not-found.tsx` renders
+- [ ] Force a client throw (e.g. malformed matter id) → `error.tsx` catches with Retry button
+- [ ] Retry actually recovers
+
+### Admin (both admin accounts only)
+- [ ] All 7 tabs load; Telemetry pings show latency numbers
+- [ ] BYOK Anthropic key save/clear works
+- [ ] UI Preferences: tooltip toggle takes effect app-wide
+
+### Release surfaces
+- [ ] `/changelog` renders full CHANGELOG.md with formatting
+- [ ] VersionPill tooltip shows correct version
+- [ ] Console: zero errors on any of the above paths
 
 ---
 
 ## Known Issues & Technical Debt
 
-| Issue | Severity | Status |
+| Issue | Severity | Phase |
 |---|---|---|
-| Vercel env vars need renaming VITE_* → NEXT_PUBLIC_* | HIGH | Do on next deploy |
-| 10 tab stubs showing "coming soon" | HIGH | Phase 7 |
-| Render free tier cold starts (~30s after 15min idle) | LOW | Phase 8 |
-| No error boundaries | LOW | Phase 8 |
-| No automated tests | LOW | Phase 8 |
+| Render free tier cold starts (~30s after 15min idle) | MED | 14 |
+| No automated test suite (Playwright) | MED | 14 |
+| No public landing page — `/` redirects to dashboard | MED | 13 |
+| Quota middleware not enforced yet (logs only) | HIGH | 12 |
+| No Sentry / error reporting wired | MED | 14 |
 
 ---
 

@@ -305,7 +305,13 @@ Harvey AI pricing: ~$1,200+/seat/month. LexAgent operates at near-zero marginal 
 - `withLexMemory()` fire-and-forget extraction HOF wrapped around AI calls
 - Supabase JSONB persistence via `metadata` field
 
-**Next up (Phase 11):** manual QA + token-flow validation. See `PLAN.md` and `CHANGELOG.md`.
+**Next up:** road to `v1.0.0` via 4 phases —
+- **Phase 11** — Manual QA + bug triage (active, patch releases v0.3.x)
+- **Phase 12** — Monetisation cutover (v0.4.0): quota enforcement, Lemon Squeezy live
+- **Phase 13** — Onboarding & polish (v0.5.0): first-matter wizard, landing page, skeletons
+- **Phase 14** — Production ship (v1.0.0): Sentry, keep-alive, legal pages, Playwright smoke tests
+
+Full QA checklist and phase exit criteria in [PLAN.md](./PLAN.md).
 
 ## Release Process
 
