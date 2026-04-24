@@ -19,7 +19,7 @@ export function TopBar({ onNewMatter }: TopBarProps) {
       <header
         className="flex items-center justify-between px-4 md:hidden"
         style={{
-          height: 52,
+          height: 56,
           background: "rgba(10,10,12,0.85)",
           backdropFilter: "blur(16px) saturate(160%)",
           WebkitBackdropFilter: "blur(16px) saturate(160%)",
@@ -73,7 +73,7 @@ export function TopBar({ onNewMatter }: TopBarProps) {
           />
           <div
             className="absolute left-0 top-0 bottom-0 flex flex-col"
-            style={{ width: 240, zIndex: 1 }}
+            style={{ width: 260, zIndex: 1 }}
           >
             <div
               className="flex items-center justify-end px-3 py-3"

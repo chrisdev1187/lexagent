@@ -29,7 +29,7 @@ function TabBar() {
       style={{
         background: "var(--midnight-deep)",
         borderBottom: "0.5px solid rgba(224,224,224,0.08)",
-        minHeight: 42,
+        minHeight: 44,
       }}
     >
       {TABS.map(tab => {
@@ -41,7 +41,7 @@ function TabBar() {
           <LexTooltip key={tab.id} content={tab.tooltip} side="bottom">
             <Link
               href={href}
-              className="flex items-center gap-1.5 px-3 py-2.5 text-[11px] font-mono tracking-[0.1em] uppercase whitespace-nowrap cursor-pointer transition-all duration-150 relative"
+              className="flex items-center gap-1.5 px-3.5 py-2.5 text-[12px] font-sans tracking-[0.04em] uppercase whitespace-nowrap cursor-pointer transition-all duration-150 relative"
               style={{
                 color: active ? "var(--verdict-neon)" : "var(--fg-tertiary)",
                 background: active ? "rgba(0,255,195,0.05)" : "transparent",
@@ -52,7 +52,7 @@ function TabBar() {
               {active && (
                 <span
                   className="absolute bottom-0 left-0 right-0"
-                  style={{ height: "0.5px", background: "var(--verdict-neon)" }}
+                  style={{ height: "1.5px", background: "var(--verdict-neon)" }}
                 />
               )}
             </Link>
@@ -103,7 +103,7 @@ export default function MatterLayout({ children }: { children: React.ReactNode }
     <div className="flex flex-col h-full">
       {/* Matter header */}
       <div
-        className="px-4 py-2.5 flex items-start justify-between gap-4"
+        className="px-5 py-3 flex items-start justify-between gap-4"
         style={{
           background: "var(--midnight-deep)",
           borderBottom: "0.5px solid rgba(224,224,224,0.08)",
@@ -119,8 +119,16 @@ export default function MatterLayout({ children }: { children: React.ReactNode }
           </Link>
           <div className="min-w-0 flex-1">
             <h1
-              className="font-serif italic text-sm font-medium truncate"
-              style={{ color: "var(--fg-primary)" }}
+              className="truncate"
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: 16,
+                fontWeight: 400,
+                letterSpacing: "-0.01em",
+                color: "var(--fg-primary)",
+                margin: 0,
+              }}
             >
               {matter.title}
             </h1>

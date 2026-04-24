@@ -3,8 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import {
-  Plus, Search, LayoutDashboard, Clock, ShieldCheck, AlertTriangle,
-  Briefcase, ChevronRight, Circle, Calendar,
+  Plus, Search, Clock, ShieldCheck, AlertTriangle,
+  Briefcase, ChevronRight, Calendar,
 } from "lucide-react";
 import { useMatters, Matter } from "@/providers/matters-provider";
 import { NewMatterModal } from "@/components/shared/NewMatterModal";
@@ -12,58 +12,25 @@ import { LexTooltip } from "@/components/shared/LexTooltip";
 import { DeadlineAlert } from "@/components/shared/DeadlineAlert";
 import { FirstMatterWizard } from "@/components/shared/FirstMatterWizard";
 
-const STATUS_DOT: Record<string, string> = {
-  Active: "var(--verdict-neon)",
-  Closed: "var(--fg-tertiary)",
-  Pending: "var(--verdict-amber)",
-  Urgent: "var(--verdict-crimson)",
-};
-
-const STATUS_BG: Record<string, string> = {
-  Active: "rgba(0,255,195,0.06)",
-  Closed: "rgba(224,224,224,0.03)",
-  Pending: "rgba(255,184,0,0.06)",
-  Urgent: "rgba(255,51,85,0.06)",
-};
-
-const STATUS_BORDER: Record<string, string> = {
-  Active: "rgba(0,255,195,0.25)",
-  Closed: "rgba(224,224,224,0.10)",
-  Pending: "rgba(255,184,0,0.25)",
-  Urgent: "rgba(255,51,85,0.25)",
-};
-
 function StatCard({ icon: Icon, label, value, sub, color = "var(--verdict-neon)" }: {
   icon: React.ElementType; label: string; value: string | number; sub?: string; color?: string;
 }) {
   return (
-    <div
-      className="rounded p-4 flex items-start gap-3"
-      style={{
-        background: "rgba(20,20,26,0.6)",
-        border: "0.5px solid rgba(224,224,224,0.09)",
-        backdropFilter: "blur(8px)",
-      }}
-    >
-      <div
-        className="w-8 h-8 rounded flex items-center justify-center flex-shrink-0"
-        style={{ background: `${color}14`, border: `0.5px solid ${color}40` }}
-      >
-        <Icon size={15} style={{ color }} />
-      </div>
-      <div className="min-w-0">
+    <div className="lex-card" style={{ backdropFilter: "blur(8px)" }}>
+      <div className="lex-stat">
         <div
-          className="font-serif text-xl font-semibold leading-none mb-1"
-          style={{ color: "var(--fg-primary)" }}
+          className="w-8 h-8 rounded flex items-center justify-center flex-shrink-0 mb-2"
+          style={{ background: `${color}14`, border: `0.5px solid ${color}40` }}
+        >
+          <Icon size={15} style={{ color }} />
+        </div>
+        <div
+          className="lex-stat__value"
+          style={{ fontSize: 28, color: "var(--fg-primary)" }}
         >
           {value}
         </div>
-        <div
-          className="font-mono text-[10px] tracking-[0.14em] uppercase"
-          style={{ color: "var(--fg-quaternary)" }}
-        >
-          {label}
-        </div>
+        <div className="lex-stat__label">{label}</div>
         {sub && (
           <div className="font-mono text-[10px] mt-0.5" style={{ color }}>{sub}</div>
         )}
@@ -72,52 +39,33 @@ function StatCard({ icon: Icon, label, value, sub, color = "var(--verdict-neon)"
   );
 }
 
+const STATUS_CHIP: Record<string, string> = {
+  Active: "neon",
+  Closed: "neutral",
+  Pending: "amber",
+  Urgent: "crimson",
+};
+
 function MatterCard({ matter }: { matter: Matter }) {
-  const dotColor = STATUS_DOT[matter.status] ?? "var(--fg-tertiary)";
-  const bgColor = STATUS_BG[matter.status] ?? "transparent";
-  const borderColor = STATUS_BORDER[matter.status] ?? "rgba(224,224,224,0.10)";
+  const chipKind = STATUS_CHIP[matter.status] ?? "neutral";
   const verified = (matter.allVerifications as { valid?: boolean }[] ?? []).filter(v => v?.valid).length;
   const totalHours = ((matter.totalMinsBilled ?? 0) / 60).toFixed(1);
 
   return (
     <Link href={`/matters/${matter.id}/overview`}>
-      <div
-        className="group rounded p-4 cursor-pointer transition-all duration-150 matter-card"
-        style={{
-          background: "rgba(17,17,20,0.7)",
-          border: "0.5px solid rgba(224,224,224,0.09)",
-        }}
-      >
+      <div className="lex-matter-card group cursor-pointer">
         {/* Header */}
-        <div className="flex items-start justify-between gap-2 mb-3">
+        <div className="flex items-start justify-between gap-2 mb-2">
           <div className="flex-1 min-w-0">
-            <h3
-              className="font-serif italic text-sm truncate mb-0.5"
-              style={{ color: "var(--fg-primary)" }}
-            >
-              {matter.title}
-            </h3>
             {matter.client && (
-              <p
-                className="font-mono text-[10px] tracking-[0.12em] uppercase truncate"
-                style={{ color: "var(--fg-quaternary)" }}
-              >
-                {matter.client}
-              </p>
+              <p className="lex-matter-card__id truncate mb-0.5">{matter.client}</p>
             )}
+            <h3 className="lex-matter-card__title truncate">{matter.title}</h3>
           </div>
-          <div
-            className="flex items-center gap-1.5 rounded-full px-2.5 py-1 flex-shrink-0"
-            style={{ background: bgColor, border: `0.5px solid ${borderColor}` }}
-          >
-            <Circle size={4} fill={dotColor} style={{ color: dotColor }} />
-            <span
-              className="font-mono text-[9px] tracking-[0.16em] uppercase"
-              style={{ color: dotColor }}
-            >
-              {matter.status}
-            </span>
-          </div>
+          <span className={`lex-chip lex-chip--${chipKind} flex-shrink-0`}>
+            <span className="lex-chip__dot" />
+            {matter.status}
+          </span>
         </div>
 
         {/* Tags */}
@@ -149,33 +97,32 @@ function MatterCard({ matter }: { matter: Matter }) {
         </div>
 
         {/* Stats */}
-        <div
-          className="flex items-center gap-4 pt-2.5"
-          style={{ borderTop: "0.5px solid rgba(224,224,224,0.07)" }}
-        >
-          <LexTooltip content="Verified citations">
-            <div className="flex items-center gap-1">
-              <ShieldCheck size={11} style={{ color: "var(--verdict-neon)" }} />
-              <span className="font-mono text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{verified}</span>
-            </div>
-          </LexTooltip>
-          <LexTooltip content="Billable hours">
-            <div className="flex items-center gap-1">
-              <Clock size={11} style={{ color: "var(--fg-quaternary)" }} />
-              <span className="font-mono text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{totalHours}h</span>
-            </div>
-          </LexTooltip>
-          {matter.deadlines && (matter.deadlines as unknown[]).length > 0 && (
-            <LexTooltip content="Upcoming deadlines">
+        <div className="lex-matter-card__meta">
+          <div className="flex items-center gap-4">
+            <LexTooltip content="Verified citations">
               <div className="flex items-center gap-1">
-                <Calendar size={11} style={{ color: "var(--verdict-amber)" }} />
-                <span className="font-mono text-[10px]" style={{ color: "var(--fg-tertiary)" }}>
-                  {(matter.deadlines as unknown[]).length}
-                </span>
+                <ShieldCheck size={11} style={{ color: "var(--verdict-neon)" }} />
+                <span className="font-mono text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{verified}</span>
               </div>
             </LexTooltip>
-          )}
-          <div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity">
+            <LexTooltip content="Billable hours">
+              <div className="flex items-center gap-1">
+                <Clock size={11} style={{ color: "var(--fg-quaternary)" }} />
+                <span className="font-mono text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{totalHours}h</span>
+              </div>
+            </LexTooltip>
+            {matter.deadlines && (matter.deadlines as unknown[]).length > 0 && (
+              <LexTooltip content="Upcoming deadlines">
+                <div className="flex items-center gap-1">
+                  <Calendar size={11} style={{ color: "var(--verdict-amber)" }} />
+                  <span className="font-mono text-[10px]" style={{ color: "var(--fg-tertiary)" }}>
+                    {(matter.deadlines as unknown[]).length}
+                  </span>
+                </div>
+              </LexTooltip>
+            )}
+          </div>
+          <div className="opacity-0 group-hover:opacity-100 transition-opacity">
             <ChevronRight size={13} style={{ color: "var(--verdict-neon)" }} />
           </div>
         </div>
@@ -212,26 +159,31 @@ export default function DashboardPage() {
     <div className="flex-1 overflow-y-auto">
       <div className="max-w-7xl mx-auto">
         <DeadlineAlert />
-        <div className="p-6">
+        <div className="px-6 pt-6 pb-6">
           {/* Header */}
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-6" style={{ padding: "0 0 0 0" }}>
             <div>
-              <div className="flex items-center gap-2 mb-1">
-                <span
-                  className="font-mono text-[10px] tracking-[0.2em] uppercase"
-                  style={{ color: "var(--verdict-neon)" }}
-                >
-                  ▸
-                </span>
-                <h1
-                  className="font-serif text-xl font-semibold tracking-tight"
-                  style={{ color: "var(--fg-primary)" }}
-                >
-                  Dashboard
-                </h1>
-              </div>
               <p
-                className="font-mono text-[10px] tracking-[0.14em] uppercase"
+                className="font-mono text-[10px] tracking-[0.2em] uppercase mb-1"
+                style={{ color: "var(--verdict-neon)" }}
+              >
+                ▸ LexAgent
+              </p>
+              <h1
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontSize: 28,
+                  fontWeight: 400,
+                  letterSpacing: "-0.02em",
+                  lineHeight: 1.05,
+                  color: "var(--fg-primary)",
+                  margin: 0,
+                }}
+              >
+                Dashboard
+              </h1>
+              <p
+                className="font-mono text-[10px] tracking-[0.14em] uppercase mt-1"
                 style={{ color: "var(--fg-quaternary)" }}
               >
                 {matters.length} matter{matters.length !== 1 ? "s" : ""} · All active files
@@ -297,7 +249,7 @@ export default function DashboardPage() {
 
           {/* Matter grid */}
           {!loaded ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {[...Array(6)].map((_, i) => (
                 <div
                   key={i}
@@ -307,7 +259,7 @@ export default function DashboardPage() {
               ))}
             </div>
           ) : filtered.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {filtered.map(m => <MatterCard key={m.id} matter={m} />)}
             </div>
           ) : matters.length === 0 ? (

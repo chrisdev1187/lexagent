@@ -132,16 +132,16 @@ export function Sidebar({ onNewMatter }: SidebarProps) {
     <aside
       className="flex flex-col h-full relative transition-all duration-200"
       style={{
-        width: collapsed ? 52 : 240,
-        minWidth: collapsed ? 52 : 240,
-        background: "var(--midnight-deep)",
-        borderRight: "0.5px solid rgba(224,224,224,0.08)",
+        width: collapsed ? 52 : 260,
+        minWidth: collapsed ? 52 : 260,
+        background: "var(--bg-panel, var(--midnight-deep))",
+        borderRight: "0.5px solid var(--border-hair, rgba(224,224,224,0.08))",
       }}
     >
       {/* Logo */}
       <div
-        className="flex items-center gap-2.5 px-3 py-3.5"
-        style={{ borderBottom: "0.5px solid rgba(224,224,224,0.08)" }}
+        className="flex items-center gap-2.5 px-3"
+        style={{ height: 56, borderBottom: "0.5px solid rgba(224,224,224,0.08)", flexShrink: 0 }}
       >
         <div
           className="flex-shrink-0 w-8 h-8 rounded flex items-center justify-center"
@@ -164,7 +164,7 @@ export function Sidebar({ onNewMatter }: SidebarProps) {
               className="font-mono text-[9px] tracking-[0.2em] uppercase mt-1"
               style={{ color: "var(--fg-quaternary)" }}
             >
-              ARES v5
+              v1.1.1
             </div>
           </div>
         )}
@@ -178,17 +178,21 @@ export function Sidebar({ onNewMatter }: SidebarProps) {
             <LexTooltip key={href} content={label} side="right">
               <Link
                 href={href}
-                className="flex items-center gap-2.5 rounded px-2.5 py-2 text-sm cursor-pointer transition-all duration-150"
+                className="flex items-center gap-2.5 rounded cursor-pointer transition-all duration-150"
                 style={{
                   background: active ? "rgba(0,255,195,0.06)" : "transparent",
                   borderLeft: active ? "2px solid var(--verdict-neon)" : "2px solid transparent",
+                  padding: "8px 10px",
                   paddingLeft: active ? 10 : 12,
                   color: active ? "var(--verdict-neon)" : "var(--fg-tertiary)",
+                  borderRadius: 4,
+                  fontSize: 13,
+                  fontFamily: "var(--font-sans)",
                 }}
               >
                 <Icon size={15} className="flex-shrink-0" />
                 {!collapsed && (
-                  <span className="text-[13px]" style={{ fontFamily: "var(--font-sans)" }}>{label}</span>
+                  <span>{label}</span>
                 )}
               </Link>
             </LexTooltip>
@@ -202,6 +206,7 @@ export function Sidebar({ onNewMatter }: SidebarProps) {
           <button
             onClick={onNewMatter}
             className="w-full flex items-center gap-2 rounded px-2.5 py-2 text-[10px] font-mono tracking-[0.14em] uppercase cursor-pointer transition-all duration-150"
+
             style={{
               background: "rgba(0,255,195,0.04)",
               border: "0.5px dashed rgba(0,255,195,0.28)",
@@ -259,11 +264,12 @@ export function Sidebar({ onNewMatter }: SidebarProps) {
                 {!collapsed && (
                   <div className="flex flex-col min-w-0">
                     <span
-                      className="text-[12px] truncate"
+                      className="truncate"
                       style={{
                         color: active ? "var(--fg-primary)" : "var(--fg-secondary)",
                         fontFamily: "var(--font-serif)",
                         fontStyle: "italic",
+                        fontSize: 13,
                       }}
                     >
                       {m.title}
@@ -295,7 +301,7 @@ export function Sidebar({ onNewMatter }: SidebarProps) {
       <div style={{ borderTop: "0.5px solid rgba(224,224,224,0.08)" }}>
         {/* Timer + usage */}
         {!collapsed && (
-          <div className="flex items-center justify-between px-3.5 py-2">
+          <div className="flex items-center justify-between px-3.5 py-2.5">
             <LexTooltip
               content={timerRunning ? "Stop & save entry" : activeMatterId ? "Start billable timer" : "Open a matter first"}
               side="top"
