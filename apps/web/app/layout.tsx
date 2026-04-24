@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Fraunces, Inter, JetBrains_Mono } from "next/font/google";
+import "@/styles/globals.css";
 import "@/styles/colors_and_type.css";
 import "@/styles/components.css";
-import "@/styles/globals.css";
 import { AppProviders } from "@/providers";
 
 const fraunces = Fraunces({
