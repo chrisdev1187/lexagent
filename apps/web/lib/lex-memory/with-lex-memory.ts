@@ -1,0 +1,100 @@
+import { Matter } from "@/providers/matters-provider";
+import { anthropicFetch } from "@/lib/api";
+import { LexMemory, TabId } from "./types";
+import { bootstrapMemory } from "./bootstrap";
+import { buildContext } from "./build-context";
+import { extractDelta } from "./extract";
+import { mergeMemory } from "./merge";
+import { BUDGET_DEFAULT } from "./tokens";
+import { logAiUsage } from "./usage-logger";
+
+export interface LexMemoryOpts {
+  tab: TabId;
+  budget?: number;
+}
+
+function getOrBootstrap(matter: Matter): LexMemory {
+  const stored = matter.lexMemory as LexMemory | undefined;
+  if (stored?.version === 1) return stored;
+  return bootstrapMemory(matter);
+}
+
+function extractText(json: unknown): string | null {
+  if (!json || typeof json !== "object") return null;
+  const j = json as Record<string, unknown>;
+  const content = j["content"];
+  if (Array.isArray(content) && content[0] && typeof (content[0] as Record<string, unknown>)["text"] === "string") {
+    return (content[0] as { text: string }).text;
+  }
+  return null;
+}
+
+function extractUsage(json: unknown): { input_tokens: number; output_tokens: number } | null {
+  if (!json || typeof json !== "object") return null;
+  const j = json as Record<string, unknown>;
+  // Anthropic format: { usage: { input_tokens, output_tokens } }
+  const usage = j["usage"] as Record<string, unknown> | undefined;
+  if (usage && typeof usage["input_tokens"] === "number" && typeof usage["output_tokens"] === "number") {
+    return { input_tokens: usage["input_tokens"] as number, output_tokens: usage["output_tokens"] as number };
+  }
+  // OpenAI-compat format: { usage: { prompt_tokens, completion_tokens } }
+  if (usage && typeof usage["prompt_tokens"] === "number") {
+    return {
+      input_tokens: usage["prompt_tokens"] as number,
+      output_tokens: (usage["completion_tokens"] as number) ?? 0,
+    };
+  }
+  return null;
+}
+
+export function withLexMemory(
+  matter: Matter,
+  updateMatter: (m: Matter) => Promise<void>,
+  opts: LexMemoryOpts
+) {
+  return async function lexFetch(
+    body: Record<string, unknown>,
+    extraHeaders?: Record<string, string>
+  ): Promise<Response> {
+    const mem = getOrBootstrap(matter);
+    const { text: ctxBlock, tokensUsed: memInjected } = buildContext(mem, {
+      budget: opts.budget ?? BUDGET_DEFAULT,
+      currentTab: opts.tab,
+    });
+
+    // Prepend memory context to system prompt
+    const patchedBody = ctxBlock
+      ? { ...body, system: `${ctxBlock}\n\n${body["system"] ?? ""}`.trim() }
+      : body;
+
+    const res = await anthropicFetch(patchedBody, extraHeaders);
+
+    // Fire-and-forget: extract from response, persist, log usage
+    const clone = res.clone();
+    void (async () => {
+      try {
+        const json = await clone.json() as unknown;
+        const text = extractText(json);
+        if (text) {
+          const delta = extractDelta(text, opts.tab);
+          const updated = mergeMemory(mem, delta);
+          await updateMatter({ ...matter, lexMemory: updated });
+        }
+        // Log token usage (best-effort, never throws)
+        const usage = extractUsage(json);
+        await logAiUsage({
+          matterId: matter.id,
+          tab: opts.tab,
+          inputTok: usage?.input_tokens ?? 0,
+          outputTok: usage?.output_tokens ?? 0,
+          memInjected,
+          model: (body["model"] as string) ?? "unknown",
+        }).catch(() => {});
+      } catch {
+        // Extraction failure must never break the UI
+      }
+    })();
+
+    return res; // original Response, untouched
+  };
+}

@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { useMatters } from "@/providers/matters-provider";
 import { useSettings } from "@/providers/settings-provider";
 import { COURTLISTENER_BASE, getApiHeaders, anthropicFetch } from "@/lib/api";
+import { withLexMemory } from "@/lib/lex-memory";
 import { PanelShell } from "@/components/panels/PanelShell";
 import { Markdown } from "@/components/shared/Markdown";
 
@@ -138,7 +139,8 @@ Any potential concerns or preferences to avoid.
 
 Be direct and actionable. This is for attorney preparation only.`;
 
-      const res = await anthropicFetch({
+      const lexFetch = withLexMemory(matter, updateMatter, { tab: "judge" });
+      const res = await lexFetch({
         model: settings.model,
         max_tokens: 4000,
         system: settings.systemPrompt,
@@ -146,9 +148,7 @@ Be direct and actionable. This is for attorney preparation only.`;
       });
       const data = await res.json() as { content?: Array<{ type: string; text: string }>; error?: { message: string } };
       const text = data.content?.[0]?.text ?? data.error?.message ?? "No response.";
-      if (matter) {
-        await updateMatter({ ...matter, judgeAnalysis: text });
-      }
+      await updateMatter({ ...matter, judgeAnalysis: text });
     } catch (e) {
       setError((e as Error).message);
     } finally {

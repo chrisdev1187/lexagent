@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { useMatters } from "@/providers/matters-provider";
 import { useSettings } from "@/providers/settings-provider";
 import { anthropicFetch, QuotaExceededError } from "@/lib/api";
+import { withLexMemory } from "@/lib/lex-memory";
 import { UpgradeCTA } from "@/components/shared/UpgradeCTA";
 import { PanelShell } from "@/components/panels/PanelShell";
 import { Markdown } from "@/components/shared/Markdown";
@@ -25,8 +26,6 @@ export default function StrategyPage() {
   const [copied, setCopied] = useState(false);
 
   const strategy = matter?.strategy as string | undefined;
-  const verifiedCitations = (matter?.verifiedCitations as string[] | undefined) ?? [];
-  const judgeAnalysis = matter?.judgeAnalysis as string | undefined;
 
   const copyStrategy = async () => {
     if (!strategy) return;
@@ -40,14 +39,6 @@ export default function StrategyPage() {
     setLoading(true);
     setError(null);
     try {
-      const citationsBlock = verifiedCitations.length > 0
-        ? `\n\nVERIFIED AUTHORITIES (prioritize these in your analysis):\n${verifiedCitations.map((c, i) => `${i + 1}. ${c}`).join("\n")}`
-        : "";
-
-      const judgeBlock = judgeAnalysis
-        ? `\n\nJUDGE INTELLIGENCE:\n${judgeAnalysis}`
-        : "";
-
       const userContent = `Analyze this legal matter and produce a comprehensive case strategy report:
 
 Matter: ${matter.title}
@@ -55,7 +46,7 @@ Case Type: ${matter.caseType ?? "N/A"}
 Jurisdiction: ${matter.jurisdiction ?? "N/A"}
 Court: ${matter.court ?? "N/A"}
 Judge: ${matter.judgeName ?? "Unknown"}
-Facts: ${matter.facts ?? "N/A"}${citationsBlock}${judgeBlock}
+Facts: ${matter.facts ?? "N/A"}
 
 Provide:
 ## CASE ASSESSMENT
@@ -78,7 +69,8 @@ Practical 2-3 sentence summary of the recommended approach.
 
 Use Bluebook citation format. Flag any circuit splits.`;
 
-      const res = await anthropicFetch({
+      const lexFetch = withLexMemory(matter, updateMatter, { tab: "strategy" });
+      const res = await lexFetch({
         model: settings.model,
         max_tokens: settings.maxTokens,
         system: settings.systemPrompt,

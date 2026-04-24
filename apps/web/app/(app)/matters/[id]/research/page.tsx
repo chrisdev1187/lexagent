@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { useMatters } from "@/providers/matters-provider";
 import { useSettings } from "@/providers/settings-provider";
 import { anthropicFetch, QuotaExceededError } from "@/lib/api";
+import { withLexMemory } from "@/lib/lex-memory";
 import { searchOpinions, CLOpinion } from "@/lib/courtlistener";
 import { UpgradeCTA } from "@/components/shared/UpgradeCTA";
 import { PanelShell } from "@/components/panels/PanelShell";
@@ -27,7 +28,7 @@ const LOADING_LABELS = [
 
 export default function ResearchPage() {
   const { id } = useParams<{ id: string }>();
-  const { getMatter } = useMatters();
+  const { getMatter, updateMatter } = useMatters();
   const { settings } = useSettings();
   const matter = getMatter(id);
 
@@ -94,7 +95,8 @@ export default function ResearchPage() {
         ? `Matter: ${matter.title}${matter.facts ? `\nFacts: ${matter.facts}` : ""}${matter.jurisdiction ? `\nJurisdiction: ${matter.jurisdiction}` : ""}\n\nQuery: ${currentQuery}`
         : currentQuery;
 
-      const res = await anthropicFetch({
+      const lexFetch = matter ? withLexMemory(matter, updateMatter, { tab: "research" }) : anthropicFetch;
+      const res = await lexFetch({
         model: settings.model,
         max_tokens: settings.maxTokens,
         system: systemWithGrounding,

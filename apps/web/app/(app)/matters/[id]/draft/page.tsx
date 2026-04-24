@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { useMatters } from "@/providers/matters-provider";
 import { useSettings } from "@/providers/settings-provider";
 import { anthropicFetch, QuotaExceededError } from "@/lib/api";
+import { withLexMemory } from "@/lib/lex-memory";
 import { UpgradeCTA } from "@/components/shared/UpgradeCTA";
 import { PanelShell } from "@/components/panels/PanelShell";
 import { Markdown } from "@/components/shared/Markdown";
@@ -29,7 +30,7 @@ const DOC_TYPES = [
 
 export default function DraftPage() {
   const { id } = useParams<{ id: string }>();
-  const { getMatter } = useMatters();
+  const { getMatter, updateMatter } = useMatters();
   const { settings } = useSettings();
   const matter = getMatter(id);
 
@@ -41,20 +42,13 @@ export default function DraftPage() {
   const [copied, setCopied] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
 
-  const verifiedCitations = (matter?.verifiedCitations as string[] | undefined) ?? [];
-
   const generate = async () => {
     if (!matter) return;
     setLoading(true);
     setError(null);
     try {
-      // Build firm/attorney context
       const firmBlock = settings.firmName
         ? `\n\nATTORNEY/FIRM:\n${settings.firmName}${settings.firmAddress ? `\n${settings.firmAddress}` : ""}${settings.firmCity ? `, ${settings.firmCity}` : ""}${settings.firmState ? `, ${settings.firmState}` : ""}${settings.firmZip ? ` ${settings.firmZip}` : ""}${settings.barNumber ? `\nBar No. ${settings.barNumber}${settings.barJurisdiction ? ` (${settings.barJurisdiction})` : ""}` : ""}`
-        : "";
-
-      const citationsBlock = verifiedCitations.length > 0
-        ? `\n\nAPPROVED CITATIONS (use these as primary authorities; do not fabricate others):\n${verifiedCitations.map((c, i) => `${i + 1}. ${c}`).join("\n")}`
         : "";
 
       const userContent = `Draft a complete, court-ready ${docType} for the following matter:
@@ -63,7 +57,7 @@ Matter: ${matter.title}
 Case Type: ${matter.caseType ?? "N/A"}
 Jurisdiction: ${matter.jurisdiction ?? "N/A"}
 Court: ${matter.court ?? "N/A"}
-Facts: ${matter.facts ?? "N/A"}${firmBlock}${citationsBlock}
+Facts: ${matter.facts ?? "N/A"}${firmBlock}
 
 Special Instructions: ${instructions || "None"}
 
@@ -75,7 +69,8 @@ DRAFTING REQUIREMENTS:
 - All margins 1 inch, font Times New Roman 12pt, double-spaced argument sections
 - End with signature block including firm name, bar number, and contact info`;
 
-      const res = await anthropicFetch({
+      const lexFetch = withLexMemory(matter, updateMatter, { tab: "draft" });
+      const res = await lexFetch({
         model: settings.model,
         max_tokens: settings.maxTokens,
         system: settings.systemPrompt,
@@ -157,12 +152,12 @@ DRAFTING REQUIREMENTS:
             </select>
           </div>
 
-          {verifiedCitations.length > 0 && (
+          {((matter?.verifiedCitations as string[] | undefined) ?? []).length > 0 && (
             <div
               className="rounded px-3 py-2 text-xs"
               style={{ background: "rgba(0,255,195,0.04)", border: "0.5px solid rgba(0,255,195,0.14)", color: "var(--fg-tertiary)" }}
             >
-              {verifiedCitations.length} verified citation{verifiedCitations.length !== 1 ? "s" : ""} will be injected as authorities
+              {((matter?.verifiedCitations as string[] | undefined) ?? []).length} verified citation{((matter?.verifiedCitations as string[] | undefined) ?? []).length !== 1 ? "s" : ""} will be injected as authorities
             </div>
           )}
 
