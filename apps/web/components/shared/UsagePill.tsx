@@ -48,14 +48,14 @@ export function UsagePill() {
 
   return (
     <Link
-      href="/admin"
+      href={isAdmin ? "/admin" : "/settings/profile"}
       className="flex items-center gap-1.5 px-2.5 py-1 rounded-full font-mono text-[10px] tracking-[0.1em] transition-opacity hover:opacity-80"
       style={{
         background: "rgba(255,255,255,0.03)",
         color,
         border: `0.5px solid ${borderColor}`,
       }}
-      title="Monthly AI usage"
+      title={isAdmin ? "Admin — org-wide quota & usage" : "Your monthly AI usage"}
     >
       <span
         className="w-1.5 h-1.5 rounded-full"

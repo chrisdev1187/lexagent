@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   Scale, LayoutDashboard, Settings, ChevronLeft, ChevronRight,
   Plus, Circle, Folder, LogOut, User, Square, Play, Users,
+  UserCircle, CreditCard, Key,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useSettings } from "@/providers/settings-provider";
@@ -45,6 +46,20 @@ export function Sidebar({ onNewMatter }: SidebarProps) {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timerMatterIdRef = useRef<string | null>(null);
   const startedAtRef = useRef<number>(0);
+
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!userMenuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [userMenuOpen]);
 
   const toggle = useCallback(() => {
     const next = !collapsed;
@@ -312,11 +327,20 @@ export function Sidebar({ onNewMatter }: SidebarProps) {
           </div>
         )}
 
-        {/* User row */}
-        <div className="flex items-center gap-2 px-3 py-2.5">
-          <LexTooltip content={user?.email ?? "User"} side="right">
+        {/* User row / account menu */}
+        <div ref={userMenuRef} className="relative">
+          <button
+            onClick={() => setUserMenuOpen(v => !v)}
+            className="w-full flex items-center gap-2 px-3 py-2.5 cursor-pointer transition-colors"
+            style={{
+              background: userMenuOpen ? "rgba(0,255,195,0.05)" : "transparent",
+              border: "none",
+            }}
+            aria-haspopup="menu"
+            aria-expanded={userMenuOpen}
+          >
             <div
-              className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 cursor-pointer"
+              className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
               style={{
                 background: "linear-gradient(135deg, rgba(0,255,195,0.15), rgba(106,0,255,0.15))",
                 border: "0.5px solid rgba(0,255,195,0.2)",
@@ -324,25 +348,76 @@ export function Sidebar({ onNewMatter }: SidebarProps) {
             >
               <User size={12} style={{ color: "var(--verdict-neon)" }} />
             </div>
-          </LexTooltip>
-          {!collapsed && (
-            <>
+            {!collapsed && (
               <span
-                className="text-[12px] truncate flex-1 font-mono"
+                className="text-[12px] truncate flex-1 font-mono text-left"
                 style={{ color: "var(--fg-tertiary)" }}
               >
                 {user?.email?.split("@")[0] ?? "User"}
               </span>
-              <LexTooltip content="Sign out" side="right">
-                <button
-                  onClick={() => signOut()}
-                  className="cursor-pointer opacity-40 hover:opacity-100 transition-opacity"
-                  style={{ background: "none", border: "none", padding: 0 }}
+            )}
+          </button>
+
+          {userMenuOpen && (
+            <div
+              role="menu"
+              className="absolute bottom-full mb-1 z-30 min-w-[180px] rounded overflow-hidden"
+              style={{
+                left: collapsed ? "calc(100% + 6px)" : 12,
+                right: collapsed ? "auto" : 12,
+                bottom: collapsed ? "auto" : "100%",
+                top: collapsed ? 0 : "auto",
+                background: "var(--midnight-deep)",
+                border: "0.5px solid rgba(0,255,195,0.22)",
+                boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+              }}
+            >
+              {!collapsed && user?.email && (
+                <div
+                  className="px-3 py-2 font-mono text-[10px] truncate"
+                  style={{
+                    color: "var(--fg-quaternary)",
+                    borderBottom: "0.5px solid rgba(224,224,224,0.06)",
+                  }}
                 >
-                  <LogOut size={12} style={{ color: "var(--fg-tertiary)" }} />
-                </button>
-              </LexTooltip>
-            </>
+                  {user.email}
+                </div>
+              )}
+              {[
+                { href: "/settings/profile", icon: UserCircle, label: "Profile & Usage" },
+                { href: "/settings/billing", icon: CreditCard, label: "Billing & Plan" },
+                { href: "/settings/api-key", icon: Key, label: "API Keys" },
+              ].map(({ href, icon: Icon, label }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={() => setUserMenuOpen(false)}
+                  className="flex items-center gap-2 px-3 py-2 text-[12px] transition-colors"
+                  style={{
+                    color: "var(--fg-secondary)",
+                    textDecoration: "none",
+                  }}
+                  role="menuitem"
+                >
+                  <Icon size={12} style={{ color: "var(--verdict-neon)", flexShrink: 0 }} />
+                  <span className="truncate">{label}</span>
+                </Link>
+              ))}
+              <button
+                onClick={() => { setUserMenuOpen(false); signOut(); }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-[12px] cursor-pointer transition-colors"
+                style={{
+                  background: "none",
+                  border: "none",
+                  borderTop: "0.5px solid rgba(224,224,224,0.06)",
+                  color: "var(--verdict-crimson)",
+                }}
+                role="menuitem"
+              >
+                <LogOut size={12} style={{ flexShrink: 0 }} />
+                Sign out
+              </button>
+            </div>
           )}
         </div>
 

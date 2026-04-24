@@ -7,6 +7,7 @@ import { MattersProvider } from "@/providers/matters-provider";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TopBar } from "@/components/layout/TopBar";
 import { NewMatterModal } from "@/components/shared/NewMatterModal";
+import { VersionBadge } from "@/components/shared/VersionBadge";
 
 function AppShellInner({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -53,6 +54,8 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
       {showNewMatter && (
         <NewMatterModal onClose={() => setShowNewMatter(false)} />
       )}
+
+      <VersionBadge />
     </div>
   );
 }

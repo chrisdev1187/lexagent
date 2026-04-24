@@ -8,6 +8,34 @@ From Phase 10 onward, every phase ships under a new version and a single commit/
 
 ---
 
+## [0.3.3] — 2026-04-24 — Phase 11: Admin version badge + account menu + usage routing
+
+### Added
+- **`<VersionBadge>`** — fixed top-right corner of the app shell, admin-only, bold neon-green with soft glow. Links to `/changelog`. Hidden for non-admin users so the UI stays clean for clients while admins always see what version they're testing.
+- **User account dropdown** in the sidebar — clicking the user avatar now opens a menu with **Profile & Usage** (`/settings/profile`), **Billing & Plan** (`/settings/billing`), **API Keys** (`/settings/api-key`), and **Sign out**. Closes on outside-click. Previously these three settings pages existed but were unreachable from navigation — dead click on the avatar and no other link.
+
+### Changed
+- **`<UsagePill>` routing** — now role-aware. Admins → `/admin` (full quota panel with org-wide breakdown). Users → `/settings/profile` (their own monthly spend + recent events). Previously everyone was sent to `/admin`, which non-admins can't access.
+
+### Fixed
+- Sidebar user row is now an actual `<button>` with `aria-haspopup`/`aria-expanded`, not a passive `<div>`.
+
+### Ops note
+- No env or DB changes. Admin detection continues to use `user_roles.role = 'admin'` via `useAuth().isAdmin`.
+
+---
+
+## [0.3.2] — 2026-04-24 — Phase 11: Fix /changelog prerender
+
+### Fixed
+- **Build** — `/changelog` was failing Vercel prerender with `Functions cannot be passed directly to Client Components` (digest `469269651`). The Server Component page was passing a Lucide icon (a function) as a prop to `<PanelShell>`, a Client Component — Next.js can't serialize function props across that boundary during static export.
+- Split the page: `page.tsx` (Server Component) now reads `CHANGELOG.md` at build time and passes only the Markdown **string** + version string to a new `ChangelogView.tsx` (Client Component) which owns the icon import and renders `<PanelShell>`. No function props cross the RSC boundary.
+
+### Ops note
+- No env changes required. This is purely a build/prerender fix.
+
+---
+
 ## [0.3.1] — 2026-04-24 — Phase 11: Admin-gate the 9-provider waterfall
 
 ### Changed
