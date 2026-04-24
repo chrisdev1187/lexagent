@@ -8,6 +8,26 @@ From Phase 10 onward, every phase ships under a new version and a single commit/
 
 ---
 
+## [1.0.0] — 2026-04-24 — Phase 14: Production Ship
+
+### Added
+- **Vercel cron keep-alive** — `GET /api/keep-alive` hits the Render backend `/health` every 5 minutes via `vercel.json` cron. Eliminates Render free-tier 30-second cold starts for paying users.
+- **Status page** (`/status`) — public client-side service health checker. Pings API and frontend in parallel, shows latency per service, manual refresh button.
+- **Sentry error monitoring** — `@sentry/nextjs` in the web app (`sentry.client.config.ts` + `sentry.server.config.ts` + `withSentryConfig` in `next.config.ts`). `@sentry/node` in the API (`index.ts`). Release-tagged with `NEXT_PUBLIC_APP_VERSION` / `APP_VERSION`. Enabled only when `NEXT_PUBLIC_SENTRY_DSN` / `SENTRY_DSN` env vars are set — no noise in dev.
+- **API global error handler** — `app.onError()` in Hono captures unhandled exceptions to Sentry and returns consistent `{ error: "internal_server_error" }` JSON.
+- **Playwright smoke test suite** (`e2e/smoke.spec.ts` + `playwright.config.ts`) — covers landing page, pricing, legal pages, status, auth redirect, dashboard, matter modal, changelog, and keep-alive endpoint. Authenticated flows gated on `E2E_EMAIL` / `E2E_PASSWORD` env vars.
+
+### Changed
+- **Privacy Policy** (`/legal/privacy`) — replaced placeholder with full 9-section policy: data collected, third parties (Supabase, Anthropic, Lemon Squeezy, Vercel/Render), retention, rights, cookies.
+- **Terms of Service** (`/legal/terms`) — replaced placeholder with full 11-section terms: service description, billing, acceptable use, IP ownership, liability cap, governing law (SA).
+
+### Ops
+- Set `NEXT_PUBLIC_SENTRY_DSN` on Vercel and `SENTRY_DSN` on Render to activate error reporting.
+- Set `SENTRY_ORG` + `SENTRY_PROJECT` on Vercel for source map uploads.
+- Playwright: `pnpm dlx playwright install chromium` then `E2E_EMAIL=… E2E_PASSWORD=… pnpm exec playwright test`.
+
+---
+
 ## [0.5.0] — 2026-04-24 — Phase 13: Onboarding & Polish
 
 ### Added

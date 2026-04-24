@@ -1,5 +1,14 @@
+import * as Sentry from "@sentry/node";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
+
+Sentry.init({
+  dsn: process.env.SENTRY_DSN,
+  release: process.env.APP_VERSION,
+  environment: process.env.NODE_ENV ?? "production",
+  tracesSampleRate: 0.1,
+  enabled: !!process.env.SENTRY_DSN,
+});
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { anthropicRouter } from "./routes/anthropic.js";
@@ -39,8 +48,17 @@ app.use(
 
 app.use("*", logger());
 
-// Health check — Railway / Vercel probe
-app.get("/health", (c) => c.json({ status: "ok", service: "lexagent-api" }));
+// Health check — Vercel cron keep-alive + Railway probe
+app.get("/health", (c) =>
+  c.json({ status: "ok", service: "lexagent-api", ts: new Date().toISOString() })
+);
+
+// Global error handler — captures to Sentry
+app.onError((err, c) => {
+  Sentry.captureException(err);
+  console.error("[lexagent-api] unhandled error", err);
+  return c.json({ error: "internal_server_error" }, 500);
+});
 
 // ── Route groups ──────────────────────────────────────────────────────────
 app.route("/api/anthropic", anthropicRouter);
