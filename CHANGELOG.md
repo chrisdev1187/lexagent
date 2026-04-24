@@ -8,6 +8,28 @@ From Phase 10 onward, every phase ships under a new version and a single commit/
 
 ---
 
+## [0.4.2] — 2026-04-24 — Phase 12 Slice C: Lemon Squeezy billing round-trip
+
+### Added
+- **`supabase/migrations/012_billing_portal.sql`** — `customer_portal_url text` column on `subscriptions`. Populated from `attrs.urls.customer_portal` in every LS webhook event that touches a subscription.
+- **Post-checkout success toast** — `/settings/billing?success=1` renders a dismissible green banner ("Subscription activated — welcome aboard!") for 6 seconds. LS checkout `redirect_url` now appends `?success=1` automatically.
+
+### Fixed
+- **Billing portal** (`GET /api/billing/portal`) — returns stored `customer_portal_url` from DB when available; falls back to generic `my-orders?customer_id=…` link. Frontend was incorrectly calling it as `POST` — corrected to `GET`.
+- **`subscription_payment_success` webhook** — now also syncs `plan_id` on `user_roles` and updates `customer_portal_url` (previously only updated period dates).
+- **`apps/web/app/(app)/settings/billing/page.tsx`**:
+  - Removed stale `stripe_customer_id` field from Supabase query (column doesn't exist on `user_roles`).
+  - Portal fetch: `method: "POST"` → `method: "GET"`.
+  - Auth: raw `localStorage.getItem("sb-token")` → `getApiHeaders()` from `@/lib/api`.
+  - Body text: "Stripe billing portal" → "Lemon Squeezy billing portal".
+- **`apps/web/app/(marketing)/pricing/page.tsx`** — `handleCTA` checkout call: raw `localStorage.getItem("sb-token")` → `getApiHeaders()`.
+
+### Ops note
+- Apply migration `012_billing_portal.sql` before deploying to production.
+- No new env vars required; all LS keys are already env-var-guarded from Slice A. Routes return graceful errors when `LEMON_SQUEEZY_API_KEY` / `LEMON_SQUEEZY_STORE_ID` are unset.
+
+---
+
 ## [0.4.1] — 2026-04-24 — Phase 12 Slice B: Frontend budget banners + near-live UsagePill
 
 ### Added

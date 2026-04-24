@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRegion, formatPrice } from "@/providers/region-provider";
+import { getApiHeaders } from "@/lib/api";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
@@ -121,12 +122,11 @@ export default function PricingPage() {
     if (plan.isPremium) { setShowLeadForm(true); return; }
     setLoading(plan.id);
     try {
-      const token = typeof window !== "undefined" ? localStorage.getItem("sb-token") : null;
       const res = await fetch(`${API_URL}/api/billing/checkout`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...getApiHeaders(),
         },
         body: JSON.stringify({ plan_id: plan.id }),
       });

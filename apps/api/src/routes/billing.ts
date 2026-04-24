@@ -46,7 +46,7 @@ billingRouter.post("/checkout", requireAuth, async (c) => {
           custom: { user_id: userId },
         },
         product_options: {
-          redirect_url: redirect_url ?? process.env.APP_URL ?? "https://lexagent-ochre.vercel.app/settings/billing",
+          redirect_url: redirect_url ?? `${process.env.APP_URL ?? "https://lexagent-ochre.vercel.app"}/settings/billing?success=1`,
         },
       },
       relationships: {
@@ -83,7 +83,7 @@ billingRouter.get("/portal", requireAuth, async (c) => {
 
   const { data: sub } = await supabase
     .from("subscriptions")
-    .select("ls_customer_id")
+    .select("ls_customer_id, customer_portal_url")
     .eq("user_id", userId)
     .eq("status", "active")
     .single();
@@ -92,8 +92,9 @@ billingRouter.get("/portal", requireAuth, async (c) => {
     return c.json({ error: "No active subscription found" }, 404);
   }
 
-  // Lemon Squeezy customer portal URL
-  const portalUrl = `https://app.lemonsqueezy.com/my-orders?customer_id=${sub.ls_customer_id}`;
+  // Prefer stored portal URL from webhook, fall back to generic orders page
+  const portalUrl = sub.customer_portal_url
+    ?? `https://app.lemonsqueezy.com/my-orders?customer_id=${sub.ls_customer_id}`;
   return c.json({ url: portalUrl });
 });
 
@@ -140,6 +141,7 @@ billingRouter.post("/webhook", async (c) => {
       seats:                1,
       current_period_start: attrs.current_period_start ?? null,
       current_period_end:   attrs.current_period_end   ?? null,
+      customer_portal_url:  attrs.urls?.customer_portal ?? null,
     }, { onConflict: "ls_subscription_id" });
 
     // Sync plan on user_roles
@@ -164,10 +166,17 @@ billingRouter.post("/webhook", async (c) => {
       .from("subscriptions")
       .update({
         status:              "active",
+        plan_id:             planId,
         current_period_start: attrs.current_period_start ?? null,
         current_period_end:   attrs.current_period_end   ?? null,
+        customer_portal_url:  attrs.urls?.customer_portal ?? null,
       })
       .eq("ls_subscription_id", String(event.data?.id ?? ""));
+
+    await supabase
+      .from("user_roles")
+      .update({ plan_id: planId })
+      .eq("user_id", userId);
   }
 
   return c.json({ ok: true });

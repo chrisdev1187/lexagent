@@ -1,6 +1,6 @@
 {
   "name": "lexagent",
-  "version": "0.3.3",
+  "version": "0.4.2",
   "private": true,
   "scripts": {
     "dev": "pnpm --parallel --filter './apps/*' dev",
