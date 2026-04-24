@@ -117,7 +117,7 @@ export default function JudgePage() {
           className="flex-1 text-sm"
           style={{
             background: "transparent",
-            color: "var(--text)",
+            color: "var(--fg-primary)",
             border: "none",
             outline: "none",
           }}
@@ -125,15 +125,7 @@ export default function JudgePage() {
         <button
           onClick={() => search(searchName)}
           disabled={loading || !searchName.trim()}
-          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
-          style={{
-            background: searchName.trim() && !loading
-              ? "var(--verdict-neon)"
-              : "var(--panel2)",
-            color: searchName.trim() && !loading ? "var(--midnight-court)" : "var(--text-muted)",
-            border: "none",
-            cursor: searchName.trim() && !loading ? "pointer" : "default",
-          }}
+          className="lex-btn lex-btn--primary"
         >
           {loading ? <Loader2 size={12} className="animate-spin" /> : <Search size={12} />}
           Search
@@ -143,7 +135,7 @@ export default function JudgePage() {
       {error && (
         <div
           className="rounded-lg px-4 py-3 mb-4 text-xs"
-          style={{ background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.2)", color: "var(--verdict-crimson)" }}
+          style={{ background: "rgba(255,51,85,0.08)", border: "0.5px solid rgba(255,51,85,0.3)", color: "var(--verdict-crimson)" }}
         >
           {error}
         </div>
@@ -160,13 +152,13 @@ export default function JudgePage() {
               />
             ))}
           </div>
-          <span className="text-xs" style={{ color: "var(--text-muted)" }}>Searching CourtListener…</span>
+          <span className="text-xs" style={{ color: "var(--fg-tertiary)" }}>Searching CourtListener…</span>
         </div>
       )}
 
       {!loading && searched && !judge && (
         <div className="text-center py-12">
-          <p className="text-sm" style={{ color: "var(--text-muted)" }}>No judge profile found for &quot;{searchName}&quot;</p>
+          <p className="text-sm" style={{ color: "var(--fg-tertiary)" }}>No judge profile found for &quot;{searchName}&quot;</p>
         </div>
       )}
 
@@ -177,35 +169,35 @@ export default function JudgePage() {
             className="rounded p-5"
             style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}
           >
-            <h3 className="text-base font-semibold mb-3" style={{ color: "var(--text)" }}>
+            <h3 className="text-base font-semibold mb-3" style={{ color: "var(--fg-primary)" }}>
               {judge.name_full}
             </h3>
             <div className="grid grid-cols-2 gap-3 text-xs">
               {judge.political_affiliation && (
                 <div>
-                  <span style={{ color: "var(--text-muted)" }}>Political Affiliation</span>
-                  <p className="font-medium mt-0.5" style={{ color: "var(--text)" }}>{judge.political_affiliation}</p>
+                  <span style={{ color: "var(--fg-tertiary)" }}>Political Affiliation</span>
+                  <p className="font-medium mt-0.5" style={{ color: "var(--fg-primary)" }}>{judge.political_affiliation}</p>
                 </div>
               )}
               {judge.aba_rating && (
                 <div>
-                  <span style={{ color: "var(--text-muted)" }}>ABA Rating</span>
-                  <p className="font-medium mt-0.5" style={{ color: "var(--text)" }}>{judge.aba_rating}</p>
+                  <span style={{ color: "var(--fg-tertiary)" }}>ABA Rating</span>
+                  <p className="font-medium mt-0.5" style={{ color: "var(--fg-primary)" }}>{judge.aba_rating}</p>
                 </div>
               )}
             </div>
             {judge.positions && judge.positions.length > 0 && (
               <div className="mt-4">
-                <p className="text-xs font-semibold mb-2" style={{ color: "var(--text-muted)" }}>POSITIONS</p>
+                <p className="text-xs font-semibold mb-2" style={{ color: "var(--fg-tertiary)" }}>POSITIONS</p>
                 <div className="space-y-2">
                   {judge.positions.slice(0, 5).map((pos, i) => (
                     <div
                       key={i}
                       className="flex items-center justify-between text-xs"
-                      style={{ color: "var(--text)" }}
+                      style={{ color: "var(--fg-primary)" }}
                     >
                       <span>{pos.court} — {pos.position_type}</span>
-                      <span style={{ color: "var(--text-muted)" }}>
+                      <span style={{ color: "var(--fg-tertiary)" }}>
                         {pos.date_start ? new Date(pos.date_start).getFullYear() : ""}
                         {pos.date_termination ? ` – ${new Date(pos.date_termination).getFullYear()}` : " – present"}
                       </span>
@@ -219,7 +211,7 @@ export default function JudgePage() {
           {/* Recent opinions */}
           {opinions.length > 0 && (
             <div>
-              <h4 className="text-sm font-semibold mb-3" style={{ color: "var(--text)" }}>
+              <h4 className="text-sm font-semibold mb-3" style={{ color: "var(--fg-primary)" }}>
                 Recent Opinions ({opinions.length})
               </h4>
               <div className="space-y-2">
@@ -230,10 +222,10 @@ export default function JudgePage() {
                     style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}
                   >
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate" style={{ color: "var(--text)" }}>
+                      <p className="text-sm font-medium truncate" style={{ color: "var(--fg-primary)" }}>
                         {op.caseName}
                       </p>
-                      <div className="flex items-center gap-3 mt-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
+                      <div className="flex items-center gap-3 mt-0.5 text-xs" style={{ color: "var(--fg-tertiary)" }}>
                         {op.court && <span>{op.court}</span>}
                         {op.dateFiled && <span>{new Date(op.dateFiled).toLocaleDateString()}</span>}
                         {op.citation && <span style={{ color: "var(--verdict-neon)" }}>{op.citation}</span>}

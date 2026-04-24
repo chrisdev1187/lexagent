@@ -147,9 +147,9 @@ export default function DeepResearchPage() {
             onClick={() => { setTab(t); setError(null); }}
             className="px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-all duration-150"
             style={{
-              background: tab === t ? "rgba(0,255,195,0.06)" : "var(--panel2)",
-              border: `1px solid ${tab === t ? "rgba(0,255,195,0.28)" : "var(--border)"}`,
-              color: tab === t ? "var(--verdict-neon)" : "var(--text-muted)",
+              background: tab === t ? "rgba(0,255,195,0.06)" : "var(--bg-raised)",
+              border: `0.5px solid ${tab === t ? "rgba(0,255,195,0.28)" : "var(--border-hair)"}`,
+              color: tab === t ? "var(--verdict-neon)" : "var(--fg-tertiary)",
             }}
           >
             {t === "congress" ? "Congress Bills" : "eCFR Regulations"}
@@ -168,20 +168,13 @@ export default function DeepResearchPage() {
           onKeyDown={(e) => e.key === "Enter" && handleSearch()}
           placeholder={tab === "congress" ? "Search bills — e.g. 'immigration reform'…" : "Search CFR — e.g. 'clean air emissions'…"}
           className="flex-1 px-4 py-2.5 text-sm"
-          style={{ background: "transparent", color: "var(--text)", outline: "none", border: "none" }}
+          style={{ background: "transparent", color: "var(--fg-primary)", outline: "none", border: "none" }}
         />
         <button
           onClick={handleSearch}
           disabled={!query.trim() || searching || !matter}
-          className="flex items-center gap-1.5 px-4 text-xs font-semibold cursor-pointer transition-all duration-150"
-          style={{
-            background: query.trim() && !searching && matter
-              ? "var(--verdict-neon)"
-              : "var(--panel2)",
-            color: query.trim() && !searching && matter ? "var(--midnight-court)" : "var(--text-muted)",
-            border: "none",
-            borderLeft: "1px solid var(--border)",
-          }}
+          className="lex-btn lex-btn--primary"
+          style={{ borderRadius: 0 }}
         >
           <Search size={12} />
           {searching ? "Searching…" : "Search"}
@@ -189,7 +182,7 @@ export default function DeepResearchPage() {
       </div>
 
       {error && (
-        <div className="rounded-lg px-4 py-2 mb-4 text-xs" style={{ background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.2)", color: "#f87171" }}>
+        <div className="rounded px-4 py-2 mb-4 text-xs" style={{ background: "rgba(255,51,85,0.08)", border: "0.5px solid rgba(255,51,85,0.3)", color: "var(--verdict-crimson)" }}>
           {error}
         </div>
       )}
@@ -197,7 +190,7 @@ export default function DeepResearchPage() {
       {/* Congress results */}
       {tab === "congress" && congressResults.length > 0 && (
         <div className="space-y-2 mb-6">
-          <p className="text-xs font-mono tracking-wider mb-2" style={{ color: "var(--text-muted)" }}>
+          <p className="text-xs font-mono tracking-wider mb-2" style={{ color: "var(--fg-tertiary)" }}>
             CONGRESS RESULTS ({congressResults.length})
           </p>
           {congressResults.map((bill) => {
@@ -206,26 +199,26 @@ export default function DeepResearchPage() {
             return (
               <div key={pid} className="rounded p-3 flex items-start gap-3" style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold mb-0.5 line-clamp-2" style={{ color: "var(--text)" }}>{bill.title}</p>
-                  <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                  <p className="text-xs font-semibold mb-0.5 line-clamp-2" style={{ color: "var(--fg-primary)" }}>{bill.title}</p>
+                  <p className="text-xs" style={{ color: "var(--fg-tertiary)" }}>
                     {bill.type} {bill.number} · {bill.congress}th Congress · {bill.originChamber}
                   </p>
                   {bill.latestAction && (
-                    <p className="text-xs mt-0.5" style={{ color: "var(--text-sub)" }}>
+                    <p className="text-xs mt-0.5" style={{ color: "var(--fg-secondary)" }}>
                       {bill.latestAction.actionDate}: {bill.latestAction.text}
                     </p>
                   )}
                 </div>
                 <div className="flex items-center gap-1.5 flex-shrink-0">
                   {bill.url && (
-                    <a href={bill.url} target="_blank" rel="noreferrer" className="p-1.5 rounded-md cursor-pointer" style={{ color: "var(--text-muted)" }}>
+                    <a href={bill.url} target="_blank" rel="noreferrer" className="p-1.5 rounded-md cursor-pointer" style={{ color: "var(--fg-tertiary)" }}>
                       <ExternalLink size={13} />
                     </a>
                   )}
                   <button
                     onClick={() => !saved && saveCongressBill(bill)}
                     className="p-1.5 rounded-md cursor-pointer"
-                    style={{ color: saved ? "var(--verdict-neon)" : "var(--text-muted)" }}
+                    style={{ color: saved ? "var(--verdict-neon)" : "var(--fg-tertiary)" }}
                     title={saved ? "Saved" : "Save to precedents"}
                   >
                     {saved ? <BookmarkCheck size={13} /> : <Bookmark size={13} />}
@@ -240,7 +233,7 @@ export default function DeepResearchPage() {
       {/* eCFR results */}
       {tab === "ecfr" && ecfrResults.length > 0 && (
         <div className="space-y-2 mb-6">
-          <p className="text-xs font-mono tracking-wider mb-2" style={{ color: "var(--text-muted)" }}>
+          <p className="text-xs font-mono tracking-wider mb-2" style={{ color: "var(--fg-tertiary)" }}>
             eCFR RESULTS ({ecfrResults.length})
           </p>
           {ecfrResults.map((r) => {
@@ -249,20 +242,20 @@ export default function DeepResearchPage() {
             return (
               <div key={pid} className="rounded p-3 flex items-start gap-3" style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold mb-0.5" style={{ color: "var(--text)" }}>
+                  <p className="text-xs font-semibold mb-0.5" style={{ color: "var(--fg-primary)" }}>
                     {r.fr_citation ?? r.label} — {r.label_description}
                   </p>
                   {r.hierarchy_headings?.title && (
-                    <p className="text-xs" style={{ color: "var(--text-muted)" }}>Title {r.hierarchy_headings.title}</p>
+                    <p className="text-xs" style={{ color: "var(--fg-tertiary)" }}>Title {r.hierarchy_headings.title}</p>
                   )}
                   {r.full_text_excerpt && (
-                    <p className="text-xs mt-1 line-clamp-2" style={{ color: "var(--text-sub)" }}>{r.full_text_excerpt}</p>
+                    <p className="text-xs mt-1 line-clamp-2" style={{ color: "var(--fg-secondary)" }}>{r.full_text_excerpt}</p>
                   )}
                 </div>
                 <button
                   onClick={() => !saved && saveEcfrResult(r)}
                   className="p-1.5 rounded-md cursor-pointer flex-shrink-0"
-                  style={{ color: saved ? "var(--verdict-neon)" : "var(--text-muted)" }}
+                  style={{ color: saved ? "var(--verdict-neon)" : "var(--fg-tertiary)" }}
                   title={saved ? "Saved" : "Save to precedents"}
                 >
                   {saved ? <BookmarkCheck size={13} /> : <Bookmark size={13} />}
@@ -276,33 +269,33 @@ export default function DeepResearchPage() {
       {/* Saved precedents for this matter */}
       {savedPrecedents.length > 0 && (
         <div>
-          <p className="text-xs font-mono tracking-wider mb-2" style={{ color: "var(--text-muted)" }}>
+          <p className="text-xs font-mono tracking-wider mb-2" style={{ color: "var(--fg-tertiary)" }}>
             SAVED TO MATTER ({savedPrecedents.length})
           </p>
           <div className="space-y-2">
             {savedPrecedents.map((p) => {
               const badge = SOURCE_BADGE[p.source];
               return (
-                <div key={p.id} className="rounded px-3 py-2.5 flex items-center gap-3" style={{ background: "var(--panel2)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
+                <div key={p.id} className="rounded px-3 py-2.5 flex items-center gap-3" style={{ background: "var(--bg-raised)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
                   <span
                     className="font-mono text-[10px] px-1.5 py-0.5 rounded flex-shrink-0"
-                    style={{ background: "rgba(17,17,20,0.7)", color: badge?.color ?? "var(--text-muted)", border: "0.5px solid rgba(224,224,224,0.09)" }}
+                    style={{ background: "rgba(17,17,20,0.7)", color: badge?.color ?? "var(--fg-tertiary)", border: "0.5px solid rgba(224,224,224,0.09)" }}
                   >
                     {badge?.label ?? p.source}
                   </span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium truncate" style={{ color: "var(--text)" }}>{p.title}</p>
-                    <p className="text-xs" style={{ color: "var(--text-muted)" }}>{p.citation}</p>
+                    <p className="text-xs font-medium truncate" style={{ color: "var(--fg-primary)" }}>{p.title}</p>
+                    <p className="text-xs" style={{ color: "var(--fg-tertiary)" }}>{p.citation}</p>
                   </div>
                   {p.url && (
-                    <a href={p.url} target="_blank" rel="noreferrer" className="p-1 rounded cursor-pointer flex-shrink-0" style={{ color: "var(--text-muted)" }}>
+                    <a href={p.url} target="_blank" rel="noreferrer" className="p-1 rounded cursor-pointer flex-shrink-0" style={{ color: "var(--fg-tertiary)" }}>
                       <ExternalLink size={12} />
                     </a>
                   )}
                   <button
                     onClick={() => removePrecedent(p.id)}
                     className="p-1 rounded cursor-pointer flex-shrink-0"
-                    style={{ color: "var(--text-muted)" }}
+                    style={{ color: "var(--fg-tertiary)" }}
                     title="Remove"
                   >
                     <Trash2 size={12} />
@@ -317,9 +310,9 @@ export default function DeepResearchPage() {
       {/* Empty states */}
       {!searching && congressResults.length === 0 && ecfrResults.length === 0 && savedPrecedents.length === 0 && (
         <div className="rounded p-8 text-center" style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
-          <ScanSearch size={28} className="mx-auto mb-3" style={{ color: "var(--text-muted)" }} />
-          <p className="text-sm mb-1" style={{ color: "var(--text)" }}>Search federal sources</p>
-          <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+          <ScanSearch size={28} className="mx-auto mb-3" style={{ color: "var(--fg-tertiary)" }} />
+          <p className="text-sm mb-1" style={{ color: "var(--fg-primary)" }}>Search federal sources</p>
+          <p className="text-xs" style={{ color: "var(--fg-tertiary)" }}>
             Congress bills and eCFR regulations. Save relevant sources to this matter's record.
           </p>
         </div>

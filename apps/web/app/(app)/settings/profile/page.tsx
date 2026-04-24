@@ -221,26 +221,10 @@ export default function ProfilePage() {
 
           {/* Actions */}
           <div className="flex gap-3">
-            <a
-              href="/settings/billing"
-              className="px-4 py-2 rounded text-[11px] font-mono tracking-[0.1em] font-semibold"
-              style={{
-                background: "var(--verdict-neon)",
-                color: "var(--midnight-court)",
-                boxShadow: "0 0 12px rgba(0,255,195,0.3)",
-              }}
-            >
+            <a href="/settings/billing" className="lex-btn lex-btn--primary">
               MANAGE PLAN
             </a>
-            <a
-              href="/settings/api-key"
-              className="px-4 py-2 rounded text-[11px] font-mono tracking-[0.1em]"
-              style={{
-                background: "rgba(255,255,255,0.03)",
-                color: "var(--fg-tertiary)",
-                border: "0.5px solid rgba(224,224,224,0.10)",
-              }}
-            >
+            <a href="/settings/api-key" className="lex-btn lex-btn--secondary">
               BYOK KEY SETTINGS
             </a>
           </div>

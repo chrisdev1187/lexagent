@@ -100,20 +100,20 @@ export default function ConflictPage() {
       {/* Automated check results */}
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-3">
-          <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>
+          <p className="text-sm font-semibold" style={{ color: "var(--fg-primary)" }}>
             Automated Conflict Scan
           </p>
           {conflicts.length === 0 ? (
             <span
               className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full"
-              style={{ background: "rgba(16,185,129,0.12)", color: "var(--verdict-neon)", border: "1px solid rgba(16,185,129,0.3)" }}
+              style={{ background: "rgba(0,255,195,0.08)", color: "var(--verdict-neon)", border: "0.5px solid rgba(0,255,195,0.28)" }}
             >
               <CheckCircle size={11} /> No conflicts detected
             </span>
           ) : (
             <span
               className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full"
-              style={{ background: "rgba(220,38,38,0.12)", color: "var(--verdict-crimson)", border: "1px solid rgba(220,38,38,0.3)" }}
+              style={{ background: "rgba(255,51,85,0.08)", color: "var(--verdict-crimson)", border: "0.5px solid rgba(255,51,85,0.3)" }}
             >
               <AlertTriangle size={11} /> {conflicts.length} potential conflict{conflicts.length !== 1 ? "s" : ""}
             </span>
@@ -128,14 +128,14 @@ export default function ConflictPage() {
                 className="rounded px-4 py-3"
                 style={{
                   background: "rgba(17,17,20,0.7)",
-                  border: "1px solid rgba(220,38,38,0.2)",
+                  border: "0.5px solid rgba(255,51,85,0.28)",
                 }}
               >
                 <div className="flex items-start gap-2">
                   <AlertTriangle size={14} style={{ color: "var(--verdict-crimson)", flexShrink: 0, marginTop: 2 }} />
                   <div>
-                    <p className="text-sm font-medium" style={{ color: "var(--text)" }}>{c.matterTitle}</p>
-                    <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+                    <p className="text-sm font-medium" style={{ color: "var(--fg-primary)" }}>{c.matterTitle}</p>
+                    <p className="text-xs mt-0.5" style={{ color: "var(--fg-tertiary)" }}>
                       Client: {c.client} · {c.caseType}
                     </p>
                     <p className="text-xs mt-1" style={{ color: "var(--verdict-crimson)" }}>{c.reason}</p>
@@ -151,10 +151,10 @@ export default function ConflictPage() {
           >
             <CheckCircle size={16} style={{ color: "var(--verdict-neon)", flexShrink: 0 }} />
             <div>
-              <p className="text-sm" style={{ color: "var(--text)" }}>
+              <p className="text-sm" style={{ color: "var(--fg-primary)" }}>
                 No matching client names or obvious conflicts found across {matters.length - 1} other matter{matters.length !== 2 ? "s" : ""}.
               </p>
-              <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+              <p className="text-xs mt-0.5" style={{ color: "var(--fg-tertiary)" }}>
                 Run the AI check below for a thorough professional responsibility analysis.
               </p>
             </div>
@@ -165,19 +165,11 @@ export default function ConflictPage() {
       {/* AI-assisted check */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>AI Professional Responsibility Analysis</p>
+          <p className="text-sm font-semibold" style={{ color: "var(--fg-primary)" }}>AI Professional Responsibility Analysis</p>
           <button
             onClick={runAiCheck}
             disabled={aiLoading}
-            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
-            style={{
-              background: aiLoading
-                ? "var(--panel2)"
-                : "var(--verdict-neon)",
-              color: aiLoading ? "var(--text-muted)" : "var(--midnight-court)",
-              border: "none",
-              cursor: aiLoading ? "default" : "pointer",
-            }}
+            className="lex-btn lex-btn--primary"
           >
             {aiLoading ? <Loader2 size={12} className="animate-spin" /> : <Zap size={12} />}
             {aiLoading ? "Analyzing…" : "Run AI Check"}
@@ -187,7 +179,7 @@ export default function ConflictPage() {
         {aiError && (
           <div
             className="rounded-lg px-4 py-3 mb-3 text-xs"
-            style={{ background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.2)", color: "var(--verdict-crimson)" }}
+            style={{ background: "rgba(255,51,85,0.08)", border: "0.5px solid rgba(255,51,85,0.3)", color: "var(--verdict-crimson)" }}
           >
             {aiError}
           </div>
@@ -204,7 +196,7 @@ export default function ConflictPage() {
                 />
               ))}
             </div>
-            <span className="text-xs" style={{ color: "var(--text-muted)" }}>Analyzing all matters for conflicts…</span>
+            <span className="text-xs" style={{ color: "var(--fg-tertiary)" }}>Analyzing all matters for conflicts…</span>
           </div>
         )}
 
@@ -215,7 +207,7 @@ export default function ConflictPage() {
           >
             <pre
               className="text-sm leading-relaxed whitespace-pre-wrap font-sans"
-              style={{ color: "var(--text)" }}
+              style={{ color: "var(--fg-primary)" }}
             >
               {aiAnalysis}
             </pre>
@@ -227,7 +219,7 @@ export default function ConflictPage() {
             className="rounded px-4 py-6 text-center"
             style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}
           >
-            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+            <p className="text-xs" style={{ color: "var(--fg-tertiary)" }}>
               Click &quot;Run AI Check&quot; for a detailed analysis applying ABA Model Rules 1.7 (current clients), 1.9 (former clients), and 1.10 (imputed conflicts).
             </p>
           </div>

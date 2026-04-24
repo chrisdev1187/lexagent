@@ -217,26 +217,8 @@ export default function LoginPage() {
 
             {/* TLS badge */}
             <div className="flex items-center gap-3 mt-3">
-              <span
-                className="font-mono text-[9px] tracking-[0.18em] uppercase px-2 py-0.5 rounded-full"
-                style={{
-                  border: "0.5px solid rgba(0,255,195,0.3)",
-                  color: "var(--verdict-neon)",
-                  background: "rgba(0,255,195,0.05)",
-                }}
-              >
-                TLS 1.3
-              </span>
-              <span
-                className="font-mono text-[9px] tracking-[0.18em] uppercase px-2 py-0.5 rounded-full"
-                style={{
-                  border: "0.5px solid rgba(224,224,224,0.12)",
-                  color: "var(--fg-tertiary)",
-                  background: "rgba(224,224,224,0.03)",
-                }}
-              >
-                SOC 2
-              </span>
+              <span className="lex-chip lex-chip--neon">TLS 1.3</span>
+              <span className="lex-chip lex-chip--neutral">SOC 2</span>
             </div>
           </div>
 
@@ -351,19 +333,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={submitting || reachable === false}
-              className="w-full rounded py-3 text-sm font-semibold transition-all duration-150 cursor-pointer"
-              style={{
-                background: submitting || reachable === false
-                  ? "rgba(0,255,195,0.18)"
-                  : "var(--verdict-neon)",
-                border: "0.5px solid transparent",
-                color: "var(--midnight-court)",
-                opacity: submitting || reachable === false ? 0.6 : 1,
-                cursor: reachable === false ? "not-allowed" : "pointer",
-                boxShadow: submitting || reachable === false ? "none" : "0 0 24px rgba(0,255,195,0.4)",
-                fontFamily: "var(--font-mono)",
-                letterSpacing: "0.08em",
-              }}
+              className="lex-btn lex-btn--primary w-full justify-center"
             >
               {submitting ? "VERIFYING…" : mode === "signin" ? "SIGN IN" : "CREATE ACCOUNT"}
             </button>

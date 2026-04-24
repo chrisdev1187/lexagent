@@ -66,112 +66,91 @@ Format with clear headers. Use Bluebook citation format.`;
 
   return (
     <>
-    {showUpgrade && (
-      <UpgradeCTA
-        reason="You've used your monthly AI quota. Upgrade to continue generating strategies."
-        onClose={() => setShowUpgrade(false)}
-      />
-    )}
-    <PanelShell
-      icon={Target}
-      title="Case Strategy"
-      description="AI-generated comprehensive case strategy and analysis"
-      actions={
-        strategy ? (
-          <button
-            onClick={generate}
-            disabled={loading}
-            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
-            style={{
-              background: "var(--panel2)",
-              color: "var(--text-muted)",
-              border: "0.5px solid rgba(224,224,224,0.09)",
-              cursor: loading ? "default" : "pointer",
-            }}
-          >
-            <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
-            Regenerate
-          </button>
-        ) : undefined
-      }
-    >
-      {editingUsers.length > 0 && (
-        <div
-          className="rounded-lg px-4 py-2.5 mb-4 flex items-center gap-2 text-xs"
-          style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)", color: "var(--verdict-amber)" }}
-        >
-          <AlertTriangle size={12} />
-          {editingUsers.map(u => u.email).join(", ")} {editingUsers.length === 1 ? "is" : "are"} also viewing this strategy — changes may conflict
-        </div>
+      {showUpgrade && (
+        <UpgradeCTA
+          reason="You've used your monthly AI quota. Upgrade to continue generating strategies."
+          onClose={() => setShowUpgrade(false)}
+        />
       )}
-
-      {error && (
-        <div
-          className="rounded-lg px-4 py-3 mb-4 text-xs"
-          style={{ background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.2)", color: "var(--verdict-crimson)" }}
-        >
-          {error}
-        </div>
-      )}
-
-      {!strategy && !loading && (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
+      <PanelShell
+        icon={Target}
+        title="Case strategy"
+        description="AI-generated comprehensive case strategy and analysis"
+        actions={
+          strategy ? (
+            <button
+              onClick={generate}
+              disabled={loading}
+              className="lex-btn lex-btn--secondary"
+            >
+              <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
+              Regenerate
+            </button>
+          ) : undefined
+        }
+      >
+        {editingUsers.length > 0 && (
           <div
-            className="w-16 h-16 rounded flex items-center justify-center mb-4"
-            style={{ background: "rgba(0,255,195,0.06)", border: "1px solid rgba(0,255,195,0.28)" }}
+            className="rounded px-4 py-2.5 mb-4 flex items-center gap-2 text-xs"
+            style={{ background: "rgba(255,184,0,0.06)", border: "0.5px solid rgba(255,184,0,0.28)", color: "var(--verdict-amber)" }}
           >
-            <Target size={28} style={{ color: "var(--verdict-neon)" }} />
+            <AlertTriangle size={12} />
+            {editingUsers.map(u => u.email).join(", ")} {editingUsers.length === 1 ? "is" : "are"} also viewing this strategy — changes may conflict
           </div>
-          <p className="text-sm font-medium mb-2" style={{ color: "var(--text)" }}>No strategy generated yet</p>
-          <p className="text-xs mb-6 max-w-sm" style={{ color: "var(--text-muted)" }}>
-            Generate a comprehensive AI-powered case strategy including strengths, weaknesses, arguments, and tactical recommendations.
-          </p>
-          <button
-            onClick={generate}
-            className="flex items-center gap-2 rounded px-5 py-2.5 text-sm font-semibold"
-            style={{
-              background: "var(--verdict-neon)",
-              color: "var(--midnight-court)",
-              border: "none",
-              cursor: "pointer",
-            }}
-          >
-            <Zap size={15} />
-            Generate Strategy
-          </button>
-        </div>
-      )}
+        )}
 
-      {loading && (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <div className="flex gap-1.5 mb-4">
-            {[0, 1, 2].map(i => (
-              <div
-                key={i}
-                className="w-2 h-2 rounded-full animate-pulse"
-                style={{ background: "var(--verdict-neon)", animationDelay: `${i * 0.15}s` }}
-              />
-            ))}
+        {error && (
+          <div
+            className="rounded px-4 py-3 mb-4 text-xs"
+            style={{ background: "rgba(255,51,85,0.08)", border: "0.5px solid rgba(255,51,85,0.3)", color: "var(--verdict-crimson)" }}
+          >
+            {error}
           </div>
-          <p className="text-sm" style={{ color: "var(--text-muted)" }}>Generating strategy…</p>
-          <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>This may take 15-30 seconds</p>
-        </div>
-      )}
+        )}
 
-      {strategy && !loading && (
-        <div
-          className="rounded p-5"
-          style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}
-        >
-          <pre
-            className="text-sm leading-relaxed whitespace-pre-wrap font-sans"
-            style={{ color: "var(--text)" }}
-          >
-            {strategy}
-          </pre>
-        </div>
-      )}
-    </PanelShell>
+        {!strategy && !loading && (
+          <div className="lex-empty">
+            <div className="w-14 h-14 rounded flex items-center justify-center mx-auto mb-4" style={{ background: "rgba(0,255,195,0.06)", border: "0.5px solid rgba(0,255,195,0.22)" }}>
+              <Target size={28} style={{ color: "var(--verdict-neon)" }} />
+            </div>
+            <p className="lex-empty__label">No strategy generated yet</p>
+            <p className="lex-empty__body">
+              Generate a comprehensive AI-powered case strategy including strengths, weaknesses, arguments, and tactical recommendations.
+            </p>
+            <button onClick={generate} className="lex-btn lex-btn--primary mt-4">
+              <Zap size={15} />
+              Generate strategy
+            </button>
+          </div>
+        )}
+
+        {loading && (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <div className="flex gap-1.5 mb-4">
+              {[0, 1, 2].map(i => (
+                <div
+                  key={i}
+                  className="w-2 h-2 rounded-full animate-pulse"
+                  style={{ background: "var(--verdict-neon)", animationDelay: `${i * 0.15}s` }}
+                />
+              ))}
+            </div>
+            <p className="text-sm" style={{ color: "var(--fg-tertiary)" }}>Generating strategy…</p>
+            <p className="text-xs mt-1" style={{ color: "var(--fg-tertiary)" }}>This may take 15-30 seconds</p>
+          </div>
+        )}
+
+        {strategy && !loading && (
+          <div className="lex-card">
+            <pre
+              className="text-sm leading-relaxed whitespace-pre-wrap"
+              style={{ color: "var(--fg-primary)", fontFamily: "var(--font-sans)" }}
+            >
+              {strategy}
+            </pre>
+          </div>
+        )}
+      </PanelShell>
     </>
   );
 }

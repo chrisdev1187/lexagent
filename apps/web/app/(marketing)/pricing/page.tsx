@@ -221,13 +221,7 @@ export default function PricingPage() {
             <button
               onClick={() => handleCTA(plan)}
               disabled={loading === plan.id}
-              className="w-full py-2.5 rounded font-mono text-[11px] tracking-[0.1em] font-semibold uppercase cursor-pointer disabled:opacity-50 transition-all"
-              style={{
-                background: plan.highlighted ? "var(--verdict-neon)" : "rgba(255,255,255,0.04)",
-                color: plan.highlighted ? "var(--midnight-court)" : "var(--fg-tertiary)",
-                border: plan.highlighted ? "none" : "0.5px solid rgba(224,224,224,0.12)",
-                boxShadow: plan.highlighted ? "0 0 16px rgba(0,255,195,0.3)" : "none",
-              }}
+              className={`w-full justify-center lex-btn ${plan.highlighted ? "lex-btn--primary" : "lex-btn--secondary"}`}
             >
               {loading === plan.id ? "Loading…" : plan.cta}
             </button>
@@ -264,8 +258,7 @@ export default function PricingPage() {
                   We'll be in touch within 24 hours to schedule a call.
                 </p>
                 <button
-                  className="mt-6 px-6 py-2 rounded font-mono text-[11px] tracking-[0.1em] uppercase cursor-pointer"
-                  style={{ background: "var(--verdict-neon)", color: "var(--midnight-court)", border: "none" }}
+                  className="lex-btn lex-btn--primary mt-6"
                   onClick={() => setShowLeadForm(false)}
                 >
                   Close
@@ -308,8 +301,7 @@ export default function PricingPage() {
                 </div>
                 <button
                   type="submit"
-                  className="w-full py-2.5 rounded font-mono text-[11px] tracking-[0.1em] uppercase font-semibold cursor-pointer"
-                  style={{ background: "var(--verdict-neon)", color: "var(--midnight-court)", border: "none", boxShadow: "0 0 16px rgba(0,255,195,0.3)" }}
+                  className="lex-btn lex-btn--primary w-full justify-center"
                 >
                   Submit Request
                 </button>

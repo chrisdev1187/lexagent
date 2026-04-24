@@ -31,13 +31,13 @@ const DOC_TYPES = [
 const TYPE_COLORS: Record<string, string> = {
   Motion: "var(--verdict-amber)",
   Brief: "var(--verdict-neon)",
-  Contract: "#7c3aed",
+  Contract: "var(--verdict-violet)",
   Evidence: "var(--verdict-crimson)",
   Discovery: "#0ea5e9",
-  Correspondence: "var(--text-sub)",
+  Correspondence: "var(--fg-secondary)",
   Pleading: "var(--verdict-amber)",
   Order: "var(--verdict-crimson)",
-  Other: "var(--text-muted)",
+  Other: "var(--fg-tertiary)",
 };
 
 function formatBytes(bytes: number): string {
@@ -148,10 +148,10 @@ export default function VaultPage() {
   };
 
   const inputStyle = {
-    background: "var(--panel2)",
-    color: "var(--text)",
-    border: "0.5px solid rgba(224,224,224,0.09)",
-    borderRadius: "8px",
+    background: "var(--bg-raised)",
+    color: "var(--fg-primary)",
+    border: "0.5px solid var(--border-hair)",
+    borderRadius: "var(--radius-md)",
     outline: "none",
     fontSize: "0.75rem",
     padding: "6px 12px",
@@ -161,34 +161,25 @@ export default function VaultPage() {
   return (
     <PanelShell
       icon={Archive}
-      title={`Document Vault ${docs.length > 0 ? `(${docs.length})` : ""}`}
+      title={`Document vault${docs.length > 0 ? ` (${docs.length})` : ""}`}
       description="Reference manager for case documents, filings, and evidence"
       actions={
         <button
           onClick={() => setShowForm(v => !v)}
-          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
-          style={{
-            background: "var(--verdict-neon)",
-            color: "var(--midnight-court)",
-            border: "none",
-            cursor: "pointer",
-          }}
+          className="lex-btn lex-btn--primary"
         >
           <Plus size={12} />
-          Add Document
+          Add document
         </button>
       }
     >
       {/* Add form */}
       {showForm && (
-        <div
-          className="rounded p-4 mb-6"
-          style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(0,255,195,0.14)" }}
-        >
+        <div className="lex-card mb-6" style={{ borderColor: "var(--border-neon)" }}>
           <div className="space-y-3">
             <div className="flex gap-3">
               <div style={{ flex: "1 1 auto" }}>
-                <label className="text-xs mb-1 block" style={{ color: "var(--text-muted)" }}>Title *</label>
+                <label className="text-xs mb-1 block" style={{ color: "var(--fg-tertiary)" }}>Title *</label>
                 <input
                   type="text"
                   value={title}
@@ -198,7 +189,7 @@ export default function VaultPage() {
                 />
               </div>
               <div style={{ flex: "0 0 140px" }}>
-                <label className="text-xs mb-1 block" style={{ color: "var(--text-muted)" }}>Type</label>
+                <label className="text-xs mb-1 block" style={{ color: "var(--fg-tertiary)" }}>Type</label>
                 <select
                   value={docType}
                   onChange={e => setDocType(e.target.value)}
@@ -211,18 +202,18 @@ export default function VaultPage() {
 
             {/* File upload */}
             <div>
-              <label className="text-xs mb-1 block" style={{ color: "var(--text-muted)" }}>Upload File (optional)</label>
+              <label className="text-xs mb-1 block" style={{ color: "var(--fg-tertiary)" }}>Upload file (optional)</label>
               <div
-                className="flex items-center gap-2 rounded-lg px-3 py-2 cursor-pointer"
-                style={{ border: "1px dashed var(--border)", background: "var(--panel2)" }}
+                className="flex items-center gap-2 rounded px-3 py-2 cursor-pointer"
+                style={{ border: "0.5px solid var(--border-hair)", background: "var(--bg-raised)" }}
                 onClick={() => fileInputRef.current?.click()}
               >
-                <Upload size={13} style={{ color: "var(--text-muted)" }} />
-                <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+                <Upload size={13} style={{ color: "var(--fg-tertiary)" }} />
+                <span className="text-xs" style={{ color: "var(--fg-tertiary)" }}>
                   {selectedFile ? selectedFile.name : "Click to upload PDF, Word, image…"}
                 </span>
                 {selectedFile && (
-                  <span className="ml-auto text-xs" style={{ color: "var(--text-muted)" }}>
+                  <span className="ml-auto text-xs" style={{ color: "var(--fg-tertiary)" }}>
                     {formatBytes(selectedFile.size)}
                   </span>
                 )}
@@ -237,7 +228,7 @@ export default function VaultPage() {
             </div>
 
             <div>
-              <label className="text-xs mb-1 block" style={{ color: "var(--text-muted)" }}>URL (optional)</label>
+              <label className="text-xs mb-1 block" style={{ color: "var(--fg-tertiary)" }}>URL (optional)</label>
               <input
                 type="url"
                 value={url}
@@ -247,7 +238,7 @@ export default function VaultPage() {
               />
             </div>
             <div>
-              <label className="text-xs mb-1 block" style={{ color: "var(--text-muted)" }}>Notes (optional)</label>
+              <label className="text-xs mb-1 block" style={{ color: "var(--fg-tertiary)" }}>Notes (optional)</label>
               <textarea
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
@@ -260,16 +251,16 @@ export default function VaultPage() {
             <button
               type="button"
               onClick={() => setAcp(v => !v)}
-              className="flex items-center gap-2 text-xs px-3 py-2 rounded-lg w-full"
+              className="flex items-center gap-2 text-xs px-3 py-2 rounded w-full"
               style={{
-                background: acp ? "rgba(124,58,237,0.1)" : "var(--panel2)",
-                color: acp ? "#7c3aed" : "var(--text-muted)",
-                border: `1px solid ${acp ? "rgba(124,58,237,0.4)" : "var(--border)"}`,
+                background: acp ? "rgba(106,0,255,0.08)" : "var(--bg-raised)",
+                color: acp ? "var(--verdict-violet)" : "var(--fg-tertiary)",
+                border: `0.5px solid ${acp ? "var(--border-violet)" : "var(--border-hair)"}`,
                 cursor: "pointer",
               }}
             >
               <ShieldCheck size={13} />
-              Attorney-Client Privilege (ACP) — {acp ? "Protected" : "Not tagged"}
+              Attorney-client privilege (ACP) — {acp ? "Protected" : "Not tagged"}
             </button>
 
             {uploadError && (
@@ -279,25 +270,16 @@ export default function VaultPage() {
             <div className="flex gap-2 justify-end">
               <button
                 onClick={() => { setShowForm(false); setSelectedFile(null); setUploadError(null); }}
-                className="text-xs px-3 py-1.5 rounded-lg"
-                style={{ background: "var(--panel2)", color: "var(--text-muted)", border: "0.5px solid rgba(224,224,224,0.09)", cursor: "pointer" }}
+                className="lex-btn lex-btn--ghost"
               >
                 Cancel
               </button>
               <button
                 onClick={addDoc}
                 disabled={!title.trim() || uploading}
-                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold"
-                style={{
-                  background: title.trim() && !uploading
-                    ? "var(--verdict-neon)"
-                    : "var(--panel2)",
-                  color: title.trim() && !uploading ? "var(--midnight-court)" : "var(--text-muted)",
-                  border: "none",
-                  cursor: title.trim() && !uploading ? "pointer" : "default",
-                }}
+                className="lex-btn lex-btn--primary"
               >
-                {uploading ? <><Loader2 size={12} className="animate-spin" /> Uploading…</> : <><Plus size={12} /> Save Document</>}
+                {uploading ? <><Loader2 size={12} className="animate-spin" /> Uploading…</> : <><Plus size={12} /> Save document</>}
               </button>
             </div>
           </div>
@@ -306,48 +288,38 @@ export default function VaultPage() {
 
       {/* Document grid */}
       {docs.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <div
-            className="w-12 h-12 rounded flex items-center justify-center mb-3"
-            style={{ background: "rgba(0,255,195,0.06)", border: "1px solid rgba(0,255,195,0.28)" }}
-          >
+        <div className="lex-empty">
+          <div className="w-14 h-14 rounded flex items-center justify-center mx-auto mb-4" style={{ background: "rgba(0,255,195,0.06)", border: "0.5px solid rgba(0,255,195,0.22)" }}>
             <Archive size={20} style={{ color: "var(--verdict-neon)" }} />
           </div>
-          <p className="text-sm font-medium mb-1" style={{ color: "var(--text)" }}>No documents yet</p>
-          <p className="text-xs" style={{ color: "var(--text-muted)" }}>Click &quot;Add Document&quot; to start building your vault</p>
+          <p className="lex-empty__label">No documents yet</p>
+          <p className="lex-empty__body">Click &quot;Add document&quot; to start building your vault</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {docs.map(doc => (
             <div key={doc.id}>
-              <div
-                className="rounded p-4"
-                style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}
-              >
+              <div className={`lex-card${doc.acp ? " lex-card--sealed" : ""}`}>
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <span
-                        className="text-xs font-semibold px-2 py-0.5 rounded-full"
+                        className="lex-chip"
                         style={{
-                          background: `${TYPE_COLORS[doc.docType] ?? "var(--text-muted)"}22`,
-                          color: TYPE_COLORS[doc.docType] ?? "var(--text-muted)",
-                          border: `1px solid ${TYPE_COLORS[doc.docType] ?? "var(--text-muted)"}44`,
+                          background: `${TYPE_COLORS[doc.docType] ?? "var(--fg-tertiary)"}22`,
+                          color: TYPE_COLORS[doc.docType] ?? "var(--fg-tertiary)",
+                          borderColor: `${TYPE_COLORS[doc.docType] ?? "var(--fg-tertiary)"}44`,
                         }}
                       >
                         {doc.docType}
                       </span>
                       {doc.storagePath && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: "var(--panel2)", color: "var(--text-muted)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
+                        <span className="lex-chip lex-chip--neutral">
                           {doc.fileType?.split("/")[1]?.toUpperCase() ?? "FILE"} · {formatBytes(doc.fileSize ?? 0)}
                         </span>
                       )}
                       {doc.acp && (
-                        <span
-                          className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full font-semibold"
-                          title="Attorney-Client Privilege"
-                          style={{ background: "rgba(124,58,237,0.12)", color: "#7c3aed", border: "1px solid rgba(124,58,237,0.3)" }}
-                        >
+                        <span className="lex-chip lex-chip--violet" title="Attorney-Client Privilege">
                           <ShieldCheck size={9} />
                           ACP
                         </span>
@@ -363,9 +335,9 @@ export default function VaultPage() {
                         </a>
                       )}
                     </div>
-                    <p className="text-sm font-medium" style={{ color: "var(--text)" }}>{doc.title}</p>
+                    <p className="text-sm font-medium" style={{ color: "var(--fg-primary)" }}>{doc.title}</p>
                     {doc.notes && (
-                      <p className="text-xs mt-1 line-clamp-2" style={{ color: "var(--text-muted)" }}>
+                      <p className="text-xs mt-1 line-clamp-2" style={{ color: "var(--fg-tertiary)" }}>
                         {doc.notes}
                       </p>
                     )}
@@ -374,8 +346,8 @@ export default function VaultPage() {
                     {doc.storagePath && (
                       <button
                         onClick={() => viewFile(doc)}
-                        className="p-1 rounded"
-                        style={{ color: viewingDocId === doc.id ? "var(--verdict-neon)" : "var(--text-muted)", background: "none", border: "none", cursor: "pointer" }}
+                        className="lex-btn lex-btn--icon lex-btn--ghost"
+                        style={{ color: viewingDocId === doc.id ? "var(--verdict-neon)" : "var(--fg-tertiary)" }}
                         title="View file"
                       >
                         <FileText size={13} />
@@ -383,13 +355,13 @@ export default function VaultPage() {
                     )}
                     <button
                       onClick={() => deleteDoc(doc)}
-                      style={{ color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer" }}
+                      className="lex-btn lex-btn--icon lex-btn--ghost"
                     >
                       <Trash2 size={13} />
                     </button>
                   </div>
                 </div>
-                <p className="text-xs mt-2" style={{ color: "var(--text-muted)" }}>
+                <p className="font-mono text-[10px] mt-2" style={{ color: "var(--fg-tertiary)" }}>
                   {new Date(doc.createdAt).toLocaleDateString()}
                 </p>
               </div>
@@ -398,10 +370,10 @@ export default function VaultPage() {
               {viewingDocId === doc.id && viewingUrl && (
                 <div
                   className="rounded mt-2 overflow-hidden"
-                  style={{ border: "0.5px solid rgba(224,224,224,0.09)", height: 500 }}
+                  style={{ border: "0.5px solid var(--border-hair)", height: 500 }}
                 >
                   {doc.fileType?.startsWith("image/") ? (
-                    <img src={viewingUrl} alt={doc.title} className="w-full h-full object-contain" style={{ background: "rgba(17,17,20,0.7)" }} />
+                    <img src={viewingUrl} alt={doc.title} className="w-full h-full object-contain" style={{ background: "var(--bg-raised)" }} />
                   ) : (
                     <iframe src={viewingUrl} title={doc.title} className="w-full h-full" style={{ border: "none" }} />
                   )}

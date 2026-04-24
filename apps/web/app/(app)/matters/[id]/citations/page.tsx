@@ -78,14 +78,11 @@ export default function CitationsPage() {
   return (
     <PanelShell
       icon={ShieldCheck}
-      title="Hallucination Shield"
+      title="Hallucination shield"
       description="Verify citations against 18M+ CourtListener records"
     >
       {/* Input */}
-      <div
-        className="rounded p-4 mb-6"
-        style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}
-      >
+      <div className="lex-card mb-6">
         <div className="flex gap-3 items-center">
           <input
             type="text"
@@ -96,7 +93,7 @@ export default function CitationsPage() {
             className="flex-1 text-sm"
             style={{
               background: "transparent",
-              color: "var(--text)",
+              color: "var(--fg-primary)",
               border: "none",
               outline: "none",
             }}
@@ -104,15 +101,8 @@ export default function CitationsPage() {
           <button
             onClick={verify}
             disabled={!citation.trim() || loading}
-            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold flex-shrink-0"
-            style={{
-              background: citation.trim() && !loading
-                ? "var(--verdict-neon)"
-                : "var(--panel2)",
-              color: citation.trim() && !loading ? "var(--midnight-court)" : "var(--text-muted)",
-              border: "none",
-              cursor: citation.trim() && !loading ? "pointer" : "default",
-            }}
+            className="lex-btn lex-btn--primary"
+            style={{ flexShrink: 0 }}
           >
             {loading ? <Loader2 size={12} className="animate-spin" /> : <ShieldCheck size={12} />}
             Verify
@@ -122,23 +112,20 @@ export default function CitationsPage() {
 
       {error && (
         <div
-          className="rounded-lg px-4 py-3 mb-4 text-xs"
-          style={{ background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.2)", color: "var(--verdict-crimson)" }}
+          className="rounded px-4 py-3 mb-4 text-xs"
+          style={{ background: "rgba(255,51,85,0.08)", border: "0.5px solid rgba(255,51,85,0.3)", color: "var(--verdict-crimson)" }}
         >
           {error}
         </div>
       )}
 
       {history.length === 0 && !loading && (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <div
-            className="w-12 h-12 rounded flex items-center justify-center mb-3"
-            style={{ background: "rgba(0,255,195,0.06)", border: "1px solid rgba(0,255,195,0.28)" }}
-          >
+        <div className="lex-empty">
+          <div className="w-14 h-14 rounded flex items-center justify-center mx-auto mb-4" style={{ background: "rgba(0,255,195,0.06)", border: "0.5px solid rgba(0,255,195,0.22)" }}>
             <ShieldCheck size={20} style={{ color: "var(--verdict-neon)" }} />
           </div>
-          <p className="text-sm font-medium mb-1" style={{ color: "var(--text)" }}>No citations verified yet</p>
-          <p className="text-xs max-w-sm" style={{ color: "var(--text-muted)" }}>
+          <p className="lex-empty__label">No citations verified yet</p>
+          <p className="lex-empty__body">
             Paste a citation above and click Verify to check against CourtListener&apos;s database
           </p>
         </div>
@@ -146,16 +133,13 @@ export default function CitationsPage() {
 
       {history.length > 0 && (
         <div className="space-y-3">
-          <p className="text-xs font-semibold" style={{ color: "var(--text-muted)" }}>
-            VERIFICATION HISTORY ({history.length})
-          </p>
+          <p className="lex-micro lex-micro--neon mb-2">Verification history ({history.length})</p>
           {history.map(entry => (
             <div
               key={entry.id}
-              className="rounded p-4"
+              className="lex-card"
               style={{
-                background: "rgba(17,17,20,0.7)",
-                border: `1px solid ${entry.verified ? "rgba(16,185,129,0.2)" : "rgba(220,38,38,0.2)"}`,
+                borderColor: entry.verified ? "rgba(0,255,195,0.25)" : "rgba(255,51,85,0.25)",
               }}
             >
               <div className="flex items-start gap-3">
@@ -167,22 +151,15 @@ export default function CitationsPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <span
-                      className="text-xs font-semibold px-2 py-0.5 rounded-full"
-                      style={{
-                        background: entry.verified ? "rgba(16,185,129,0.12)" : "rgba(220,38,38,0.12)",
-                        color: entry.verified ? "var(--verdict-neon)" : "var(--verdict-crimson)",
-                        border: `1px solid ${entry.verified ? "rgba(16,185,129,0.3)" : "rgba(220,38,38,0.3)"}`,
-                      }}
-                    >
-                      {entry.verified ? "Verified" : "Not Found / Hallucinated"}
+                    <span className={`lex-chip lex-chip--${entry.verified ? "neon" : "crimson"}`}>
+                      {entry.verified ? "Verified" : "Not found / hallucinated"}
                     </span>
                   </div>
-                  <p className="text-sm font-medium mb-1" style={{ color: "var(--text)" }}>
+                  <p className="text-sm font-medium mb-1" style={{ color: "var(--fg-primary)" }}>
                     {entry.input}
                   </p>
                   {entry.verified && (
-                    <div className="text-xs space-y-0.5" style={{ color: "var(--text-muted)" }}>
+                    <div className="text-xs space-y-0.5" style={{ color: "var(--fg-tertiary)" }}>
                       {entry.caseName && <p>Case: {entry.caseName}</p>}
                       {entry.reporter && <p>Reporter: {entry.reporter}</p>}
                       {entry.dateFiled && <p>Filed: {new Date(entry.dateFiled).toLocaleDateString()}</p>}
@@ -199,7 +176,7 @@ export default function CitationsPage() {
                       )}
                     </div>
                   )}
-                  <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+                  <p className="font-mono text-[10px] mt-1" style={{ color: "var(--fg-tertiary)" }}>
                     Checked {new Date(entry.checkedAt).toLocaleString()}
                   </p>
                 </div>

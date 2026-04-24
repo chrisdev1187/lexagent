@@ -236,17 +236,7 @@ export default function DashboardPage() {
             </div>
             <button
               onClick={() => setShowNewMatter(true)}
-              className="hidden md:flex items-center gap-2 rounded px-4 py-2 cursor-pointer transition-all duration-150"
-              style={{
-                background: "var(--verdict-neon)",
-                color: "var(--midnight-court)",
-                border: "none",
-                fontFamily: "var(--font-mono)",
-                fontSize: 11,
-                fontWeight: 600,
-                letterSpacing: "0.1em",
-                boxShadow: "0 0 20px rgba(0,255,195,0.35)",
-              }}
+              className="lex-btn lex-btn--primary hidden md:flex"
             >
               <Plus size={14} />
               NEW MATTER
@@ -342,17 +332,7 @@ export default function DashboardPage() {
               </p>
               <button
                 onClick={() => setShowNewMatter(true)}
-                className="flex items-center gap-2 rounded px-5 py-2.5 cursor-pointer"
-                style={{
-                  background: "var(--verdict-neon)",
-                  color: "var(--midnight-court)",
-                  border: "none",
-                  fontFamily: "var(--font-mono)",
-                  fontSize: 11,
-                  fontWeight: 600,
-                  letterSpacing: "0.1em",
-                  boxShadow: "0 0 20px rgba(0,255,195,0.35)",
-                }}
+                className="lex-btn lex-btn--primary"
               >
                 <Plus size={14} />
                 CREATE FIRST MATTER

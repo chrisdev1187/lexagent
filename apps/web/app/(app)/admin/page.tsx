@@ -32,7 +32,7 @@ const ADMIN_TABS: { id: TabKey; icon: React.ElementType; label: string }[] = [
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
   return (
-    <h3 className="font-mono text-[10px] tracking-widest mb-3 mt-6 first:mt-0" style={{ color: "var(--text-muted)" }}>
+    <h3 className="font-mono text-[10px] tracking-widest mb-3 mt-6 first:mt-0" style={{ color: "var(--fg-tertiary)" }}>
       {children}
     </h3>
   );
@@ -42,11 +42,11 @@ function Field({ label, tooltip, children }: { label: string; tooltip?: string; 
   return (
     <div className="mb-4">
       <div className="flex items-center gap-1.5 mb-1.5">
-        <label className="font-mono text-[11px] tracking-wider" style={{ color: "var(--text-muted)" }}>{label}</label>
+        <label className="font-mono text-[11px] tracking-wider" style={{ color: "var(--fg-tertiary)" }}>{label}</label>
         {tooltip && (
           <LexTooltip content={tooltip} side="right">
             <span className="w-3.5 h-3.5 rounded-full text-[9px] flex items-center justify-center cursor-help flex-shrink-0"
-              style={{ background: "var(--panel2)", border: "0.5px solid rgba(0,255,195,0.14)", color: "var(--text-muted)" }}>
+              style={{ background: "var(--bg-raised)", border: "0.5px solid rgba(0,255,195,0.14)", color: "var(--fg-tertiary)" }}>
               ?
             </span>
           </LexTooltip>
@@ -59,9 +59,9 @@ function Field({ label, tooltip, children }: { label: string; tooltip?: string; 
 
 const inputCls = "w-full rounded px-3.5 py-2.5 text-sm lex-focus transition-all";
 const inputStyle = {
-  background: "var(--panel)",
+  background: "var(--bg-raised)",
   border: "0.5px solid rgba(224,224,224,0.09)",
-  color: "var(--text)",
+  color: "var(--fg-primary)",
   outline: "none",
 };
 
@@ -110,7 +110,7 @@ function BillingTab() {
     });
   }, [user]);
 
-  if (loading) return <p style={{ color: "var(--text-muted)" }}>Loading…</p>;
+  if (loading) return <p style={{ color: "var(--fg-tertiary)" }}>Loading…</p>;
   if (!data) return null;
 
   const pct = data.budget > 0 ? Math.min((data.spent / data.budget) * 100, 100) : 0;
@@ -120,12 +120,12 @@ function BillingTab() {
   return (
     <div>
       <SectionHeading>CURRENT PLAN</SectionHeading>
-      <div className="rounded p-4 mb-4" style={{ background: "var(--panel)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
+      <div className="rounded p-4 mb-4" style={{ background: "var(--bg-raised)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
         <div className="flex items-center justify-between mb-3">
           <div>
-            <p className="text-base font-semibold" style={{ color: "var(--text)" }}>{plan.name}</p>
+            <p className="text-base font-semibold" style={{ color: "var(--fg-primary)" }}>{plan.name}</p>
             {plan.price_usd && (
-              <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>${plan.price_usd}/mo</p>
+              <p className="text-xs mt-0.5" style={{ color: "var(--fg-tertiary)" }}>${plan.price_usd}/mo</p>
             )}
           </div>
           <span className="px-2.5 py-1 rounded-full text-xs font-mono" style={{ background: "rgba(0,255,195,0.06)", color: "var(--verdict-neon)", border: "0.5px solid rgba(0,255,195,0.28)" }}>
@@ -134,33 +134,33 @@ function BillingTab() {
         </div>
         <div className="flex flex-wrap gap-1.5">
           {plan.features.map((f) => (
-            <span key={f} className="px-2 py-0.5 rounded text-xs" style={{ background: "rgba(17,17,20,0.7)", color: "var(--text-sub)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
+            <span key={f} className="px-2 py-0.5 rounded text-xs" style={{ background: "rgba(17,17,20,0.7)", color: "var(--fg-secondary)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
               {f}
             </span>
           ))}
         </div>
-        <div className="mt-3 grid grid-cols-2 gap-2 text-xs" style={{ color: "var(--text-muted)" }}>
+        <div className="mt-3 grid grid-cols-2 gap-2 text-xs" style={{ color: "var(--fg-tertiary)" }}>
           {plan.matter_limit && <span>Up to {plan.matter_limit} matters</span>}
           {plan.seat_limit && <span>Up to {plan.seat_limit} seat{plan.seat_limit > 1 ? "s" : ""}</span>}
         </div>
       </div>
 
       <SectionHeading>AI USAGE — THIS MONTH</SectionHeading>
-      <div className="rounded p-4 mb-4" style={{ background: "var(--panel)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
+      <div className="rounded p-4 mb-4" style={{ background: "var(--bg-raised)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
         <div className="flex items-end justify-between mb-2">
           <div>
             {isAdmin ? (
-              <p className="text-lg font-mono font-semibold" style={{ color: "var(--text)" }}>
+              <p className="text-lg font-mono font-semibold" style={{ color: "var(--fg-primary)" }}>
                 ${data.spent.toFixed(4)}
-                <span className="text-sm font-normal ml-1" style={{ color: "var(--text-muted)" }}>/ ${data.budget}</span>
+                <span className="text-sm font-normal ml-1" style={{ color: "var(--fg-tertiary)" }}>/ ${data.budget}</span>
               </p>
             ) : (
-              <p className="text-lg font-mono font-semibold" style={{ color: "var(--text)" }}>
+              <p className="text-lg font-mono font-semibold" style={{ color: "var(--fg-primary)" }}>
                 {Math.round(pct)}%
-                <span className="text-sm font-normal ml-1" style={{ color: "var(--text-muted)" }}>of monthly quota</span>
+                <span className="text-sm font-normal ml-1" style={{ color: "var(--fg-tertiary)" }}>of monthly quota</span>
               </p>
             )}
-            <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{data.requests} AI request{data.requests !== 1 ? "s" : ""}</p>
+            <p className="text-xs mt-0.5" style={{ color: "var(--fg-tertiary)" }}>{data.requests} AI request{data.requests !== 1 ? "s" : ""}</p>
           </div>
           <span className="text-xs font-mono" style={{ color: barColor }}>{Math.round(pct)}%</span>
         </div>
@@ -175,13 +175,12 @@ function BillingTab() {
       {data.plan_id !== "premium" && (
         <div className="rounded p-4" style={{ background: "rgba(0,255,195,0.06)", border: "0.5px solid rgba(0,255,195,0.28)" }}>
           <p className="text-sm font-medium mb-1" style={{ color: "var(--verdict-neon)" }}>Upgrade your plan</p>
-          <p className="text-xs mb-3" style={{ color: "var(--text-sub)" }}>
+          <p className="text-xs mb-3" style={{ color: "var(--fg-secondary)" }}>
             Get more matters, seats, and AI quota with a higher plan.
           </p>
           <a
             href="mailto:sales@lexagent.ai?subject=Upgrade%20Request"
-            className="inline-flex items-center gap-1.5 rounded px-4 py-2 text-xs font-semibold transition-all cursor-pointer"
-            style={{ background: "var(--verdict-neon)", color: "var(--midnight-court)" }}
+            className="lex-btn lex-btn--primary"
           >
             Contact Sales
           </a>
@@ -237,16 +236,15 @@ function TeamsTab() {
         <SectionHeading>ALL TEAMS</SectionHeading>
         <button
           onClick={() => setCreating(true)}
-          className="flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-semibold cursor-pointer transition-all"
-          style={{ background: "var(--verdict-neon)", color: "var(--midnight-court)" }}
+          className="lex-btn lex-btn--primary"
         >
           <Plus size={12} /> New Team
         </button>
       </div>
 
       {creating && (
-        <div className="rounded p-4 mb-4" style={{ background: "var(--panel)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
-          <p className="text-xs font-mono mb-2" style={{ color: "var(--text-muted)" }}>TEAM NAME</p>
+        <div className="rounded p-4 mb-4" style={{ background: "var(--bg-raised)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
+          <p className="text-xs font-mono mb-2" style={{ color: "var(--fg-tertiary)" }}>TEAM NAME</p>
           <div className="flex gap-2">
             <input
               className={inputCls}
@@ -260,15 +258,13 @@ function TeamsTab() {
             <button
               onClick={createTeam}
               disabled={saving || !newTeamName.trim()}
-              className="rounded px-4 py-2 text-xs font-semibold cursor-pointer disabled:opacity-50"
-              style={{ background: "var(--verdict-neon)", color: "var(--midnight-court)" }}
+              className="lex-btn lex-btn--primary"
             >
               {saving ? "…" : "Create"}
             </button>
             <button
               onClick={() => { setCreating(false); setNewTeamName(""); }}
-              className="rounded px-3 py-2 text-xs cursor-pointer"
-              style={{ background: "var(--panel2)", color: "var(--text-muted)", border: "0.5px solid rgba(224,224,224,0.09)" }}
+              className="lex-btn lex-btn--ghost"
             >
               Cancel
             </button>
@@ -277,16 +273,16 @@ function TeamsTab() {
       )}
 
       {loading ? (
-        <p style={{ color: "var(--text-muted)" }}>Loading…</p>
+        <p style={{ color: "var(--fg-tertiary)" }}>Loading…</p>
       ) : teams.length === 0 ? (
-        <p className="text-sm" style={{ color: "var(--text-muted)" }}>No teams yet. Create one to start collaborating.</p>
+        <p className="text-sm" style={{ color: "var(--fg-tertiary)" }}>No teams yet. Create one to start collaborating.</p>
       ) : (
         <div style={{ overflowX: "auto" }}>
           <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
             <thead>
-              <tr style={{ background: "var(--panel)" }}>
+              <tr style={{ background: "var(--bg-raised)" }}>
                 {["Name", "Owner", "Plan", "Members", "Created", ""].map((h) => (
-                  <th key={h} className="px-3 py-2 text-left font-mono text-[10px] tracking-wider" style={{ color: "var(--text-muted)" }}>
+                  <th key={h} className="px-3 py-2 text-left font-mono text-[10px] tracking-wider" style={{ color: "var(--fg-tertiary)" }}>
                     {h}
                   </th>
                 ))}
@@ -295,13 +291,13 @@ function TeamsTab() {
             <tbody>
               {teams.map((t) => (
                 <tr key={t.team_id} style={{ borderTop: "0.5px solid rgba(224,224,224,0.08)" }}>
-                  <td className="px-3 py-2.5 font-medium" style={{ color: "var(--text)" }}>{t.team_name}</td>
-                  <td className="px-3 py-2.5 text-xs" style={{ color: "var(--text-muted)" }}>{t.owner_email || "—"}</td>
+                  <td className="px-3 py-2.5 font-medium" style={{ color: "var(--fg-primary)" }}>{t.team_name}</td>
+                  <td className="px-3 py-2.5 text-xs" style={{ color: "var(--fg-tertiary)" }}>{t.owner_email || "—"}</td>
                   <td className="px-3 py-2.5">
-                    <span className="px-2 py-0.5 rounded text-xs" style={{ background: "var(--panel2)", color: "var(--text-muted)" }}>{t.plan_id}</span>
+                    <span className="px-2 py-0.5 rounded text-xs" style={{ background: "var(--bg-raised)", color: "var(--fg-tertiary)" }}>{t.plan_id}</span>
                   </td>
-                  <td className="px-3 py-2.5 font-mono text-xs" style={{ color: "var(--text)" }}>{t.member_count}</td>
-                  <td className="px-3 py-2.5 text-xs" style={{ color: "var(--text-muted)" }}>
+                  <td className="px-3 py-2.5 font-mono text-xs" style={{ color: "var(--fg-primary)" }}>{t.member_count}</td>
+                  <td className="px-3 py-2.5 text-xs" style={{ color: "var(--fg-tertiary)" }}>
                     {new Date(t.created_at).toLocaleDateString()}
                   </td>
                   <td className="px-3 py-2.5">
@@ -394,16 +390,16 @@ function UserManagementTab() {
       />
 
       {loading ? (
-        <p style={{ color: "var(--text-muted)" }}>Loading…</p>
+        <p style={{ color: "var(--fg-tertiary)" }}>Loading…</p>
       ) : filtered.length === 0 ? (
-        <p style={{ color: "var(--text-muted)" }}>No users found.</p>
+        <p style={{ color: "var(--fg-tertiary)" }}>No users found.</p>
       ) : (
         <div style={{ overflowX: "auto" }}>
           <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
             <thead>
-              <tr style={{ background: "var(--panel)" }}>
+              <tr style={{ background: "var(--bg-raised)" }}>
                 {["Email", "Name", "Role", "Plan", "Usage (mo)", "Requests", "Actions"].map((h) => (
-                  <th key={h} className="px-3 py-2 text-left font-mono text-[10px] tracking-wider" style={{ color: "var(--text-muted)" }}>
+                  <th key={h} className="px-3 py-2 text-left font-mono text-[10px] tracking-wider" style={{ color: "var(--fg-tertiary)" }}>
                     {h}
                   </th>
                 ))}
@@ -414,10 +410,10 @@ function UserManagementTab() {
                 const spent = Number(u.usage_monthly?.total_usd_cost ?? 0);
                 return (
                   <tr key={u.user_id} style={{ borderTop: "0.5px solid rgba(224,224,224,0.08)" }}>
-                    <td className="px-3 py-2.5" style={{ color: "var(--text)" }}>
+                    <td className="px-3 py-2.5" style={{ color: "var(--fg-primary)" }}>
                       {u.profiles?.email ?? "—"}
                     </td>
-                    <td className="px-3 py-2.5" style={{ color: "var(--text-muted)" }}>
+                    <td className="px-3 py-2.5" style={{ color: "var(--fg-tertiary)" }}>
                       {u.profiles?.full_name ?? "—"}
                     </td>
                     <td className="px-3 py-2.5">
@@ -427,8 +423,8 @@ function UserManagementTab() {
                         onChange={(e) => changeRole(u.user_id, e.target.value)}
                         className="rounded px-2 py-1 text-xs"
                         style={{
-                          background: u.role === "admin" ? "var(--verdict-amber)" : "var(--panel)",
-                          color: u.role === "admin" ? "#000" : "var(--text-muted)",
+                          background: u.role === "admin" ? "var(--verdict-amber)" : "var(--bg-raised)",
+                          color: u.role === "admin" ? "#000" : "var(--fg-tertiary)",
                           border: "0.5px solid rgba(224,224,224,0.09)",
                         }}
                       >
@@ -441,15 +437,15 @@ function UserManagementTab() {
                         disabled={updating === u.user_id}
                         onChange={(e) => changePlan(u.user_id, e.target.value)}
                         className="rounded px-2 py-1 text-xs"
-                        style={{ background: "var(--panel)", color: "var(--text)", border: "0.5px solid rgba(224,224,224,0.09)" }}
+                        style={{ background: "var(--bg-raised)", color: "var(--fg-primary)", border: "0.5px solid rgba(224,224,224,0.09)" }}
                       >
                         {PLANS.map((p) => <option key={p} value={p}>{p}</option>)}
                       </select>
                     </td>
-                    <td className="px-3 py-2.5 font-mono text-xs" style={{ color: "var(--text)" }}>
+                    <td className="px-3 py-2.5 font-mono text-xs" style={{ color: "var(--fg-primary)" }}>
                       ${spent.toFixed(4)}
                     </td>
-                    <td className="px-3 py-2.5 font-mono text-xs" style={{ color: "var(--text-muted)" }}>
+                    <td className="px-3 py-2.5 font-mono text-xs" style={{ color: "var(--fg-tertiary)" }}>
                       {u.usage_monthly?.total_requests ?? 0}
                     </td>
                     <td className="px-3 py-2.5">
@@ -469,7 +465,7 @@ function UserManagementTab() {
         </div>
       )}
 
-      <p className="text-xs mt-4" style={{ color: "var(--text-muted)" }}>
+      <p className="text-xs mt-4" style={{ color: "var(--fg-tertiary)" }}>
         {filtered.length} user{filtered.length !== 1 ? "s" : ""} · Usage data: {now.toLocaleString("default", { month: "long" })} {now.getFullYear()}
       </p>
     </div>
@@ -523,8 +519,7 @@ function AuditLogTab() {
         <button
           onClick={sealCheckpoint}
           disabled={sealing}
-          className="flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-semibold cursor-pointer disabled:opacity-50"
-          style={{ background: "var(--panel2)", color: "var(--text-muted)", border: "0.5px solid rgba(224,224,224,0.09)" }}
+          className="lex-btn lex-btn--secondary"
         >
           <Lock size={11} />
           {sealing ? "Sealing…" : "Seal This Month"}
@@ -534,24 +529,24 @@ function AuditLogTab() {
       {sealMsg && (
         <div
           className="rounded px-3 py-2 mb-4 text-xs font-mono break-all"
-          style={{ background: "var(--panel2)", color: "var(--text-muted)", border: "0.5px solid rgba(224,224,224,0.09)" }}
+          style={{ background: "var(--bg-raised)", color: "var(--fg-tertiary)", border: "0.5px solid rgba(224,224,224,0.09)" }}
         >
           {sealMsg}
         </div>
       )}
 
       {loading ? (
-        <p style={{ color: "var(--text-muted)" }}>Loading…</p>
+        <p style={{ color: "var(--fg-tertiary)" }}>Loading…</p>
       ) : rows.length === 0 ? (
-        <p className="text-sm" style={{ color: "var(--text-muted)" }}>No audit events yet.</p>
+        <p className="text-sm" style={{ color: "var(--fg-tertiary)" }}>No audit events yet.</p>
       ) : (
         <>
           <div style={{ overflowX: "auto" }}>
             <table className="w-full text-xs" style={{ borderCollapse: "collapse" }}>
               <thead>
-                <tr style={{ background: "var(--panel)" }}>
+                <tr style={{ background: "var(--bg-raised)" }}>
                   {["Time", "User", "Action", "Entity", "Matter"].map(h => (
-                    <th key={h} className="px-3 py-2 text-left font-mono text-[10px] tracking-wider" style={{ color: "var(--text-muted)" }}>
+                    <th key={h} className="px-3 py-2 text-left font-mono text-[10px] tracking-wider" style={{ color: "var(--fg-tertiary)" }}>
                       {h}
                     </th>
                   ))}
@@ -560,19 +555,19 @@ function AuditLogTab() {
               <tbody>
                 {rows.map(r => (
                   <tr key={r.id} style={{ borderTop: "0.5px solid rgba(224,224,224,0.08)" }}>
-                    <td className="px-3 py-2 font-mono whitespace-nowrap" style={{ color: "var(--text-muted)" }}>
+                    <td className="px-3 py-2 font-mono whitespace-nowrap" style={{ color: "var(--fg-tertiary)" }}>
                       {new Date(r.created_at).toLocaleString()}
                     </td>
-                    <td className="px-3 py-2 max-w-[140px] truncate" style={{ color: "var(--text)" }}>
+                    <td className="px-3 py-2 max-w-[140px] truncate" style={{ color: "var(--fg-primary)" }}>
                       {r.user_email ?? "—"}
                     </td>
                     <td className="px-3 py-2 font-mono" style={{ color: "var(--verdict-neon)" }}>
                       {r.action}
                     </td>
-                    <td className="px-3 py-2 font-mono text-[10px]" style={{ color: "var(--text-muted)" }}>
+                    <td className="px-3 py-2 font-mono text-[10px]" style={{ color: "var(--fg-tertiary)" }}>
                       {r.entity_type ?? ""}{r.entity_id ? ` · ${r.entity_id.slice(0, 8)}…` : ""}
                     </td>
-                    <td className="px-3 py-2 max-w-[120px] truncate" style={{ color: "var(--text-muted)" }}>
+                    <td className="px-3 py-2 max-w-[120px] truncate" style={{ color: "var(--fg-tertiary)" }}>
                       {r.matter_title ?? "—"}
                     </td>
                   </tr>
@@ -584,17 +579,15 @@ function AuditLogTab() {
             <button
               onClick={() => setPage(p => Math.max(0, p - 1))}
               disabled={page === 0}
-              className="text-xs px-3 py-1.5 rounded disabled:opacity-40 cursor-pointer"
-              style={{ background: "var(--panel2)", color: "var(--text-muted)", border: "0.5px solid rgba(224,224,224,0.09)" }}
+              className="lex-btn lex-btn--ghost"
             >
               Previous
             </button>
-            <span className="text-xs" style={{ color: "var(--text-muted)" }}>Page {page + 1}</span>
+            <span className="text-xs" style={{ color: "var(--fg-tertiary)" }}>Page {page + 1}</span>
             <button
               onClick={() => setPage(p => p + 1)}
               disabled={rows.length < PAGE}
-              className="text-xs px-3 py-1.5 rounded disabled:opacity-40 cursor-pointer"
-              style={{ background: "var(--panel2)", color: "var(--text-muted)", border: "0.5px solid rgba(224,224,224,0.09)" }}
+              className="lex-btn lex-btn--ghost"
             >
               Next
             </button>
@@ -610,13 +603,13 @@ function QuotaBar({ label, pct, detail }: { label: string; pct: number; detail: 
   return (
     <div className="mb-4">
       <div className="flex items-center justify-between mb-1.5">
-        <span className="text-xs font-medium" style={{ color: "var(--text)" }}>{label}</span>
+        <span className="text-xs font-medium" style={{ color: "var(--fg-primary)" }}>{label}</span>
         <span className="text-xs font-mono" style={{ color }}>{Math.round(pct)}%</span>
       </div>
-      <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: "var(--panel2)" }}>
+      <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: "var(--bg-raised)" }}>
         <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: color }} />
       </div>
-      <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>{detail}</p>
+      <p className="text-xs mt-1" style={{ color: "var(--fg-tertiary)" }}>{detail}</p>
     </div>
   );
 }
@@ -624,8 +617,8 @@ function QuotaBar({ label, pct, detail }: { label: string; pct: number; detail: 
 function QuotaTab() {
   const { quota, loading } = useQuota();
 
-  if (loading) return <p style={{ color: "var(--text-muted)" }}>Loading…</p>;
-  if (!quota)  return <p style={{ color: "var(--text-muted)" }}>Unable to load quota data.</p>;
+  if (loading) return <p style={{ color: "var(--fg-tertiary)" }}>Loading…</p>;
+  if (!quota)  return <p style={{ color: "var(--fg-tertiary)" }}>Unable to load quota data.</p>;
 
   const storageMB = (quota.storage_bytes / (1024 * 1024)).toFixed(1);
   const storageLimitMB = quota.storage_limit_mb ? `${quota.storage_limit_mb} MB` : "Unlimited";
@@ -633,7 +626,7 @@ function QuotaTab() {
   return (
     <div>
       <SectionHeading>YOUR USAGE</SectionHeading>
-      <div className="rounded p-5 mb-4" style={{ background: "var(--panel)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
+      <div className="rounded p-5 mb-4" style={{ background: "var(--bg-raised)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
         <QuotaBar
           label="Matters"
           pct={matterPercent(quota)}
@@ -652,7 +645,7 @@ function QuotaTab() {
       </div>
       <div
         className="rounded p-3 text-xs font-mono"
-        style={{ background: "var(--panel2)", color: "var(--text-muted)", border: "0.5px solid rgba(224,224,224,0.09)" }}
+        style={{ background: "var(--bg-raised)", color: "var(--fg-tertiary)", border: "0.5px solid rgba(224,224,224,0.09)" }}
       >
         Plan: <span style={{ color: "var(--verdict-neon)" }}>{quota.plan_id}</span>
       </div>
@@ -735,9 +728,9 @@ export default function AdminPage() {
                       }}
                       className="px-3 py-1.5 rounded text-xs font-mono tracking-wide cursor-pointer transition-all duration-150"
                       style={{
-                        background: selected ? "rgba(0,255,195,0.06)" : "var(--panel)",
-                        border: `1px solid ${selected ? "rgba(0,255,195,0.28)" : "var(--border)"}`,
-                        color: selected ? "var(--verdict-neon)" : "var(--text-muted)",
+                        background: selected ? "rgba(0,255,195,0.06)" : "var(--bg-raised)",
+                        border: `0.5px solid ${selected ? "rgba(0,255,195,0.28)" : "var(--border-hair)"}`,
+                        color: selected ? "var(--verdict-neon)" : "var(--fg-tertiary)",
                       }}
                     >
                       {area}
@@ -790,28 +783,28 @@ export default function AdminPage() {
               >
                 <div className="flex-1 min-w-0 mr-4">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-sm font-medium" style={{ color: "var(--text)" }}>{item.label}</span>
+                    <span className="text-sm font-medium" style={{ color: "var(--fg-primary)" }}>{item.label}</span>
                     <LexTooltip content={item.tooltip} side="right">
                       <span className="w-3.5 h-3.5 rounded-full text-[9px] flex items-center justify-center cursor-help"
-                        style={{ background: "var(--panel2)", border: "0.5px solid rgba(0,255,195,0.14)", color: "var(--text-muted)" }}>
+                        style={{ background: "var(--bg-raised)", border: "0.5px solid rgba(0,255,195,0.14)", color: "var(--fg-tertiary)" }}>
                         ?
                       </span>
                     </LexTooltip>
                   </div>
-                  <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{item.desc}</p>
+                  <p className="text-xs mt-0.5" style={{ color: "var(--fg-tertiary)" }}>{item.desc}</p>
                 </div>
                 <button
                   onClick={() => set(item.key, !(settings as unknown as Record<string, unknown>)[item.key])}
                   className="relative flex-shrink-0 w-11 h-6 rounded-full cursor-pointer transition-all duration-200"
                   style={{
-                    background: (settings as unknown as Record<string, unknown>)[item.key] ? "var(--verdict-neon)" : "var(--panel2)",
+                    background: (settings as unknown as Record<string, unknown>)[item.key] ? "var(--verdict-neon)" : "var(--bg-raised)",
                     border: "0.5px solid rgba(0,255,195,0.14)",
                   }}
                 >
                   <span
                     className="absolute top-0.5 w-5 h-5 rounded-full transition-all duration-200"
                     style={{
-                      background: "var(--text)",
+                      background: "var(--fg-primary)",
                       left: (settings as unknown as Record<string, unknown>)[item.key] ? "calc(100% - 22px)" : "2px",
                     }}
                   />
@@ -897,8 +890,8 @@ export default function AdminPage() {
                 style={{ accentColor: "var(--verdict-neon)" }}
               />
               <div className="flex justify-between mt-1">
-                <span className="text-xs" style={{ color: "var(--text-muted)" }}>500</span>
-                <span className="text-xs" style={{ color: "var(--text-muted)" }}>8000</span>
+                <span className="text-xs" style={{ color: "var(--fg-tertiary)" }}>500</span>
+                <span className="text-xs" style={{ color: "var(--fg-tertiary)" }}>8000</span>
               </div>
             </Field>
             <Field label={`TEMPERATURE: ${settings.temperature.toFixed(2)}`} tooltip="Lower = more precise/deterministic, higher = more creative">
@@ -913,8 +906,8 @@ export default function AdminPage() {
                 style={{ accentColor: "var(--verdict-neon)" }}
               />
               <div className="flex justify-between mt-1">
-                <span className="text-xs" style={{ color: "var(--text-muted)" }}>Precise</span>
-                <span className="text-xs" style={{ color: "var(--text-muted)" }}>Creative</span>
+                <span className="text-xs" style={{ color: "var(--fg-tertiary)" }}>Precise</span>
+                <span className="text-xs" style={{ color: "var(--fg-tertiary)" }}>Creative</span>
               </div>
             </Field>
           </div>
@@ -929,8 +922,8 @@ export default function AdminPage() {
               style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}
             >
               <div>
-                <span className="text-sm font-medium" style={{ color: "var(--text)" }}>Auto-Verify Citations</span>
-                <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+                <span className="text-sm font-medium" style={{ color: "var(--fg-primary)" }}>Auto-Verify Citations</span>
+                <p className="text-xs mt-0.5" style={{ color: "var(--fg-tertiary)" }}>
                   Automatically verify all citations against CourtListener after each research query
                 </p>
               </div>
@@ -938,14 +931,14 @@ export default function AdminPage() {
                 onClick={() => set("autoVerify", !settings.autoVerify)}
                 className="relative flex-shrink-0 w-11 h-6 rounded-full cursor-pointer transition-all duration-200 ml-4"
                 style={{
-                  background: settings.autoVerify ? "var(--verdict-neon)" : "var(--panel2)",
+                  background: settings.autoVerify ? "var(--verdict-neon)" : "var(--bg-raised)",
                   border: "0.5px solid rgba(0,255,195,0.14)",
                 }}
               >
                 <span
                   className="absolute top-0.5 w-5 h-5 rounded-full transition-all duration-200"
                   style={{
-                    background: "var(--text)",
+                    background: "var(--fg-primary)",
                     left: settings.autoVerify ? "calc(100% - 22px)" : "2px",
                   }}
                 />
@@ -956,7 +949,7 @@ export default function AdminPage() {
               style={{
                 background: "rgba(0,255,195,0.06)",
                 border: "0.5px solid rgba(0,255,195,0.28)",
-                color: "var(--text-sub)",
+                color: "var(--fg-secondary)",
                 lineHeight: 1.7,
               }}
             >
@@ -980,7 +973,7 @@ export default function AdminPage() {
             <button
               onClick={() => set("systemPrompt", DEFAULT_SYSTEM)}
               className="text-xs underline cursor-pointer"
-              style={{ color: "var(--text-muted)" }}
+              style={{ color: "var(--fg-tertiary)" }}
             >
               Reset to default
             </button>
@@ -1006,7 +999,7 @@ export default function AdminPage() {
         return (
           <div>
             <SectionHeading>API CONNECTIVITY</SectionHeading>
-            <p className="text-xs mb-4" style={{ color: "var(--text-muted)" }}>
+            <p className="text-xs mb-4" style={{ color: "var(--fg-tertiary)" }}>
               Test connectivity to all integrated APIs. Requires API keys to be set.
             </p>
             {[
@@ -1021,12 +1014,12 @@ export default function AdminPage() {
                 style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}
               >
                 <div>
-                  <p className="text-sm font-medium" style={{ color: "var(--text)" }}>{api.name}</p>
-                  <p className="text-xs" style={{ color: "var(--text-muted)" }}>{api.desc}</p>
+                  <p className="text-sm font-medium" style={{ color: "var(--fg-primary)" }}>{api.name}</p>
+                  <p className="text-xs" style={{ color: "var(--fg-tertiary)" }}>{api.desc}</p>
                 </div>
                 <button
                   className="rounded px-3 py-1.5 text-xs font-mono tracking-wide cursor-pointer transition-all duration-150"
-                  style={{ background: "var(--panel2)", border: "0.5px solid rgba(0,255,195,0.14)", color: "var(--text-muted)" }}
+                  style={{ background: "var(--bg-raised)", border: "0.5px solid rgba(0,255,195,0.14)", color: "var(--fg-tertiary)" }}
                 >
                   PING
                 </button>
@@ -1047,8 +1040,8 @@ export default function AdminPage() {
           <Building2 size={15} style={{ color: "var(--verdict-neon)" }} />
         </div>
         <div>
-          <h1 className="text-sm font-semibold" style={{ color: "var(--text)" }}>Administration</h1>
-          <p className="text-xs" style={{ color: "var(--text-muted)" }}>Firm profile, API keys, and preferences</p>
+          <h1 className="text-sm font-semibold" style={{ color: "var(--fg-primary)" }}>Administration</h1>
+          <p className="text-xs" style={{ color: "var(--fg-tertiary)" }}>Firm profile, API keys, and preferences</p>
         </div>
       </div>
 
@@ -1065,7 +1058,7 @@ export default function AdminPage() {
                 style={{
                   background: active ? "rgba(0,255,195,0.06)" : "transparent",
                   borderLeft: `2px solid ${active ? "var(--verdict-neon)" : "transparent"}`,
-                  color: active ? "var(--verdict-neon)" : "var(--text-muted)",
+                  color: active ? "var(--verdict-neon)" : "var(--fg-tertiary)",
                 }}
               >
                 <Icon size={14} className="flex-shrink-0" />
@@ -1087,14 +1080,7 @@ export default function AdminPage() {
             <div className="flex justify-end mt-6 pt-4" style={{ borderTop: "0.5px solid rgba(224,224,224,0.08)" }}>
               <button
                 onClick={save}
-                className="flex items-center gap-2 rounded px-5 py-2.5 text-sm font-semibold cursor-pointer transition-all duration-150"
-                style={{
-                  background: saved
-                    ? "rgba(0,255,195,0.06)"
-                    : "var(--verdict-neon)",
-                  color: saved ? "var(--verdict-neon)" : "var(--midnight-court)",
-                  border: saved ? "0.5px solid rgba(0,255,195,0.28)" : "none",
-                }}
+                className={`lex-btn ${saved ? "lex-btn--secondary" : "lex-btn--primary"}`}
               >
                 {saved ? "Saved" : "Save Changes"}
               </button>

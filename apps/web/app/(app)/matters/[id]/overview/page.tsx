@@ -252,19 +252,7 @@ export default function OverviewPage() {
             <Link
               key={tabId}
               href={`/matters/${id}/${tabId}`}
-              className="flex flex-col items-center gap-1.5 rounded p-2.5 text-center cursor-pointer transition-all duration-150"
-              style={{
-                background: "rgba(255,255,255,0.02)",
-                border: "0.5px solid rgba(224,224,224,0.08)",
-              }}
-              onMouseEnter={e => {
-                (e.currentTarget as HTMLElement).style.borderColor = "rgba(0,255,195,0.2)";
-                (e.currentTarget as HTMLElement).style.background = "rgba(0,255,195,0.04)";
-              }}
-              onMouseLeave={e => {
-                (e.currentTarget as HTMLElement).style.borderColor = "rgba(224,224,224,0.08)";
-                (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.02)";
-              }}
+              className="lex-btn lex-btn--ghost flex flex-col items-center gap-1.5 p-2.5 text-center"
             >
               <Icon size={14} style={{ color: "var(--verdict-neon)" }} />
               <span

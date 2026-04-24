@@ -23,10 +23,10 @@ const TYPE_COLORS: Record<TimelineEvent["eventType"], string> = {
   filing: "var(--verdict-neon)",
   hearing: "var(--verdict-amber)",
   discovery: "#0ea5e9",
-  deposition: "var(--text-sub)",
+  deposition: "var(--fg-secondary)",
   order: "var(--verdict-crimson)",
   settlement: "var(--verdict-neon)",
-  other: "var(--text-muted)",
+  other: "var(--fg-tertiary)",
 };
 
 export default function TimelinePage() {
@@ -66,10 +66,10 @@ export default function TimelinePage() {
   const sorted = [...events].sort((a, b) => a.date.localeCompare(b.date));
 
   const inputStyle = {
-    background: "var(--panel2)",
-    color: "var(--text)",
-    border: "0.5px solid rgba(224,224,224,0.09)",
-    borderRadius: "8px",
+    background: "var(--bg-raised)",
+    color: "var(--fg-primary)",
+    border: "0.5px solid var(--border-hair)",
+    borderRadius: "var(--radius-md)",
     outline: "none",
     fontSize: "0.75rem",
     padding: "6px 12px",
@@ -78,14 +78,11 @@ export default function TimelinePage() {
   return (
     <PanelShell
       icon={CalendarDays}
-      title="Case Timeline"
+      title="Case timeline"
       description="Visual chronology of case events and milestones"
     >
       {/* Add form */}
-      <div
-        className="rounded p-4 mb-8"
-        style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}
-      >
+      <div className="lex-card mb-8">
         <div className="flex flex-wrap gap-3 mb-3">
           <input
             type="date"
@@ -121,15 +118,7 @@ export default function TimelinePage() {
           <button
             onClick={addEvent}
             disabled={!date || !title.trim()}
-            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold flex-shrink-0"
-            style={{
-              background: date && title.trim()
-                ? "var(--verdict-neon)"
-                : "var(--panel2)",
-              color: date && title.trim() ? "var(--midnight-court)" : "var(--text-muted)",
-              border: "none",
-              cursor: date && title.trim() ? "pointer" : "default",
-            }}
+            className="lex-btn lex-btn--primary"
           >
             <Plus size={12} />
             Add
@@ -139,66 +128,61 @@ export default function TimelinePage() {
 
       {/* Timeline */}
       {sorted.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <div
-            className="w-12 h-12 rounded flex items-center justify-center mb-3"
-            style={{ background: "rgba(0,255,195,0.06)", border: "1px solid rgba(0,255,195,0.28)" }}
-          >
+        <div className="lex-empty">
+          <div className="w-14 h-14 rounded flex items-center justify-center mx-auto mb-4" style={{ background: "rgba(0,255,195,0.06)", border: "0.5px solid rgba(0,255,195,0.22)" }}>
             <CalendarDays size={20} style={{ color: "var(--verdict-neon)" }} />
           </div>
-          <p className="text-sm font-medium mb-1" style={{ color: "var(--text)" }}>No events yet</p>
-          <p className="text-xs" style={{ color: "var(--text-muted)" }}>Add your first timeline event above</p>
+          <p className="lex-empty__label">No events yet</p>
+          <p className="lex-empty__body">Add your first timeline event above</p>
         </div>
       ) : (
         <div className="relative">
           {/* Vertical line */}
           <div
             className="absolute left-3 top-0 bottom-0 w-px"
-            style={{ background: "var(--border)" }}
+            style={{ background: "var(--border-line)" }}
           />
           <div className="space-y-6 pl-10">
             {sorted.map(event => (
               <div key={event.id} className="relative">
                 {/* Dot */}
                 <div
-                  className="absolute -left-7 top-1 w-3 h-3 rounded-full border-2"
+                  className="absolute -left-7 top-1 w-3 h-3 rounded-full"
                   style={{
                     background: TYPE_COLORS[event.eventType],
-                    borderColor: "var(--panel)",
+                    border: "2px solid var(--bg-panel)",
                     boxShadow: `0 0 0 2px ${TYPE_COLORS[event.eventType]}44`,
                   }}
                 />
-                <div
-                  className="rounded p-4"
-                  style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}
-                >
+                <div className="lex-card">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <span
-                          className="text-xs font-semibold px-2 py-0.5 rounded-full"
+                          className="lex-chip"
                           style={{
                             background: `${TYPE_COLORS[event.eventType]}22`,
                             color: TYPE_COLORS[event.eventType],
-                            border: `1px solid ${TYPE_COLORS[event.eventType]}44`,
+                            borderColor: `${TYPE_COLORS[event.eventType]}44`,
                           }}
                         >
                           {event.eventType.charAt(0).toUpperCase() + event.eventType.slice(1)}
                         </span>
-                        <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+                        <span className="font-mono text-[10px]" style={{ color: "var(--fg-tertiary)" }}>
                           {new Date(event.date + "T12:00:00").toLocaleDateString(undefined, {
                             year: "numeric", month: "long", day: "numeric",
                           })}
                         </span>
                       </div>
-                      <p className="text-sm font-medium" style={{ color: "var(--text)" }}>{event.title}</p>
+                      <p className="text-sm font-medium" style={{ color: "var(--fg-primary)" }}>{event.title}</p>
                       {event.description && (
-                        <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>{event.description}</p>
+                        <p className="text-xs mt-1" style={{ color: "var(--fg-tertiary)" }}>{event.description}</p>
                       )}
                     </div>
                     <button
                       onClick={() => deleteEvent(event.id)}
-                      style={{ color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", flexShrink: 0 }}
+                      className="lex-btn lex-btn--icon lex-btn--ghost"
+                      style={{ flexShrink: 0 }}
                     >
                       <Trash2 size={13} />
                     </button>

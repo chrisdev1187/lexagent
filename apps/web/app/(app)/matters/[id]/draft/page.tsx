@@ -34,6 +34,7 @@ export default function DraftPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [showUpgrade, setShowUpgrade] = useState(false);
 
   const generate = async () => {
     if (!matter) return;
@@ -52,7 +53,8 @@ export default function DraftPage() {
       const text = data.content?.[0]?.text ?? data.error?.message ?? "No response.";
       setDraft(text);
     } catch (e) {
-      setError((e as Error).message);
+      if (e instanceof QuotaExceededError) { setShowUpgrade(true); }
+      else { setError((e as Error).message); }
     } finally {
       setLoading(false);
     }
@@ -79,153 +81,128 @@ export default function DraftPage() {
   };
 
   const selectStyle = {
-    background: "var(--panel2)",
-    color: "var(--text)",
-    border: "0.5px solid rgba(224,224,224,0.09)",
-    borderRadius: "8px",
+    background: "var(--bg-raised)",
+    color: "var(--fg-primary)",
+    border: "0.5px solid var(--border-hair)",
+    borderRadius: "var(--radius-md)",
     outline: "none",
     fontSize: "0.75rem",
     padding: "6px 12px",
   };
 
   return (
-    <PanelShell
-      icon={FileEdit}
-      title="AI Document Drafting"
-      description="Generate legal documents with AI — motions, briefs, letters, and more"
-    >
-      {/* Controls */}
-      <div
-        className="rounded p-4 mb-6 space-y-4"
-        style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}
+    <>
+      {showUpgrade && (
+        <UpgradeCTA
+          reason="You've used your monthly AI quota. Upgrade to continue drafting."
+          onClose={() => setShowUpgrade(false)}
+        />
+      )}
+      <PanelShell
+        icon={FileEdit}
+        title="AI document drafting"
+        description="Generate legal documents with AI — motions, briefs, letters, and more"
       >
-        <div>
-          <label className="text-xs mb-1.5 block font-medium" style={{ color: "var(--text-muted)" }}>
-            Document Type
-          </label>
-          <select
-            value={docType}
-            onChange={e => setDocType(e.target.value)}
-            style={{ ...selectStyle, width: "100%" }}
-          >
-            {DOC_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="text-xs mb-1.5 block font-medium" style={{ color: "var(--text-muted)" }}>
-            Special Instructions (optional)
-          </label>
-          <textarea
-            value={instructions}
-            onChange={e => setInstructions(e.target.value)}
-            placeholder="e.g. Focus on Fourth Amendment arguments, include recent circuit court precedents…"
-            rows={3}
-            className="w-full text-sm resize-none"
-            style={{
-              background: "var(--panel2)",
-              color: "var(--text)",
-              border: "0.5px solid rgba(224,224,224,0.09)",
-              borderRadius: "8px",
-              outline: "none",
-              padding: "8px 12px",
-            }}
-          />
-        </div>
-        <button
-          onClick={generate}
-          disabled={loading}
-          className="flex items-center gap-2 rounded px-4 py-2.5 text-sm font-semibold w-full justify-center"
-          style={{
-            background: loading
-              ? "var(--panel2)"
-              : "var(--verdict-neon)",
-            color: loading ? "var(--text-muted)" : "var(--midnight-court)",
-            border: "none",
-            cursor: loading ? "default" : "pointer",
-          }}
-        >
-          {loading
-            ? <><Loader2 size={15} className="animate-spin" /> Generating…</>
-            : <><Zap size={15} /> Generate {docType}</>
-          }
-        </button>
-      </div>
-
-      {error && (
-        <div
-          className="rounded-lg px-4 py-3 mb-4 text-xs"
-          style={{ background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.2)", color: "var(--verdict-crimson)" }}
-        >
-          {error}
-        </div>
-      )}
-
-      {loading && (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <div className="flex gap-1.5 mb-4">
-            {[0, 1, 2].map(i => (
-              <div
-                key={i}
-                className="w-2 h-2 rounded-full animate-pulse"
-                style={{ background: "var(--verdict-neon)", animationDelay: `${i * 0.15}s` }}
-              />
-            ))}
+        {/* Controls */}
+        <div className="lex-card mb-6 space-y-4">
+          <div>
+            <label className="lex-micro mb-1.5 block">Document type</label>
+            <select
+              value={docType}
+              onChange={e => setDocType(e.target.value)}
+              style={{ ...selectStyle, width: "100%" }}
+            >
+              {DOC_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
           </div>
-          <p className="text-sm" style={{ color: "var(--text-muted)" }}>Drafting {docType}…</p>
-          <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>This may take 20-40 seconds</p>
+          <div>
+            <label className="lex-micro mb-1.5 block">Special instructions (optional)</label>
+            <textarea
+              value={instructions}
+              onChange={e => setInstructions(e.target.value)}
+              placeholder="e.g. Focus on Fourth Amendment arguments, include recent circuit court precedents…"
+              rows={3}
+              className="w-full text-sm resize-none"
+              style={{
+                background: "var(--bg-raised)",
+                color: "var(--fg-primary)",
+                border: "0.5px solid var(--border-hair)",
+                borderRadius: "var(--radius-md)",
+                outline: "none",
+                padding: "8px 12px",
+              }}
+            />
+          </div>
+          <button
+            onClick={generate}
+            disabled={loading}
+            className="lex-btn lex-btn--primary w-full justify-center"
+          >
+            {loading
+              ? <><Loader2 size={15} className="animate-spin" /> Generating…</>
+              : <><Zap size={15} /> Generate {docType}</>
+            }
+          </button>
         </div>
-      )}
 
-      {draft && !loading && (
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>{docType}</p>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={exportPDF}
-                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
-                style={{
-                  background: "var(--panel2)",
-                  color: "var(--text-muted)",
-                  border: "0.5px solid rgba(224,224,224,0.09)",
-                  cursor: "pointer",
-                }}
+        {error && (
+          <div
+            className="rounded px-4 py-3 mb-4 text-xs"
+            style={{ background: "rgba(255,51,85,0.08)", border: "0.5px solid rgba(255,51,85,0.3)", color: "var(--verdict-crimson)" }}
+          >
+            {error}
+          </div>
+        )}
+
+        {loading && (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="flex gap-1.5 mb-4">
+              {[0, 1, 2].map(i => (
+                <div
+                  key={i}
+                  className="w-2 h-2 rounded-full animate-pulse"
+                  style={{ background: "var(--verdict-neon)", animationDelay: `${i * 0.15}s` }}
+                />
+              ))}
+            </div>
+            <p className="text-sm" style={{ color: "var(--fg-tertiary)" }}>Drafting {docType}…</p>
+            <p className="text-xs mt-1" style={{ color: "var(--fg-tertiary)" }}>This may take 20-40 seconds</p>
+          </div>
+        )}
+
+        {draft && !loading && (
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <p className="lex-micro">{docType}</p>
+              <div className="flex items-center gap-2">
+                <button onClick={exportPDF} className="lex-btn lex-btn--secondary">
+                  <Download size={12} />
+                  Export PDF
+                </button>
+                <button
+                  onClick={copyToClipboard}
+                  className={`lex-btn ${copied ? "lex-btn--ghost" : "lex-btn--secondary"}`}
+                  style={copied ? { color: "var(--verdict-neon)" } : {}}
+                >
+                  {copied ? <Check size={12} /> : <Copy size={12} />}
+                  {copied ? "Copied" : "Copy"}
+                </button>
+              </div>
+            </div>
+            <div
+              className="lex-card overflow-auto"
+              style={{ maxHeight: "600px" }}
+            >
+              <pre
+                className="text-sm leading-relaxed whitespace-pre-wrap"
+                style={{ color: "var(--fg-primary)", fontFamily: "var(--font-sans)" }}
               >
-                <Download size={12} />
-                Export PDF
-              </button>
-              <button
-                onClick={copyToClipboard}
-                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
-                style={{
-                  background: copied ? "rgba(16,185,129,0.12)" : "var(--panel2)",
-                  color: copied ? "var(--verdict-neon)" : "var(--text-muted)",
-                  border: `1px solid ${copied ? "rgba(16,185,129,0.3)" : "var(--border)"}`,
-                  cursor: "pointer",
-                }}
-              >
-                {copied ? <Check size={12} /> : <Copy size={12} />}
-                {copied ? "Copied!" : "Copy to Clipboard"}
-              </button>
+                {draft}
+              </pre>
             </div>
           </div>
-          <div
-            className="rounded p-5 overflow-auto"
-            style={{
-              background: "rgba(17,17,20,0.7)",
-              border: "0.5px solid rgba(224,224,224,0.09)",
-              maxHeight: "600px",
-            }}
-          >
-            <pre
-              className="text-sm leading-relaxed whitespace-pre-wrap font-sans"
-              style={{ color: "var(--text)" }}
-            >
-              {draft}
-            </pre>
-          </div>
-        </div>
-      )}
-    </PanelShell>
+        )}
+      </PanelShell>
+    </>
   );
 }

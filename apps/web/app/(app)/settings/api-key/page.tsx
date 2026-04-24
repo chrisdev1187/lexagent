@@ -163,13 +163,7 @@ export default function ApiKeyPage() {
               <button
                 onClick={saveKey}
                 disabled={saving || !keyInput.trim()}
-                className="px-4 py-2 rounded font-mono text-[11px] tracking-[0.1em] font-semibold disabled:opacity-40 cursor-pointer"
-                style={{
-                  background: "var(--verdict-neon)",
-                  color: "var(--midnight-court)",
-                  boxShadow: keyInput.trim() ? "0 0 12px rgba(0,255,195,0.3)" : "none",
-                  border: "none",
-                }}
+                className="lex-btn lex-btn--primary"
               >
                 {saving ? "SAVING…" : saved ? "SAVED ✓" : "SAVE"}
               </button>
@@ -177,8 +171,7 @@ export default function ApiKeyPage() {
             {hasKey && (
               <button
                 onClick={removeKey}
-                className="font-mono text-[10px] tracking-[0.1em] uppercase cursor-pointer"
-                style={{ color: "var(--verdict-crimson)", background: "none", border: "none" }}
+                className="lex-btn lex-btn--danger"
               >
                 Remove key and disable BYOK
               </button>

@@ -113,8 +113,8 @@ export default function ResearchPage() {
             >
               <Search size={20} style={{ color: "var(--verdict-neon)" }} />
             </div>
-            <p className="text-sm font-medium mb-1" style={{ color: "var(--text)" }}>Ask ARES anything</p>
-            <p className="text-xs max-w-sm" style={{ color: "var(--text-muted)" }}>
+            <p className="text-sm font-medium mb-1" style={{ color: "var(--fg-primary)" }}>Ask ARES anything</p>
+            <p className="text-xs max-w-sm" style={{ color: "var(--fg-tertiary)" }}>
               Search case law, statutes, regulations, or ask for legal analysis. All citations will be Bluebook-formatted.
             </p>
           </div>
@@ -155,7 +155,7 @@ export default function ResearchPage() {
                   />
                 ))}
               </div>
-              <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+              <span className="text-xs" style={{ color: "var(--fg-tertiary)" }}>
                 {loadingPhase === 0 && "ARES is researching…"}
                 {loadingPhase === 1 && "Server warming up — Render free tier takes ~8-12 s on first request…"}
                 {loadingPhase === 2 && "Almost there…"}
@@ -180,7 +180,7 @@ export default function ResearchPage() {
           className="w-full px-4 py-3 text-sm resize-none lex-focus"
           style={{
             background: "transparent",
-            color: "var(--text)",
+            color: "var(--fg-primary)",
             outline: "none",
             border: "none",
           }}
@@ -194,12 +194,12 @@ export default function ResearchPage() {
               <button
                 onClick={() => setMessages([])}
                 className="cursor-pointer p-1.5 rounded-md transition-all duration-150"
-                style={{ color: "var(--text-muted)" }}
+                style={{ color: "var(--fg-tertiary)" }}
               >
                 <RotateCcw size={13} />
               </button>
             </LexTooltip>
-            <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+            <span className="text-xs" style={{ color: "var(--fg-tertiary)" }}>
               Enter to send · Shift+Enter for newline
             </span>
           </div>
@@ -207,14 +207,7 @@ export default function ResearchPage() {
             <button
               onClick={handleSend}
               disabled={!query.trim() || loading}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold cursor-pointer transition-all duration-150"
-              style={{
-                background: query.trim() && !loading
-                  ? "var(--verdict-neon)"
-                  : "var(--panel2)",
-                color: query.trim() && !loading ? "var(--midnight-court)" : "var(--text-muted)",
-                border: "none",
-              }}
+              className="lex-btn lex-btn--primary"
             >
               <Send size={12} />
               Research
