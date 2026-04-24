@@ -8,6 +8,25 @@ From Phase 10 onward, every phase ships under a new version and a single commit/
 
 ---
 
+## [0.3.1] — 2026-04-24 — Phase 11: Admin-gate the 9-provider waterfall
+
+### Changed
+- **Backend AI routing is now role-aware.** `apps/api/src/routes/anthropic.ts` resolves the caller's `user_roles.role` on every request:
+  - `admin` → free 9-provider waterfall (Groq → Cerebras → … → Gemini). Zero-cost path, internal testing only.
+  - `user` with BYOK → their Anthropic key (`user_roles.byok_key`, `byok_active=true`).
+  - `user` without BYOK → platform `ANTHROPIC_API_KEY`.
+  - Anything else (no key available, not admin) → `503 configuration_error` with a clear message.
+- Response headers now tag the serving tier: `_provider` + `_tier: "admin-waterfall"` for admins, `X-Tier: byok | platform` for users.
+
+### Fixed
+- Research page no longer shows the misleading "Add your Anthropic API key" banner when `settings.anthropicKey` is empty. The backend handles routing; the banner was lying.
+
+### Ops note
+- **Action required on Render:** set `ANTHROPIC_API_KEY` for the platform-default path. Without it, non-admin users with no BYOK key will hit the 503 error.
+- Admin accounts (`drwillybum@gmail.com`, `christiaanbothma47@gmail.com`) continue to use the free waterfall for QA — no Anthropic key consumption.
+
+---
+
 ## [0.3.0] — 2026-04-24 — Phase 10: Version System
 
 ### Added

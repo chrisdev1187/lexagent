@@ -2,9 +2,37 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { requireAuth } from "../middleware/auth.js";
 import { rateLimit } from "../middleware/ratelimit.js";
+import { supabase } from "../lib/supabase.js";
 
 const anthropicRpm = Number(process.env.ANTHROPIC_RPM ?? 60);
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
+
+// ── Role resolution ───────────────────────────────────────────────────────────
+// Free 9-provider waterfall is ADMIN-ONLY (for internal testing, zero-cost).
+// All other users must hit Anthropic via: (a) their BYOK key, or (b) the
+// platform ANTHROPIC_API_KEY. No silent fallbacks across tiers.
+
+interface RoleContext {
+  role: "admin" | "user";
+  byokKey: string | null;
+}
+
+async function resolveRoleContext(userId: string): Promise<RoleContext> {
+  // No Supabase → local dev / demo mode → treat as admin (waterfall ok for dev)
+  if (!supabase || userId === "anon") {
+    return { role: "admin", byokKey: null };
+  }
+
+  const { data } = await supabase
+    .from("user_roles")
+    .select("role, byok_active, byok_key")
+    .eq("user_id", userId)
+    .single();
+
+  const role = data?.role === "admin" ? "admin" : "user";
+  const byokKey = data?.byok_active && data?.byok_key ? data.byok_key : null;
+  return { role, byokKey };
+}
 
 // ── Provider waterfall ────────────────────────────────────────────────────────
 // Tried in order. Skipped if key not set. 429 → skip to next. Other errors → log + skip.
@@ -235,14 +263,27 @@ anthropicRouter.post(
 
     const { model, max_tokens, messages, system } = parsed.data;
 
-    // ── Free provider waterfall ───────────────────────────────────────────
-    const hasAnyFreeKey = PROVIDERS.some((p) => !!p.key);
+    const userId = c.get("userId");
+    const { role, byokKey } = await resolveRoleContext(userId);
 
-    if (hasAnyFreeKey) {
+    // ── Admin path: free 9-provider waterfall (testing, zero-cost) ────────
+    if (role === "admin") {
+      const hasAnyFreeKey = PROVIDERS.some((p) => !!p.key);
+      if (!hasAnyFreeKey) {
+        return c.json(
+          {
+            type: "error",
+            error: {
+              type: "configuration_error",
+              message:
+                "Admin waterfall enabled but no free provider keys configured. Add GROQ_API_KEY, GEMINI_API_KEY, or another provider key to apps/api/.env",
+            },
+          },
+          503
+        );
+      }
       try {
         const result = await tryProviders(messages, system, max_tokens, model);
-
-        // Return in Anthropic response format so the frontend never needs to change
         return c.json({
           id: `msg_${Date.now()}`,
           type: "message",
@@ -255,8 +296,8 @@ anthropicRouter.post(
             input_tokens: result.inputTokens,
             output_tokens: result.outputTokens,
           },
-          // Expose which provider served this response (visible in dev tools)
           _provider: result.provider,
+          _tier: "admin-waterfall",
         });
       } catch (err) {
         return c.json(
@@ -266,15 +307,16 @@ anthropicRouter.post(
       }
     }
 
-    // ── Paid Anthropic fallback ───────────────────────────────────────────
-    if (!ANTHROPIC_KEY) {
+    // ── User path: Anthropic via BYOK key, else platform key ──────────────
+    const keyToUse = byokKey ?? ANTHROPIC_KEY;
+    if (!keyToUse) {
       return c.json(
         {
           type: "error",
           error: {
             type: "configuration_error",
             message:
-              "No LLM configured. Add GROQ_API_KEY, GEMINI_API_KEY, OPENROUTER_API_KEY, or another provider key to apps/api/.env",
+              "AI is not available. Add your Anthropic API key in Settings → API Key, or contact support.",
           },
         },
         503
@@ -285,18 +327,17 @@ anthropicRouter.post(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": ANTHROPIC_KEY,
+        "x-api-key": keyToUse,
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify(parsed.data),
     });
 
     const responseBody = await upstream.text();
-    return new Response(responseBody, {
-      status: upstream.status,
-      headers: {
-        "Content-Type": upstream.headers.get("Content-Type") ?? "application/json",
-      },
-    });
+    const headers: Record<string, string> = {
+      "Content-Type": upstream.headers.get("Content-Type") ?? "application/json",
+      "X-Tier": byokKey ? "byok" : "platform",
+    };
+    return new Response(responseBody, { status: upstream.status, headers });
   }
 );

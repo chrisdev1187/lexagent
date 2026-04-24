@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Search, Send, RotateCcw, Copy, Check, AlertTriangle, BookOpen } from "lucide-react";
+import { Search, Send, RotateCcw, Copy, Check, BookOpen } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useMatters } from "@/providers/matters-provider";
 import { useSettings } from "@/providers/settings-provider";
@@ -41,8 +41,6 @@ export default function ResearchPage() {
   const [expandedSources, setExpandedSources] = useState<Set<number>>(new Set());
   const loadingTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-
-  const hasKey = !!settings.anthropicKey;
 
   const copyMessage = async (content: string, idx: number) => {
     await navigator.clipboard.writeText(content);
@@ -140,20 +138,6 @@ export default function ResearchPage() {
         title="Legal Research"
         description="AI-powered research grounded in CourtListener (9M+ opinions)"
       >
-        {!hasKey && (
-          <div
-            className="rounded px-4 py-3 mb-4 text-xs flex items-center gap-2"
-            style={{
-              background: "rgba(255,184,0,0.06)",
-              border: "0.5px solid rgba(255,184,0,0.28)",
-              color: "var(--verdict-amber)",
-            }}
-          >
-            <AlertTriangle size={13} />
-            Add your Anthropic API key in <a href="/admin" className="underline ml-1">Administration → API Keys</a>
-          </div>
-        )}
-
         {/* Chat messages */}
         <div className="space-y-5 mb-4 min-h-[200px]">
           {messages.length === 0 && !loading && (
