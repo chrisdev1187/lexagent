@@ -8,6 +8,18 @@ From Phase 10 onward, every phase ships under a new version and a single commit/
 
 ---
 
+## [1.1.0] — 2026-04-24 — Phase 15: UI Polish
+
+### Fixed
+- **MatterCard hover chevron** — `group` class was missing from the card wrapper div, making the `group-hover:opacity-100` ChevronRight permanently invisible. Added `group` to restore the intended hover reveal.
+- **`.lex-prose` undefined** — class was referenced in `<Markdown>` but never defined in `globals.css`. Added the selector (alongside `.prose` which still provides all styles).
+
+### Changed
+- **Consolidated settings** — merged `/settings/profile`, `/settings/billing`, and `/settings/api-key` into a single `/settings` page with three tabs (Profile & Usage · Billing & Plan · API Key). Deep-link via `?tab=billing` etc. Sidebar user menu updated accordingly.
+- **Sidebar user menu links** — now route to `/settings?tab=profile`, `?tab=billing`, and `?tab=api-key` instead of three separate routes.
+
+---
+
 ## [1.0.0] — 2026-04-24 — Phase 14: Production Ship
 
 ### Added

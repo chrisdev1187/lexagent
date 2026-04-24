@@ -384,9 +384,9 @@ export function Sidebar({ onNewMatter }: SidebarProps) {
                 </div>
               )}
               {[
-                { href: "/settings/profile", icon: UserCircle, label: "Profile & Usage" },
-                { href: "/settings/billing", icon: CreditCard, label: "Billing & Plan" },
-                { href: "/settings/api-key", icon: Key, label: "API Keys" },
+                { href: "/settings?tab=profile",  icon: UserCircle, label: "Profile & Usage" },
+                { href: "/settings?tab=billing",  icon: CreditCard, label: "Billing & Plan" },
+                { href: "/settings?tab=api-key",  icon: Key,        label: "API Keys" },
               ].map(({ href, icon: Icon, label }) => (
                 <Link
                   key={href}

@@ -413,6 +413,8 @@ html, body, #__next {
   margin: 0.875rem 0;
 }
 
+.lex-prose { /* alias — used alongside .prose in Markdown component */ }
+
 .cite-verified {
   font-size: 0.6875rem;
   color: var(--verdict-neon);

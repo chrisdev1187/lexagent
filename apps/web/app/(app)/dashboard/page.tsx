@@ -82,7 +82,7 @@ function MatterCard({ matter }: { matter: Matter }) {
   return (
     <Link href={`/matters/${matter.id}/overview`}>
       <div
-        className="rounded p-4 cursor-pointer transition-all duration-150 matter-card"
+        className="group rounded p-4 cursor-pointer transition-all duration-150 matter-card"
         style={{
           background: "rgba(17,17,20,0.7)",
           border: "0.5px solid rgba(224,224,224,0.09)",
