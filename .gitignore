@@ -7,3 +7,4 @@ apps/api/.env
 *.log
 .DS_Store
 Thumbs.db
+.aider*

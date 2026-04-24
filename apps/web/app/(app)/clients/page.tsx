@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Users, Search, Briefcase, Clock, ChevronRight } from "lucide-react";
+import { Users, Search, Briefcase, Clock, ChevronRight, Circle } from "lucide-react";
 import { useMatters, Matter } from "@/providers/matters-provider";
 
 interface ClientRecord {
@@ -12,11 +12,18 @@ interface ClientRecord {
   statuses: string[];
 }
 
-const STATUS_COLOR: Record<string, string> = {
-  Active: "text-verdict-neon",
-  Closed: "text-text-muted",
-  Pending: "text-verdict-amber",
-  Urgent: "text-verdict-crimson",
+const STATUS_DOT: Record<string, string> = {
+  Active: "var(--verdict-neon)",
+  Closed: "var(--fg-tertiary)",
+  Pending: "var(--verdict-amber)",
+  Urgent: "var(--verdict-crimson)",
+};
+
+const STATUS_CHIP_KIND: Record<string, string> = {
+  Active: "neon",
+  Closed: "neutral",
+  Pending: "amber",
+  Urgent: "crimson",
 };
 
 export default function ClientsPage() {
@@ -52,30 +59,44 @@ export default function ClientsPage() {
     <div className="flex-1 overflow-y-auto p-6 max-w-5xl mx-auto">
       {/* Header */}
       <div className="mb-6">
-        <span className="lex-micro lex-micro--neon">▸</span>
-        <h1 className="font-serif text-2xl font-semibold tracking-tight text-fg-primary">Clients</h1>
-        <p className="lex-micro text-fg-quaternary">
+        <span className="font-mono text-[10px] tracking-[0.2em] uppercase" style={{ color: "var(--verdict-neon)" }}>▸</span>
+        <h1 className="font-serif text-2xl font-semibold tracking-tight mt-1" style={{ color: "var(--fg-primary)" }}>
+          Clients
+        </h1>
+        <p className="font-mono text-[10px] tracking-[0.14em] uppercase mt-1" style={{ color: "var(--fg-quaternary)" }}>
           {clients.length} client{clients.length !== 1 ? "s" : ""} · {matters.length} matter{matters.length !== 1 ? "s" : ""}
         </p>
       </div>
 
       {/* Search */}
       <div className="relative mb-5">
-        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+        <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--fg-quaternary)" }} />
         <input
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search clients…"
-          className="w-full pl-9 pr-4 py-2.5 rounded text-sm lex-input"
+          className="w-full pl-9 pr-4 py-2.5 rounded text-sm lex-focus"
+          style={{
+            background: "rgba(255,255,255,0.03)",
+            border: "0.5px solid rgba(224,224,224,0.10)",
+            color: "var(--fg-primary)",
+            outline: "none",
+            fontFamily: "var(--font-sans)",
+          }}
         />
       </div>
 
       {/* Client list */}
       {filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center lex-empty">
-          <Users size={32} className="mb-3 text-text-muted" />
-          <p className="text-sm text-text-muted">
-            {matters.length === 0 ? "No matters yet — add a matter with a client name to see them here." : "No clients match your search."}
+        <div className="lex-empty">
+          <div className="w-14 h-14 rounded flex items-center justify-center mx-auto mb-4" style={{ background: "rgba(0,255,195,0.06)", border: "0.5px solid rgba(0,255,195,0.22)" }}>
+            <Users size={24} style={{ color: "var(--verdict-neon)" }} />
+          </div>
+          <p className="lex-empty__label">
+            {matters.length === 0 ? "No matters yet" : "No clients match your search"}
+          </p>
+          <p className="lex-empty__body">
+            {matters.length === 0 ? "Add a matter with a client name to see them here." : "Try a different search term."}
           </p>
         </div>
       ) : (
@@ -86,30 +107,24 @@ export default function ClientsPage() {
               ? "Urgent" : client.statuses.includes("Active")
               ? "Active" : client.statuses.includes("Pending")
               ? "Pending" : "Closed";
+            const chipKind = STATUS_CHIP_KIND[dominantStatus] ?? "neutral";
             return (
-              <div
-                key={client.name}
-                className="lex-card"
-              >
+              <div key={client.name} className="lex-card">
                 <div className="flex items-start justify-between gap-4 mb-3">
                   <div>
-                    <h2 className="text-sm font-semibold text-text">{client.name}</h2>
+                    <h2 className="text-sm font-semibold" style={{ color: "var(--fg-primary)" }}>{client.name}</h2>
                     <div className="flex items-center gap-3 mt-1">
                       <div className="flex items-center gap-1">
-                        <Briefcase size={11} className="text-text-muted" />
-                        <span className="text-xs text-text-muted">
+                        <Briefcase size={11} style={{ color: "var(--fg-quaternary)" }} />
+                        <span className="text-xs" style={{ color: "var(--fg-tertiary)" }}>
                           {client.matters.length} matter{client.matters.length !== 1 ? "s" : ""}
                         </span>
                       </div>
                       <div className="flex items-center gap-1">
-                        <Clock size={11} className="text-verdict-amber" />
-                        <span className="text-xs text-text-muted">{hours}h billed</span>
+                        <Clock size={11} style={{ color: "var(--verdict-amber)" }} />
+                        <span className="text-xs" style={{ color: "var(--fg-tertiary)" }}>{hours}h billed</span>
                       </div>
-                      <span
-                        className={`lex-chip lex-chip--neon ${STATUS_COLOR[dominantStatus]}`}
-                      >
-                        {dominantStatus}
-                      </span>
+                      <span className={`lex-chip lex-chip--${chipKind}`}>{dominantStatus}</span>
                     </div>
                   </div>
                 </div>
@@ -117,7 +132,7 @@ export default function ClientsPage() {
                 {/* Matter list */}
                 <div className="space-y-1.5">
                   {client.matters.map(m => {
-                    const statusColor = STATUS_COLOR[m.status] ?? "text-text-muted";
+                    const dotColor = STATUS_DOT[m.status] ?? "var(--fg-tertiary)";
                     const mHours = ((m.totalMinsBilled as number ?? 0) / 60).toFixed(1);
                     return (
                       <Link
@@ -125,15 +140,15 @@ export default function ClientsPage() {
                         href={`/matters/${m.id}/overview`}
                         className="flex items-center gap-3 rounded px-3 py-2 group lex-btn lex-btn--ghost"
                       >
-                        <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${statusColor}`} />
+                        <Circle size={5} fill={dotColor} style={{ color: dotColor, flexShrink: 0 }} />
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium truncate text-text">{m.title}</p>
+                          <p className="text-xs font-medium truncate" style={{ color: "var(--fg-primary)" }}>{m.title}</p>
                           {m.caseType && (
-                            <p className="text-[11px] text-text-muted">{m.caseType}</p>
+                            <p className="text-[11px]" style={{ color: "var(--fg-tertiary)" }}>{m.caseType}</p>
                           )}
                         </div>
-                        <span className="text-xs font-mono flex-shrink-0 text-text-muted">{mHours}h</span>
-                        <ChevronRight size={12} className="text-text-muted opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <span className="text-xs font-mono flex-shrink-0" style={{ color: "var(--fg-tertiary)" }}>{mHours}h</span>
+                        <ChevronRight size={12} style={{ color: "var(--fg-quaternary)" }} className="opacity-0 group-hover:opacity-100 transition-opacity" />
                       </Link>
                     );
                   })}

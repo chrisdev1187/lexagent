@@ -182,35 +182,13 @@ export function NewMatterModal({ onClose }: NewMatterModalProps) {
         </div>
 
         <div className="flex gap-3 mt-6">
-          <button
-            onClick={onClose}
-            className="flex-1 rounded py-2.5 text-sm cursor-pointer transition-all duration-150"
-            style={{
-              background: "transparent",
-              border: "0.5px solid rgba(224,224,224,0.12)",
-              color: "var(--fg-tertiary)",
-              fontFamily: "var(--font-mono)",
-              fontSize: 11,
-              letterSpacing: "0.1em",
-            }}
-          >
+          <button onClick={onClose} className="flex-1 lex-btn lex-btn--ghost justify-center">
             CANCEL
           </button>
           <button
             onClick={handleCreate}
             disabled={!form.title.trim() || saving}
-            className="flex-1 rounded py-2.5 cursor-pointer transition-all duration-150"
-            style={{
-              background: !form.title.trim() || saving ? "rgba(0,255,195,0.18)" : "var(--verdict-neon)",
-              border: "none",
-              color: "var(--midnight-court)",
-              opacity: !form.title.trim() || saving ? 0.6 : 1,
-              fontFamily: "var(--font-mono)",
-              fontSize: 11,
-              fontWeight: 600,
-              letterSpacing: "0.1em",
-              boxShadow: !form.title.trim() || saving ? "none" : "0 0 16px rgba(0,255,195,0.35)",
-            }}
+            className="flex-1 lex-btn lex-btn--primary justify-center"
           >
             {saving ? "CREATING…" : "CREATE MATTER"}
           </button>
