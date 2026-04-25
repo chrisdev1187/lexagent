@@ -1388,11 +1388,11 @@ function TelemetryTab() {
         </div>
       )}
 
-      <div className="space-y-5">
+      <div className="grid gap-5">
         {SERVICE_CATEGORIES.map(cat => (
           <div key={cat.label}>
             <p className="font-mono text-[10px] tracking-widest mb-2" style={{ color: "var(--fg-tertiary)" }}>{cat.label}</p>
-            <div className="space-y-1.5">
+            <div className="grid gap-1.5">
               {cat.keys.map(key => {
                 const meta = SERVICE_META[key];
                 if (!meta) return null;
