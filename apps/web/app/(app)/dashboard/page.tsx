@@ -137,7 +137,7 @@ export default function DashboardPage() {
   const [filter, setFilter] = useState("All");
   const [showNewMatter, setShowNewMatter] = useState(false);
   const [wizardDismissed, setWizardDismissed] = useState(false);
-  const showWizard = loaded && matters.length === 0 && !wizardDismissed && !showNewMatter;
+  const showWizard = false; // disabled — wizard shown via explicit onboarding flow only
 
   const statusFilters = ["All", "Active", "Pending", "Urgent", "Closed"];
 
