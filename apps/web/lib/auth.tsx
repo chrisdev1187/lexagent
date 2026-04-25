@@ -34,6 +34,7 @@ interface AuthContextValue {
   signUpWithEmail: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signInWithGoogle: () => Promise<{ error: AuthError | null }>;
   resendConfirmation: (email: string) => Promise<{ error: AuthError | null }>;
+  resetPassword: (email: string) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -159,6 +160,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const resetPassword = async (email: string) => {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: typeof window !== "undefined" ? `${window.location.origin}/reset-password` : "",
+      });
+      return { error: error ? classifyError(error) : null };
+    } catch (err) {
+      return { error: classifyError(err) };
+    }
+  };
+
   const signOut = async () => {
     await supabase.auth.signOut();
   };
@@ -175,6 +187,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signUpWithEmail,
         signInWithGoogle,
         resendConfirmation,
+        resetPassword,
         signOut,
       }}
     >

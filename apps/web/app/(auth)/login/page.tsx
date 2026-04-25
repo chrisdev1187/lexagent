@@ -15,13 +15,15 @@ const ERROR_COPY: Record<AuthErrorCode, string> = {
 };
 
 export default function LoginPage() {
-  const { user, loading, signInWithEmail, signUpWithEmail, signInWithGoogle, resendConfirmation } = useAuth();
+  const { user, loading, signInWithEmail, signUpWithEmail, signInWithGoogle, resendConfirmation, resetPassword } = useAuth();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorCode, setErrorCode] = useState<AuthErrorCode | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [forgotSent, setForgotSent] = useState(false);
+  const [forgotLoading, setForgotLoading] = useState(false);
   const [reachable, setReachable] = useState<boolean | null>(null);
   const [resending, setResending] = useState(false);
   const [resendDone, setResendDone] = useState(false);
@@ -310,7 +312,24 @@ export default function LoginPage() {
                   </button>
                 )}
                 {errorCode === "invalid_credentials" && (
-                  <p className="mt-1.5 opacity-60">If you just signed up, confirm your email first.</p>
+                  <div className="mt-2 flex items-center gap-2">
+                    <p className="opacity-60">If you just signed up, confirm your email first.</p>
+                    <button
+                      type="button"
+                      disabled={forgotLoading || forgotSent || !email}
+                      onClick={async () => {
+                        if (!email) return;
+                        setForgotLoading(true);
+                        await resetPassword(email);
+                        setForgotLoading(false);
+                        setForgotSent(true);
+                      }}
+                      className="underline cursor-pointer shrink-0"
+                      style={{ background: "none", border: "none", color: "inherit", padding: 0 }}
+                    >
+                      {forgotSent ? "Reset email sent ✓" : forgotLoading ? "Sending…" : "Forgot password?"}
+                    </button>
+                  </div>
                 )}
               </div>
             )}
