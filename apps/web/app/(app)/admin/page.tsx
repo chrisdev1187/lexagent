@@ -381,16 +381,18 @@ function UserManagementTab() {
   useEffect(() => { load(); }, []);
 
   async function changePlan(userId: string, planId: string) {
+    const currentRole = users.find((u) => u.user_id === userId)?.role ?? "member";
     setUpdating(userId);
-    await supabase.from("user_roles").update({ plan_id: planId }).eq("user_id", userId);
-    setUsers((prev) => prev.map((u) => u.user_id === userId ? { ...u, plan_id: planId } : u));
+    const { error } = await supabase.rpc("admin_set_user_plan", { target_uid: userId, new_role: currentRole, new_plan_id: planId });
+    if (!error) setUsers((prev) => prev.map((u) => u.user_id === userId ? { ...u, plan_id: planId } : u));
     setUpdating(null);
   }
 
   async function changeRole(userId: string, role: string) {
+    const currentPlan = users.find((u) => u.user_id === userId)?.plan_id ?? "starter";
     setUpdating(userId);
-    await supabase.from("user_roles").update({ role }).eq("user_id", userId);
-    setUsers((prev) => prev.map((u) => u.user_id === userId ? { ...u, role } : u));
+    const { error } = await supabase.rpc("admin_set_user_plan", { target_uid: userId, new_role: role, new_plan_id: currentPlan });
+    if (!error) setUsers((prev) => prev.map((u) => u.user_id === userId ? { ...u, role } : u));
     setUpdating(null);
   }
 
