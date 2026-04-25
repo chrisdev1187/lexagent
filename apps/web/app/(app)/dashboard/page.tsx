@@ -219,14 +219,7 @@ export default function DashboardPage() {
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Search matters…"
-                className="w-full pl-9 pr-4 py-2.5 rounded text-sm lex-focus"
-                style={{
-                  background: "rgba(255,255,255,0.03)",
-                  border: "0.5px solid rgba(224,224,224,0.10)",
-                  color: "var(--fg-primary)",
-                  outline: "none",
-                  fontFamily: "var(--font-sans)",
-                }}
+                className="lex-input pl-9 py-2.5"
               />
             </div>
             <div className="flex gap-1.5 flex-wrap">

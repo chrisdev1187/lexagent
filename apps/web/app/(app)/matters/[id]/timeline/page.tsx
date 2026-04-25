@@ -22,7 +22,7 @@ const EVENT_TYPES: TimelineEvent["eventType"][] = [
 const TYPE_COLORS: Record<TimelineEvent["eventType"], string> = {
   filing: "var(--verdict-neon)",
   hearing: "var(--verdict-amber)",
-  discovery: "#0ea5e9",
+  discovery: "var(--verdict-violet)",
   deposition: "var(--fg-secondary)",
   order: "var(--verdict-crimson)",
   settlement: "var(--verdict-neon)",
@@ -65,16 +65,6 @@ export default function TimelinePage() {
 
   const sorted = [...events].sort((a, b) => a.date.localeCompare(b.date));
 
-  const inputStyle = {
-    background: "var(--bg-raised)",
-    color: "var(--fg-primary)",
-    border: "0.5px solid var(--border-hair)",
-    borderRadius: "var(--radius-md)",
-    outline: "none",
-    fontSize: "0.75rem",
-    padding: "6px 12px",
-  };
-
   return (
     <PanelShell
       icon={CalendarDays}
@@ -88,19 +78,22 @@ export default function TimelinePage() {
             type="date"
             value={date}
             onChange={e => setDate(e.target.value)}
-            style={{ ...inputStyle, flex: "0 0 auto" }}
+            className="lex-input"
+            style={{ flex: "0 0 auto", width: "auto" }}
           />
           <input
             type="text"
             value={title}
             onChange={e => setTitle(e.target.value)}
             placeholder="Event title…"
-            style={{ ...inputStyle, flex: "1 1 180px" }}
+            className="lex-input"
+            style={{ flex: "1 1 180px" }}
           />
           <select
             value={eventType}
             onChange={e => setEventType(e.target.value as TimelineEvent["eventType"])}
-            style={{ ...inputStyle, flex: "0 0 auto" }}
+            className="lex-select"
+            style={{ flex: "0 0 auto", width: "auto" }}
           >
             {EVENT_TYPES.map(t => (
               <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
@@ -113,7 +106,8 @@ export default function TimelinePage() {
             value={description}
             onChange={e => setDescription(e.target.value)}
             placeholder="Description (optional)…"
-            style={{ ...inputStyle, flex: "1 1 auto" }}
+            className="lex-input"
+            style={{ flex: "1 1 auto" }}
           />
           <button
             onClick={addEvent}

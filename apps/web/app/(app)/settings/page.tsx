@@ -3,10 +3,16 @@
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
+import { useSettings } from "@/providers/settings-provider";
 import { supabase } from "@/lib/supabase";
 import { getApiHeaders } from "@/lib/api";
+import { DEFAULT_SYSTEM } from "@/lib/settings";
 import { useToast } from "@/hooks/useToast";
-import { CreditCard, ExternalLink, User } from "lucide-react";
+import { LexTooltip } from "@/components/shared/LexTooltip";
+import {
+  CreditCard, ExternalLink, User, ChevronRight,
+  Palette, Cpu, ShieldCheck, FileText, Key,
+} from "lucide-react";
 
 /* ── Types ─────────────────────────────────────────────────────────────── */
 interface UserRole { plan_id: string; byok_active: boolean; byok_key?: string | null; }
@@ -23,12 +29,46 @@ const PLAN_COLOR: Record<string, string> = {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
-type Tab = "profile" | "billing" | "api-key";
-const TABS: { id: Tab; label: string }[] = [
-  { id: "profile",  label: "Profile & Usage" },
-  { id: "billing",  label: "Billing & Plan" },
-  { id: "api-key",  label: "API Key (BYOK)" },
+type Tab = "profile" | "billing" | "api-key" | "ui" | "model" | "shield" | "prompt";
+
+const TABS: { id: Tab; icon: React.ElementType; label: string }[] = [
+  { id: "profile",  icon: User,        label: "Profile & Usage"     },
+  { id: "billing",  icon: CreditCard,  label: "Billing & Plan"      },
+  { id: "api-key",  icon: Key,         label: "API Key (BYOK)"      },
+  { id: "ui",       icon: Palette,     label: "UI Preferences"      },
+  { id: "model",    icon: Cpu,         label: "Model & AI"          },
+  { id: "shield",   icon: ShieldCheck, label: "Hallucination Shield" },
+  { id: "prompt",   icon: FileText,    label: "System Prompt"       },
 ];
+
+/* ── Shared helpers ─────────────────────────────────────────────────────── */
+
+function SectionHeading({ children }: { children: React.ReactNode }) {
+  return (
+    <h3 className="font-mono text-[10px] tracking-widest mb-3 mt-6 first:mt-0" style={{ color: "var(--fg-tertiary)" }}>
+      {children}
+    </h3>
+  );
+}
+
+function Field({ label, tooltip, children }: { label: string; tooltip?: string; children: React.ReactNode }) {
+  return (
+    <div className="mb-4">
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <label className="font-mono text-[11px] tracking-wider" style={{ color: "var(--fg-tertiary)" }}>{label}</label>
+        {tooltip && (
+          <LexTooltip content={tooltip} side="right">
+            <span className="w-3.5 h-3.5 rounded-full text-[9px] flex items-center justify-center cursor-help flex-shrink-0"
+              style={{ background: "var(--bg-raised)", border: "0.5px solid rgba(0,255,195,0.14)", color: "var(--fg-tertiary)" }}>
+              ?
+            </span>
+          </LexTooltip>
+        )}
+      </div>
+      {children}
+    </div>
+  );
+}
 
 /* ── Profile tab ───────────────────────────────────────────────────────── */
 function ProfileTab({
@@ -48,17 +88,11 @@ function ProfileTab({
 
   return (
     <div className="space-y-6">
-      <div
-        className="rounded p-5"
-        style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}
-      >
+      <div className="rounded p-5" style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
         <div className="flex items-center gap-3 mb-4">
           <div
             className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
-            style={{
-              background: "linear-gradient(135deg, rgba(0,255,195,0.15), rgba(106,0,255,0.15))",
-              border: "0.5px solid rgba(0,255,195,0.2)",
-            }}
+            style={{ background: "linear-gradient(135deg, rgba(0,255,195,0.15), rgba(106,0,255,0.15))", border: "0.5px solid rgba(0,255,195,0.2)" }}
           >
             <User size={14} style={{ color: "var(--verdict-neon)" }} />
           </div>
@@ -69,10 +103,7 @@ function ProfileTab({
             </p>
           </div>
           {role?.byok_active && (
-            <span
-              className="ml-auto font-mono text-[9px] tracking-[0.14em] uppercase px-2.5 py-1 rounded-full"
-              style={{ background: "rgba(0,255,195,0.06)", border: "0.5px solid rgba(0,255,195,0.25)", color: "var(--verdict-neon)" }}
-            >
+            <span className="ml-auto font-mono text-[9px] tracking-[0.14em] uppercase px-2.5 py-1 rounded-full" style={{ background: "rgba(0,255,195,0.06)", border: "0.5px solid rgba(0,255,195,0.25)", color: "var(--verdict-neon)" }}>
               BYOK Active
             </span>
           )}
@@ -80,18 +111,12 @@ function ProfileTab({
 
         {!loading && (
           <div>
-            <div
-              className="flex justify-between font-mono text-[10px] tracking-[0.1em] mb-1.5"
-              style={{ color: "var(--fg-quaternary)" }}
-            >
+            <div className="flex justify-between font-mono text-[10px] tracking-[0.1em] mb-1.5" style={{ color: "var(--fg-quaternary)" }}>
               <span>AI USAGE THIS MONTH</span>
               <span>${usdSpent.toFixed(4)} / ${usdBudget}</span>
             </div>
             <div className="h-1 rounded-full" style={{ background: "rgba(224,224,224,0.06)" }}>
-              <div
-                className="h-1 rounded-full transition-all"
-                style={{ width: `${pct}%`, background: barColor, boxShadow: `0 0 6px ${barColor}` }}
-              />
+              <div className="h-1 rounded-full transition-all" style={{ width: `${pct}%`, background: barColor, boxShadow: `0 0 6px ${barColor}` }} />
             </div>
             {pct >= 80 && (
               <p className="font-mono text-[10px] tracking-[0.1em] mt-1.5" style={{ color: barColor }}>
@@ -107,22 +132,16 @@ function ProfileTab({
 
       {!loading && (
         <div>
-          <h2 className="font-serif text-base font-semibold mb-3 tracking-tight" style={{ color: "var(--fg-primary)" }}>
-            Recent AI Calls
-          </h2>
+          <h2 className="font-serif text-base font-semibold mb-3 tracking-tight" style={{ color: "var(--fg-primary)" }}>Recent AI Calls</h2>
           {events.length === 0 ? (
-            <p className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "var(--fg-quaternary)" }}>
-              No usage recorded yet.
-            </p>
+            <p className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "var(--fg-quaternary)" }}>No usage recorded yet.</p>
           ) : (
             <div className="rounded overflow-hidden" style={{ border: "0.5px solid rgba(224,224,224,0.09)" }}>
               <table className="w-full text-sm">
                 <thead>
                   <tr style={{ background: "rgba(255,255,255,0.02)" }}>
                     {["Tool", "Model", "Cost (USD)", "Time"].map((h) => (
-                      <th key={h} className="px-4 py-2 text-left font-mono text-[9px] tracking-[0.14em] uppercase" style={{ color: "var(--fg-quaternary)" }}>
-                        {h}
-                      </th>
+                      <th key={h} className="px-4 py-2 text-left font-mono text-[9px] tracking-[0.14em] uppercase" style={{ color: "var(--fg-quaternary)" }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -132,9 +151,7 @@ function ProfileTab({
                       <td className="px-4 py-2 capitalize text-[13px]">{e.tool_name}</td>
                       <td className="px-4 py-2 font-mono text-[10px]" style={{ color: "var(--fg-tertiary)" }}>{e.model}</td>
                       <td className="px-4 py-2 font-mono text-[10px]" style={{ color: "var(--verdict-neon)" }}>${Number(e.usd_cost).toFixed(6)}</td>
-                      <td className="px-4 py-2 font-mono text-[10px]" style={{ color: "var(--fg-quaternary)" }}>
-                        {new Date(e.created_at).toLocaleString()}
-                      </td>
+                      <td className="px-4 py-2 font-mono text-[10px]" style={{ color: "var(--fg-quaternary)" }}>{new Date(e.created_at).toLocaleString()}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -178,10 +195,7 @@ function BillingTab({ role, plan, loading }: { role: UserRole | null; plan: Plan
           </div>
         </div>
         {role?.byok_active && (
-          <div
-            className="flex items-center gap-2 rounded px-3 py-2 text-xs font-mono tracking-wide"
-            style={{ background: "rgba(0,255,195,0.05)", border: "0.5px solid rgba(0,255,195,0.22)", color: "var(--verdict-neon)" }}
-          >
+          <div className="flex items-center gap-2 rounded px-3 py-2 text-xs font-mono tracking-wide" style={{ background: "rgba(0,255,195,0.05)", border: "0.5px solid rgba(0,255,195,0.22)", color: "var(--verdict-neon)" }}>
             BYOK Active — Anthropic bills you directly for AI usage
           </div>
         )}
@@ -191,7 +205,7 @@ function BillingTab({ role, plan, loading }: { role: UserRole | null; plan: Plan
         <div>
           <p className="font-mono text-[9px] tracking-[0.2em] uppercase mb-1" style={{ color: "var(--fg-quaternary)" }}>Payment &amp; Invoices</p>
           <p className="text-[13px]" style={{ color: "var(--fg-tertiary)" }}>
-            Manage your payment method, download invoices, and cancel your subscription through the Lemon Squeezy billing portal.
+            Manage your payment method, download invoices, and cancel your subscription through the billing portal.
           </p>
         </div>
         <button onClick={openPortal} disabled={portalLoading} className="lex-btn lex-btn--secondary">
@@ -204,17 +218,33 @@ function BillingTab({ role, plan, loading }: { role: UserRole | null; plan: Plan
       {(role?.plan_id === "starter" || role?.plan_id === "professional") && (
         <div className="rounded p-5" style={{ background: "rgba(0,255,195,0.04)", border: "0.5px solid rgba(0,255,195,0.18)" }}>
           <p className="font-mono text-[9px] tracking-[0.2em] uppercase mb-1" style={{ color: "var(--verdict-neon)" }}>Upgrade your plan</p>
-          <p className="text-[13px] mb-4" style={{ color: "var(--fg-tertiary)" }}>
-            Get more AI budget, additional matters, and premium features.
-          </p>
+          <p className="text-[13px] mb-4" style={{ color: "var(--fg-tertiary)" }}>Get more AI budget, additional matters, and premium features.</p>
           <a href="/pricing" className="lex-btn lex-btn--primary">View Plans</a>
+        </div>
+      )}
+
+      {role?.byok_active && (
+        <div className="rounded p-5" style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
+          <p className="font-mono text-[9px] tracking-[0.2em] uppercase mb-2" style={{ color: "var(--fg-quaternary)" }}>AI Credits Top-Up</p>
+          <p className="text-[13px] mb-3" style={{ color: "var(--fg-tertiary)" }}>
+            Purchase additional AI credits through LexAgent to use alongside your BYOK key.
+          </p>
+          <button
+            disabled
+            className="lex-btn lex-btn--secondary"
+            title="Coming soon"
+          >
+            <CreditCard size={13} />
+            Buy Credits
+            <span className="ml-1 font-mono text-[9px] tracking-[0.12em] uppercase opacity-60">COMING SOON</span>
+          </button>
         </div>
       )}
     </div>
   );
 }
 
-/* ── API Key tab ───────────────────────────────────────────────────────── */
+/* ── API Key (BYOK) tab ─────────────────────────────────────────────────── */
 function ApiKeyTab({ user, loading: outerLoading }: { user: { id: string }; loading: boolean }) {
   const [byokActive, setByokActive] = useState(false);
   const [hasKey, setHasKey] = useState(false);
@@ -270,22 +300,35 @@ function ApiKeyTab({ user, loading: outerLoading }: { user: { id: string }; load
             <button
               onClick={toggleByok}
               className="relative inline-flex items-center h-5 rounded-full w-9 transition-colors cursor-pointer"
-              style={{
-                background: byokActive ? "var(--verdict-neon)" : "rgba(255,255,255,0.08)",
-                border: `0.5px solid ${byokActive ? "rgba(0,255,195,0.4)" : "rgba(224,224,224,0.12)"}`,
-              }}
+              style={{ background: byokActive ? "var(--verdict-neon)" : "rgba(255,255,255,0.08)", border: `0.5px solid ${byokActive ? "rgba(0,255,195,0.4)" : "rgba(224,224,224,0.12)"}` }}
             >
               <span
                 className="inline-block w-3.5 h-3.5 rounded-full transition-transform"
-                style={{
-                  background: byokActive ? "var(--midnight-court)" : "var(--fg-tertiary)",
-                  transform: byokActive ? "translateX(18px)" : "translateX(2px)",
-                }}
+                style={{ background: byokActive ? "var(--midnight-court)" : "var(--fg-tertiary)", transform: byokActive ? "translateX(18px)" : "translateX(2px)" }}
               />
             </button>
           )}
         </div>
       </div>
+
+      {/* BYOK progress bar (only when active) */}
+      {byokActive && (
+        <div className="rounded p-4" style={{ background: "rgba(0,255,195,0.04)", border: "0.5px solid rgba(0,255,195,0.18)" }}>
+          <p className="font-mono text-[9px] tracking-[0.2em] uppercase mb-2" style={{ color: "var(--verdict-neon)" }}>BYOK — Anthropic Billing</p>
+          <p className="text-[12px] mb-3" style={{ color: "var(--fg-tertiary)" }}>
+            Anthropic bills you directly. Your LexAgent plan limits (matters, features) still apply.
+          </p>
+          <a
+            href="https://console.anthropic.com/settings/billing"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="lex-btn lex-btn--secondary"
+          >
+            <ExternalLink size={11} />
+            View Anthropic Usage
+          </a>
+        </div>
+      )}
 
       <div className="rounded p-5 space-y-4" style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
         <div>
@@ -308,9 +351,7 @@ function ApiKeyTab({ user, loading: outerLoading }: { user: { id: string }; load
           </button>
         </div>
         {hasKey && (
-          <button onClick={removeKey} className="lex-btn lex-btn--danger">
-            Remove key and disable BYOK
-          </button>
+          <button onClick={removeKey} className="lex-btn lex-btn--danger">Remove key and disable BYOK</button>
         )}
       </div>
 
@@ -331,14 +372,160 @@ function ApiKeyTab({ user, loading: outerLoading }: { user: { id: string }; load
   );
 }
 
-/* ── Inner component (needs useSearchParams) ───────────────────────────── */
+/* ── UI Preferences tab ─────────────────────────────────────────────────── */
+function UiTab({ settings, set }: { settings: any; set: (k: string, v: unknown) => void }) {
+  return (
+    <div className="space-y-4">
+      <SectionHeading>INTERFACE PREFERENCES</SectionHeading>
+      {[
+        { key: "tooltipsEnabled",  label: "Tooltips",          desc: "Show contextual help on hover across the interface",      tooltip: "Disable if you prefer a cleaner workspace after learning the UI" },
+        { key: "animationsEnabled", label: "Animations",        desc: "Enable motion transitions and entry animations",           tooltip: "Disable for reduced motion or performance-sensitive environments" },
+        { key: "sidebarCollapsed",  label: "Collapsed Sidebar", desc: "Start with the sidebar in icon-only mode",                tooltip: "Saves horizontal space for wider content areas" },
+      ].map(item => (
+        <div
+          key={item.key}
+          className="flex items-center justify-between rounded px-4 py-3.5"
+          style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}
+        >
+          <div className="flex-1 min-w-0 mr-4">
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm font-medium" style={{ color: "var(--fg-primary)" }}>{item.label}</span>
+              <LexTooltip content={item.tooltip} side="right">
+                <span className="w-3.5 h-3.5 rounded-full text-[9px] flex items-center justify-center cursor-help" style={{ background: "var(--bg-raised)", border: "0.5px solid rgba(0,255,195,0.14)", color: "var(--fg-tertiary)" }}>?</span>
+              </LexTooltip>
+            </div>
+            <p className="text-xs mt-0.5" style={{ color: "var(--fg-tertiary)" }}>{item.desc}</p>
+          </div>
+          <button
+            onClick={() => set(item.key, !settings[item.key])}
+            className="relative flex-shrink-0 w-11 h-6 rounded-full cursor-pointer transition-all duration-200"
+            style={{ background: settings[item.key] ? "var(--verdict-neon)" : "var(--bg-raised)", border: "0.5px solid rgba(0,255,195,0.14)" }}
+          >
+            <span
+              className="absolute top-0.5 w-5 h-5 rounded-full transition-all duration-200"
+              style={{ background: "var(--fg-primary)", left: settings[item.key] ? "calc(100% - 22px)" : "2px" }}
+            />
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ── Model & AI tab ─────────────────────────────────────────────────────── */
+function ModelTab({ settings, set }: { settings: any; set: (k: string, v: unknown) => void }) {
+  return (
+    <div>
+      <SectionHeading>MODEL CONFIGURATION</SectionHeading>
+      <Field label="MODEL" tooltip="Select Claude model — claude-opus-4-7 is most capable, claude-haiku-4-5 is fastest">
+        <select
+          className="lex-select"
+          style={{ cursor: "pointer" }}
+          value={settings.model}
+          onChange={e => set("model", e.target.value)}
+        >
+          <option value="auto">Auto (recommended)</option>
+          <option value="claude-opus-4-7">claude-opus-4-7 — most capable</option>
+          <option value="claude-sonnet-4-6">claude-sonnet-4-6 — balanced</option>
+          <option value="claude-haiku-4-5-20251001">claude-haiku-4-5 — fastest</option>
+        </select>
+      </Field>
+      <Field label={`MAX TOKENS: ${settings.maxTokens}`} tooltip="Maximum length of AI responses — higher = more detailed but slower">
+        <input
+          type="range"
+          min={500}
+          max={8000}
+          step={100}
+          value={settings.maxTokens}
+          onChange={e => set("maxTokens", Number(e.target.value))}
+          className="w-full cursor-pointer"
+          style={{ accentColor: "var(--verdict-neon)" }}
+        />
+        <div className="flex justify-between mt-1">
+          <span className="text-xs" style={{ color: "var(--fg-tertiary)" }}>500</span>
+          <span className="text-xs" style={{ color: "var(--fg-tertiary)" }}>8000</span>
+        </div>
+      </Field>
+      <Field label={`TEMPERATURE: ${settings.temperature?.toFixed(2) ?? "0.70"}`} tooltip="Lower = more precise/deterministic, higher = more creative">
+        <input
+          type="range"
+          min={0}
+          max={1}
+          step={0.05}
+          value={settings.temperature ?? 0.7}
+          onChange={e => set("temperature", Number(e.target.value))}
+          className="w-full cursor-pointer"
+          style={{ accentColor: "var(--verdict-neon)" }}
+        />
+        <div className="flex justify-between mt-1">
+          <span className="text-xs" style={{ color: "var(--fg-tertiary)" }}>Precise</span>
+          <span className="text-xs" style={{ color: "var(--fg-tertiary)" }}>Creative</span>
+        </div>
+      </Field>
+    </div>
+  );
+}
+
+/* ── Hallucination Shield tab ───────────────────────────────────────────── */
+function ShieldTab({ settings, set }: { settings: any; set: (k: string, v: unknown) => void }) {
+  return (
+    <div>
+      <SectionHeading>HALLUCINATION SHIELD</SectionHeading>
+      <div className="rounded px-4 py-3.5 mb-4 flex items-center justify-between" style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
+        <div>
+          <span className="text-sm font-medium" style={{ color: "var(--fg-primary)" }}>Auto-Verify Citations</span>
+          <p className="text-xs mt-0.5" style={{ color: "var(--fg-tertiary)" }}>
+            Automatically verify all citations against CourtListener after each research query
+          </p>
+        </div>
+        <button
+          onClick={() => set("autoVerify", !settings.autoVerify)}
+          className="relative flex-shrink-0 w-11 h-6 rounded-full cursor-pointer transition-all duration-200 ml-4"
+          style={{ background: settings.autoVerify ? "var(--verdict-neon)" : "var(--bg-raised)", border: "0.5px solid rgba(0,255,195,0.14)" }}
+        >
+          <span
+            className="absolute top-0.5 w-5 h-5 rounded-full transition-all duration-200"
+            style={{ background: "var(--fg-primary)", left: settings.autoVerify ? "calc(100% - 22px)" : "2px" }}
+          />
+        </button>
+      </div>
+      <div className="rounded px-4 py-3 text-xs" style={{ background: "rgba(0,255,195,0.06)", border: "0.5px solid rgba(0,255,195,0.28)", color: "var(--fg-secondary)", lineHeight: 1.7 }}>
+        ARES verifies citations against 18M+ CourtListener records. Verified citations are marked with a shield; unverified citations are flagged with a warning. Requires a CourtListener API token (set in Administration).
+      </div>
+    </div>
+  );
+}
+
+/* ── System Prompt tab ──────────────────────────────────────────────────── */
+function PromptTab({ settings, set }: { settings: any; set: (k: string, v: unknown) => void }) {
+  return (
+    <div>
+      <SectionHeading>SYSTEM PROMPT</SectionHeading>
+      <Field label="ARES SYSTEM PROMPT" tooltip="This prompt defines ARES's behavior — modify with care">
+        <textarea
+          className="lex-textarea"
+          style={{ minHeight: 320, fontFamily: "var(--font-mono)", fontSize: "0.75rem", lineHeight: 1.7 }}
+          value={settings.systemPrompt}
+          onChange={e => set("systemPrompt", e.target.value)}
+        />
+      </Field>
+      <button onClick={() => set("systemPrompt", DEFAULT_SYSTEM)} className="text-xs underline cursor-pointer" style={{ color: "var(--fg-tertiary)" }}>
+        Reset to default
+      </button>
+    </div>
+  );
+}
+
+/* ── Inner component ────────────────────────────────────────────────────── */
 function SettingsInner() {
   const { user } = useAuth();
+  const { settings, updateSettings } = useSettings();
   const searchParams = useSearchParams();
   const toast = useToast();
 
   const initialTab = (searchParams.get("tab") as Tab | null) ?? "profile";
   const [activeTab, setActiveTab] = useState<Tab>(initialTab);
+  const [settingsSaved, setSettingsSaved] = useState(false);
 
   const [role, setRole] = useState<UserRole | null>(null);
   const [plan, setPlan] = useState<Plan | null>(null);
@@ -374,59 +561,89 @@ function SettingsInner() {
 
   if (!user) return null;
 
+  const set = (k: string, v: unknown) => updateSettings({ [k]: v });
+
+  const saveSettings = () => {
+    setSettingsSaved(true);
+    setTimeout(() => setSettingsSaved(false), 2000);
+  };
+
+  const settingsTabs: Tab[] = ["ui", "model", "shield", "prompt"];
+  const needsSave = settingsTabs.includes(activeTab);
+
+  const renderContent = () => {
+    switch (activeTab) {
+      case "profile":
+        return <ProfileTab user={user} role={role} plan={plan} monthly={monthly} events={events} loading={loading} />;
+      case "billing":
+        return <BillingTab role={role} plan={plan} loading={loading} />;
+      case "api-key":
+        return <ApiKeyTab user={user} loading={loading} />;
+      case "ui":
+        return <UiTab settings={settings} set={set} />;
+      case "model":
+        return <ModelTab settings={settings} set={set} />;
+      case "shield":
+        return <ShieldTab settings={settings} set={set} />;
+      case "prompt":
+        return <PromptTab settings={settings} set={set} />;
+    }
+  };
+
   return (
-    <div className="flex-1 overflow-y-auto">
-      <div className="max-w-3xl mx-auto p-6">
-        {/* Header */}
-        <div className="mb-6">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="font-mono text-[10px] tracking-[0.2em] uppercase" style={{ color: "var(--verdict-neon)" }}>▸</span>
-            <h1 className="font-serif text-xl font-semibold tracking-tight" style={{ color: "var(--fg-primary)" }}>
-              Settings
-            </h1>
+    <div className="flex-1 overflow-y-auto p-6 max-w-4xl mx-auto">
+      <div className="flex items-center gap-2.5 mb-6">
+        <div className="w-8 h-8 rounded flex items-center justify-center" style={{ background: "rgba(0,255,195,0.06)", border: "0.5px solid rgba(0,255,195,0.28)" }}>
+          <User size={15} style={{ color: "var(--verdict-neon)" }} />
+        </div>
+        <div>
+          <h1 className="text-sm font-semibold" style={{ color: "var(--fg-primary)" }}>Settings</h1>
+          <p className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "var(--fg-quaternary)" }}>{user.email}</p>
+        </div>
+      </div>
+
+      <div className="flex gap-6">
+        <nav className="w-48 flex-shrink-0 space-y-0.5">
+          {TABS.map(({ id, icon: Icon, label }) => {
+            const active = activeTab === id;
+            return (
+              <button
+                key={id}
+                onClick={() => setActiveTab(id)}
+                className="w-full flex items-center gap-2.5 rounded px-3 py-2 text-sm cursor-pointer transition-all duration-150 text-left"
+                style={{
+                  background: active ? "rgba(0,255,195,0.06)" : "transparent",
+                  borderLeft: `2px solid ${active ? "var(--verdict-neon)" : "transparent"}`,
+                  color: active ? "var(--verdict-neon)" : "var(--fg-tertiary)",
+                }}
+              >
+                <Icon size={14} className="flex-shrink-0" />
+                <span className="flex-1">{label}</span>
+                {active && <ChevronRight size={12} />}
+              </button>
+            );
+          })}
+        </nav>
+
+        <div className="flex-1 min-w-0">
+          <div className="rounded p-5" style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
+            {renderContent()}
+
+            {needsSave && (
+              <div className="flex justify-end mt-6 pt-4" style={{ borderTop: "0.5px solid rgba(224,224,224,0.08)" }}>
+                <button onClick={saveSettings} className={`lex-btn ${settingsSaved ? "lex-btn--secondary" : "lex-btn--primary"}`}>
+                  {settingsSaved ? "Saved" : "Save Changes"}
+                </button>
+              </div>
+            )}
           </div>
-          <p className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "var(--fg-quaternary)" }}>
-            {user.email}
-          </p>
         </div>
-
-        {/* Tabs */}
-        <div
-          className="flex gap-0.5 mb-6 rounded p-1"
-          style={{ background: "rgba(255,255,255,0.02)", border: "0.5px solid rgba(224,224,224,0.08)" }}
-        >
-          {TABS.map(({ id, label }) => (
-            <button
-              key={id}
-              onClick={() => setActiveTab(id)}
-              className="flex-1 px-3 py-2 rounded text-[11px] font-mono tracking-[0.1em] uppercase transition-all duration-150 cursor-pointer"
-              style={{
-                background: activeTab === id ? "rgba(0,255,195,0.08)" : "transparent",
-                border: `0.5px solid ${activeTab === id ? "rgba(0,255,195,0.22)" : "transparent"}`,
-                color: activeTab === id ? "var(--verdict-neon)" : "var(--fg-quaternary)",
-              }}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
-        {/* Tab content */}
-        {activeTab === "profile" && (
-          <ProfileTab user={user} role={role} plan={plan} monthly={monthly} events={events} loading={loading} />
-        )}
-        {activeTab === "billing" && (
-          <BillingTab role={role} plan={plan} loading={loading} />
-        )}
-        {activeTab === "api-key" && (
-          <ApiKeyTab user={user} loading={loading} />
-        )}
       </div>
     </div>
   );
 }
 
-/* ── Page export ───────────────────────────────────────────────────────── */
+/* ── Page export ─────────────────────────────────────────────────────────── */
 export default function SettingsPage() {
   return (
     <Suspense>

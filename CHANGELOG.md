@@ -8,6 +8,54 @@ From Phase 10 onward, every phase ships under a new version and a single commit/
 
 ---
 
+## [1.2.2] — 2026-04-25 — Phase 15: UX Polish
+
+### Added
+- **`.lex-input`, `.lex-select`, `.lex-textarea` CSS classes** — shared form-control styles added to `styles/components.css`, replacing per-page inline `inputStyle` objects across the codebase. All use design tokens (`--bg-raised`, `--border-hair`, `--fg-primary`, `--verdict-neon` focus ring).
+
+### Fixed
+- **Hardcoded `#0ea5e9` in timeline** — discovery event color remapped to `var(--verdict-violet)` to stay within the Midnight Court palette.
+- **Inline input styles removed** — `administration/page.tsx`, `settings/page.tsx`, `timeline/page.tsx`, `deadlines/page.tsx`, `vault/page.tsx`, and `dashboard/page.tsx` all migrated from local `inputStyle`/`inputCls` objects to the shared `.lex-input` / `.lex-select` / `.lex-textarea` classes.
+
+### Ops
+- `package.json` version bumped `1.2.1` → `1.2.2`
+
+---
+
+## [1.2.1] — 2026-04-25 — Phase 15: Settings & Administration Split
+
+### Added
+- **`/administration` route (admin-only)** — firm-wide panel with 8 tabs: Firm Profile, API Credentials (Anthropic, CourtListener, GovInfo, OpenStates), Billing & Plan (org view), User Management, Teams, Audit Log, Telemetry (API connectivity ping), and Quota & Usage (all-user token summary + daily trend sparkline). Non-admins are redirected to `/settings` automatically.
+- **`/settings` rebuilt with 7 personal tabs** — Profile & Usage, Billing & Plan, API Key (BYOK), UI Preferences, Model & AI (provider select + maxTokens slider + temperature), Hallucination Shield toggle, System Prompt editor with reset-to-default. Left sidebar nav replaces the previous horizontal tab bar.
+- **BYOK progress bar + credit purchase placeholder** — Settings → Billing shows a "Buy Credits" button (disabled, COMING SOON badge) for BYOK users. Settings → API Key links out to the Anthropic billing console when BYOK is active.
+- **Sidebar Administration link** — `Administration` nav item is now conditionally rendered for admin users only (`isAdmin` from `useAuth()`). `Settings` remains visible to all users.
+
+### Fixed
+- **Duplicate `useAuth()` call in Sidebar** — merged `isAdmin` into the existing destructure to remove the redundant hook call added during Administration nav wiring.
+- **Admin usage tracker** — confirmed `get_admin_token_summary` and `get_token_daily_trend` RPCs are both `SECURITY DEFINER` with `is_admin()` guard. Admin usage writes to `ai_usage` client-side via `logAiUsage()` and to `usage_events`/`usage_monthly` server-side. QuotaTab in Administration now surfaces both per-admin and all-user token breakdowns.
+
+### Ops
+- `package.json` version bumped `1.2.0` → `1.2.1`
+
+---
+
+## [1.2.0] — 2026-04-25 — Phase 15: Bug Squash
+
+### Fixed
+- **Strategy persistence (WF-1)** — error strings and "No response." no longer overwrite `matter.strategy`. AI output is only persisted when `content[0].text` is a valid non-empty string; errors surface in the UI only.
+- **LexMemory IIFE guard (WF-2)** — background memory extraction and usage logging now bail out immediately on non-OK responses (`clone.ok` check), preventing wasted JSON parse attempts and zero-token log entries on 4xx/5xx.
+- **Budget NaN guard (WF-5)** — `setBudgetState` is skipped when `parseFloat` produces a non-finite value for budget headers, preventing NaN from poisoning the budget store.
+- **Hardcoded version string (WF-4)** — removed literal `v1.1.1` from Sidebar logo header; version display is now unified through `VersionPill` which reads `NEXT_PUBLIC_APP_VERSION` from `next.config.ts` → `package.json`.
+- **Global unhandled rejection logging (WF-7)** — `window.addEventListener("unhandledrejection")` added in `AppShellInner`; all uncaught async errors now appear in the browser console for debugging.
+
+### Added
+- **Firm logo upload** — Admin → Firm Profile now includes a logo upload field (file input → base64 data URL → `settings.firmLogo`). Sidebar logo block swaps the default Scale icon for the uploaded image when set. Remove button clears it.
+
+### Ops
+- `package.json` version bumped `1.1.2.1` → `1.2.0`; `NEXT_PUBLIC_APP_VERSION` auto-propagated via `next.config.ts`
+
+---
+
 ## [1.1.0] — 2026-04-24 — Phase 15: UI Polish
 
 ### Fixed

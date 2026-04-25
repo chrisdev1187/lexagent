@@ -72,16 +72,6 @@ export default function DeadlinesPage() {
 
   const sorted = [...deadlines].sort((a, b) => a.dueDate.localeCompare(b.dueDate));
 
-  const inputStyle = {
-    background: "var(--bg-raised)",
-    color: "var(--fg-primary)",
-    border: "0.5px solid var(--border-hair)",
-    borderRadius: "var(--radius-md)",
-    outline: "none",
-    fontSize: "0.75rem",
-    padding: "6px 12px",
-  };
-
   return (
     <PanelShell
       icon={Clock}
@@ -96,18 +86,21 @@ export default function DeadlinesPage() {
             value={title}
             onChange={e => setTitle(e.target.value)}
             placeholder="Deadline title…"
-            style={{ ...inputStyle, flex: "1 1 200px" }}
+            className="lex-input"
+            style={{ flex: "1 1 200px" }}
           />
           <input
             type="date"
             value={dueDate}
             onChange={e => setDueDate(e.target.value)}
-            style={{ ...inputStyle, flex: "0 0 auto" }}
+            className="lex-input"
+            style={{ flex: "0 0 auto", width: "auto" }}
           />
           <select
             value={priority}
             onChange={e => setPriority(e.target.value as "high" | "medium" | "low")}
-            style={{ ...inputStyle, flex: "0 0 auto" }}
+            className="lex-select"
+            style={{ flex: "0 0 auto", width: "auto" }}
           >
             <option value="high">High</option>
             <option value="medium">Medium</option>

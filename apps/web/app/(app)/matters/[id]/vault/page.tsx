@@ -147,16 +147,6 @@ export default function VaultPage() {
     setViewingDocId(doc.id);
   };
 
-  const inputStyle = {
-    background: "var(--bg-raised)",
-    color: "var(--fg-primary)",
-    border: "0.5px solid var(--border-hair)",
-    borderRadius: "var(--radius-md)",
-    outline: "none",
-    fontSize: "0.75rem",
-    padding: "6px 12px",
-    width: "100%",
-  };
 
   return (
     <PanelShell
@@ -185,7 +175,7 @@ export default function VaultPage() {
                   value={title}
                   onChange={e => setTitle(e.target.value)}
                   placeholder="Document title…"
-                  style={inputStyle}
+                  className="lex-input"
                 />
               </div>
               <div style={{ flex: "0 0 140px" }}>
@@ -193,7 +183,7 @@ export default function VaultPage() {
                 <select
                   value={docType}
                   onChange={e => setDocType(e.target.value)}
-                  style={inputStyle}
+                  className="lex-input"
                 >
                   {DOC_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
@@ -234,7 +224,7 @@ export default function VaultPage() {
                 value={url}
                 onChange={e => setUrl(e.target.value)}
                 placeholder="https://…"
-                style={inputStyle}
+                className="lex-input"
               />
             </div>
             <div>
@@ -244,7 +234,8 @@ export default function VaultPage() {
                 onChange={e => setNotes(e.target.value)}
                 placeholder="Brief description or notes…"
                 rows={2}
-                style={{ ...inputStyle, resize: "none" }}
+                className="lex-textarea"
+                style={{ resize: "none" }}
               />
             </div>
 
