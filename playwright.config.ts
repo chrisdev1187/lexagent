@@ -20,5 +20,12 @@ export default defineConfig({
       name: "Mobile Safari",
       use: { ...devices["iPhone 12"] },
     },
+    {
+      // Audit suite — chromium-only, no mobile, extended timeout
+      name: "audit",
+      testMatch: "**/audit/**/*.spec.ts",
+      use: { ...devices["Desktop Chrome"] },
+      retries: 0,
+    },
   ],
 });

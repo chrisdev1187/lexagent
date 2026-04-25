@@ -8,3 +8,5 @@ apps/api/.env
 .DS_Store
 Thumbs.db
 .aider*
+.vercel
+e2e/audit/results/
