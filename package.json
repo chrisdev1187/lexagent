@@ -9,5 +9,8 @@
     "check:migrations": "SUPABASE_URL=https://mgiqicasllvisiwvbiuu.supabase.co npx tsx scripts/check-migrations.ts",
     "seed:admin": "npx tsx scripts/seed-admin.ts",
     "verify:auth": "npx tsx scripts/verify-auth.ts"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.59.1"
   }
 }

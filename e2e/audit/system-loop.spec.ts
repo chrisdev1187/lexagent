@@ -69,9 +69,10 @@ test.describe.serial("V1.2.3 Intelligence Audit", () => {
 
   test("login and capture auth token", async ({ page }) => {
     await page.goto(`${BASE}/login`);
-    await page.getByLabel(/email/i).fill(TEST_EMAIL);
-    await page.getByLabel(/password/i).fill(TEST_PASSWORD);
-    await page.getByRole("button", { name: /sign in|log in/i }).click();
+    // Login form uses uppercase text labels (not <label> elements) — target by placeholder
+    await page.getByPlaceholder(/lawfirm|email/i).fill(TEST_EMAIL);
+    await page.locator("input[type='password']").fill(TEST_PASSWORD);
+    await page.locator("button[type='submit']").click();
     await page.waitForURL(/\/dashboard/, { timeout: 30_000 });
 
     // Read Supabase session token from localStorage

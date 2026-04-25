@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import {
   Building2, Palette, Key, Cpu, ShieldCheck, FileText, Activity, ChevronRight, Users,
-  CreditCard, UsersRound, Plus, Trash2, ClipboardList, Lock, BarChart3,
+  CreditCard, UsersRound, Plus, Trash2, ClipboardList, Lock, BarChart3, KeyRound, UserPlus, X,
 } from "lucide-react";
 import { useSettings } from "@/providers/settings-provider";
 import { useAuth } from "@/lib/auth";
@@ -322,42 +322,58 @@ function TeamsTab() {
 }
 
 function UserManagementTab() {
+  const { user: selfUser } = useAuth();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [updating, setUpdating] = useState<string | null>(null);
 
+  // Set-password modal
+  const [pwTarget, setPwTarget] = useState<AdminUser | null>(null);
+  const [newPw, setNewPw] = useState("");
+  const [pwError, setPwError] = useState("");
+  const [pwLoading, setPwLoading] = useState(false);
+
+  // Create-user modal
+  const [showCreate, setShowCreate] = useState(false);
+  const [createForm, setCreateForm] = useState({ email: "", password: "", role: "member", plan_id: "starter" });
+  const [createError, setCreateError] = useState("");
+  const [createLoading, setCreateLoading] = useState(false);
+
+  // Delete confirm
+  const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
   const now = new Date();
 
-  useEffect(() => {
-    async function load() {
-      // Uses security-definer RPC — bypasses RLS, only works for admins
-      const { data, error } = await supabase.rpc("get_admin_users");
-      if (error || !data) { setLoading(false); return; }
+  async function load() {
+    setLoading(true);
+    const { data, error } = await supabase.rpc("get_admin_users");
+    if (error || !data) { setLoading(false); return; }
 
-      const userIds = (data as any[]).map((u: any) => u.user_id);
-      const { data: usageData } = await supabase
-        .from("usage_monthly")
-        .select("user_id, total_usd_cost, total_requests")
-        .in("user_id", userIds)
-        .eq("year", now.getFullYear())
-        .eq("month", now.getMonth() + 1);
+    const userIds = (data as any[]).map((u: any) => u.user_id);
+    const { data: usageData } = await supabase
+      .from("usage_monthly")
+      .select("user_id, total_usd_cost, total_requests")
+      .in("user_id", userIds)
+      .eq("year", now.getFullYear())
+      .eq("month", now.getMonth() + 1);
 
-      const usageMap: Record<string, { total_usd_cost: number; total_requests: number }> = {};
-      (usageData ?? []).forEach((u: any) => { usageMap[u.user_id] = u; });
+    const usageMap: Record<string, { total_usd_cost: number; total_requests: number }> = {};
+    (usageData ?? []).forEach((u: any) => { usageMap[u.user_id] = u; });
 
-      setUsers((data as any[]).map((u: any) => ({
-        user_id: u.user_id,
-        role: u.role,
-        plan_id: u.plan_id,
-        byok_active: u.byok_active,
-        profiles: { email: u.email, full_name: u.full_name },
-        usage_monthly: usageMap[u.user_id] ?? null,
-      })));
-      setLoading(false);
-    }
-    load();
-  }, []);
+    setUsers((data as any[]).map((u: any) => ({
+      user_id: u.user_id,
+      role: u.role,
+      plan_id: u.plan_id,
+      byok_active: u.byok_active,
+      profiles: { email: u.email, full_name: u.full_name },
+      usage_monthly: usageMap[u.user_id] ?? null,
+    })));
+    setLoading(false);
+  }
+
+  useEffect(() => { load(); }, []);
 
   async function changePlan(userId: string, planId: string) {
     setUpdating(userId);
@@ -373,15 +389,164 @@ function UserManagementTab() {
     setUpdating(null);
   }
 
+  async function handleSetPassword() {
+    if (!pwTarget || newPw.length < 6) { setPwError("Minimum 6 characters"); return; }
+    setPwLoading(true); setPwError("");
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch("/api/admin/set-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
+      body: JSON.stringify({ userId: pwTarget.user_id, password: newPw }),
+    });
+    const json = await res.json();
+    setPwLoading(false);
+    if (!res.ok) { setPwError(json.error ?? "Failed"); return; }
+    setPwTarget(null); setNewPw(""); setPwError("");
+  }
+
+  async function handleCreateUser() {
+    if (!createForm.email || createForm.password.length < 6) { setCreateError("Email and password (min 6) required"); return; }
+    setCreateLoading(true); setCreateError("");
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch("/api/admin/create-user", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
+      body: JSON.stringify(createForm),
+    });
+    const json = await res.json();
+    setCreateLoading(false);
+    if (!res.ok) { setCreateError(json.error ?? "Failed"); return; }
+    setShowCreate(false);
+    setCreateForm({ email: "", password: "", role: "member", plan_id: "starter" });
+    await load();
+  }
+
+  async function handleDeleteUser() {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch("/api/admin/delete-user", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
+      body: JSON.stringify({ userId: deleteTarget.user_id }),
+    });
+    setDeleteLoading(false);
+    if (res.ok) {
+      setUsers((prev) => prev.filter((u) => u.user_id !== deleteTarget.user_id));
+      setDeleteTarget(null);
+    }
+  }
+
   const filtered = users.filter((u) => {
     const email = u.profiles?.email ?? "";
     const name = u.profiles?.full_name ?? "";
     return email.includes(search) || name.includes(search) || u.plan_id.includes(search);
   });
 
+  const modalBase: React.CSSProperties = {
+    position: "fixed", inset: 0, zIndex: 100,
+    background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center",
+  };
+  const modalCard: React.CSSProperties = {
+    background: "var(--bg-surface)", border: "0.5px solid rgba(224,224,224,0.12)",
+    borderRadius: 8, padding: "1.5rem", width: 360, maxWidth: "90vw",
+  };
+
   return (
     <div>
-      <SectionHeading>ALL USERS</SectionHeading>
+      {/* Set Password Modal */}
+      {pwTarget && (
+        <div style={modalBase} onClick={() => setPwTarget(null)}>
+          <div style={modalCard} onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-sm font-semibold" style={{ color: "var(--fg-primary)" }}>
+                Set Password — {pwTarget.profiles?.email}
+              </span>
+              <button onClick={() => setPwTarget(null)} className="lex-btn lex-btn--icon"><X size={14} /></button>
+            </div>
+            <input
+              type="password"
+              className={inputCls}
+              style={inputStyle}
+              placeholder="New password (min 6 chars)"
+              value={newPw}
+              onChange={(e) => setNewPw(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSetPassword()}
+              autoFocus
+            />
+            {pwError && <p className="text-xs mt-2" style={{ color: "var(--verdict-crimson)" }}>{pwError}</p>}
+            <div className="flex gap-2 mt-4">
+              <button className="lex-btn lex-btn--primary" onClick={handleSetPassword} disabled={pwLoading}>
+                <KeyRound size={12} /> {pwLoading ? "Saving…" : "Set Password"}
+              </button>
+              <button className="lex-btn lex-btn--ghost" onClick={() => { setPwTarget(null); setNewPw(""); }}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create User Modal */}
+      {showCreate && (
+        <div style={modalBase} onClick={() => setShowCreate(false)}>
+          <div style={modalCard} onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-sm font-semibold" style={{ color: "var(--fg-primary)" }}>Create New User</span>
+              <button onClick={() => setShowCreate(false)} className="lex-btn lex-btn--icon"><X size={14} /></button>
+            </div>
+            <div className="space-y-3">
+              <input className={inputCls} style={inputStyle} placeholder="Email" value={createForm.email}
+                onChange={(e) => setCreateForm((f) => ({ ...f, email: e.target.value }))} />
+              <input type="password" className={inputCls} style={inputStyle} placeholder="Password (min 6 chars)"
+                value={createForm.password} onChange={(e) => setCreateForm((f) => ({ ...f, password: e.target.value }))} />
+              <div className="flex gap-2">
+                <select className="rounded px-2 py-1.5 text-xs flex-1"
+                  style={{ background: "var(--bg-raised)", color: "var(--fg-primary)", border: "0.5px solid rgba(224,224,224,0.09)" }}
+                  value={createForm.role} onChange={(e) => setCreateForm((f) => ({ ...f, role: e.target.value }))}>
+                  {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+                </select>
+                <select className="rounded px-2 py-1.5 text-xs flex-1"
+                  style={{ background: "var(--bg-raised)", color: "var(--fg-primary)", border: "0.5px solid rgba(224,224,224,0.09)" }}
+                  value={createForm.plan_id} onChange={(e) => setCreateForm((f) => ({ ...f, plan_id: e.target.value }))}>
+                  {PLANS.map((p) => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </div>
+            </div>
+            {createError && <p className="text-xs mt-2" style={{ color: "var(--verdict-crimson)" }}>{createError}</p>}
+            <div className="flex gap-2 mt-4">
+              <button className="lex-btn lex-btn--primary" onClick={handleCreateUser} disabled={createLoading}>
+                <UserPlus size={12} /> {createLoading ? "Creating…" : "Create User"}
+              </button>
+              <button className="lex-btn lex-btn--ghost" onClick={() => setShowCreate(false)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirm Modal */}
+      {deleteTarget && (
+        <div style={modalBase} onClick={() => setDeleteTarget(null)}>
+          <div style={modalCard} onClick={(e) => e.stopPropagation()}>
+            <p className="text-sm font-semibold mb-2" style={{ color: "var(--fg-primary)" }}>Delete user?</p>
+            <p className="text-xs mb-4" style={{ color: "var(--fg-tertiary)" }}>
+              <strong style={{ color: "var(--verdict-crimson)" }}>{deleteTarget.profiles?.email}</strong> will be permanently removed including all their data. This cannot be undone.
+            </p>
+            <div className="flex gap-2">
+              <button className="lex-btn lex-btn--danger" onClick={handleDeleteUser} disabled={deleteLoading}>
+                <Trash2 size={12} /> {deleteLoading ? "Deleting…" : "Delete permanently"}
+              </button>
+              <button className="lex-btn lex-btn--ghost" onClick={() => setDeleteTarget(null)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between mb-4">
+        <SectionHeading>ALL USERS</SectionHeading>
+        <button className="lex-btn lex-btn--primary" onClick={() => { setCreateError(""); setShowCreate(true); }}>
+          <UserPlus size={12} /> Invite User
+        </button>
+      </div>
+
       <input
         className={inputCls}
         style={{ ...inputStyle, marginBottom: "1rem" }}
@@ -409,37 +574,33 @@ function UserManagementTab() {
             <tbody>
               {filtered.map((u) => {
                 const spent = Number(u.usage_monthly?.total_usd_cost ?? 0);
+                const isSelf = u.user_id === selfUser?.id;
                 return (
                   <tr key={u.user_id} style={{ borderTop: "0.5px solid rgba(224,224,224,0.08)" }}>
-                    <td className="px-3 py-2.5" style={{ color: "var(--fg-primary)" }}>
+                    <td className="px-3 py-2.5 text-xs" style={{ color: "var(--fg-primary)" }}>
                       {u.profiles?.email ?? "—"}
+                      {isSelf && <span className="ml-1.5 font-mono text-[9px]" style={{ color: "var(--verdict-neon)" }}>YOU</span>}
                     </td>
-                    <td className="px-3 py-2.5" style={{ color: "var(--fg-tertiary)" }}>
+                    <td className="px-3 py-2.5 text-xs" style={{ color: "var(--fg-tertiary)" }}>
                       {u.profiles?.full_name ?? "—"}
                     </td>
                     <td className="px-3 py-2.5">
-                      <select
-                        value={u.role}
-                        disabled={updating === u.user_id}
+                      <select value={u.role} disabled={updating === u.user_id}
                         onChange={(e) => changeRole(u.user_id, e.target.value)}
                         className="rounded px-2 py-1 text-xs"
                         style={{
                           background: u.role === "admin" ? "var(--verdict-amber)" : "var(--bg-raised)",
                           color: u.role === "admin" ? "#000" : "var(--fg-tertiary)",
                           border: "0.5px solid rgba(224,224,224,0.09)",
-                        }}
-                      >
+                        }}>
                         {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
                       </select>
                     </td>
                     <td className="px-3 py-2.5">
-                      <select
-                        value={u.plan_id}
-                        disabled={updating === u.user_id}
+                      <select value={u.plan_id} disabled={updating === u.user_id}
                         onChange={(e) => changePlan(u.user_id, e.target.value)}
                         className="rounded px-2 py-1 text-xs"
-                        style={{ background: "var(--bg-raised)", color: "var(--fg-primary)", border: "0.5px solid rgba(224,224,224,0.09)" }}
-                      >
+                        style={{ background: "var(--bg-raised)", color: "var(--fg-primary)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
                         {PLANS.map((p) => <option key={p} value={p}>{p}</option>)}
                       </select>
                     </td>
@@ -450,13 +611,25 @@ function UserManagementTab() {
                       {u.usage_monthly?.total_requests ?? 0}
                     </td>
                     <td className="px-3 py-2.5">
-                      <a
-                        href={`/settings/profile?uid=${u.user_id}`}
-                        className="text-xs"
-                        style={{ color: "var(--verdict-neon)" }}
-                      >
-                        View
-                      </a>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          className="lex-btn lex-btn--icon"
+                          title="Set password"
+                          onClick={() => { setNewPw(""); setPwError(""); setPwTarget(u); }}
+                        >
+                          <KeyRound size={13} />
+                        </button>
+                        {!isSelf && (
+                          <button
+                            className="lex-btn lex-btn--icon"
+                            title="Delete user"
+                            style={{ color: "var(--verdict-crimson)" }}
+                            onClick={() => setDeleteTarget(u)}
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
@@ -799,6 +972,44 @@ export default function AdminPage() {
       case "firm":
         return (
           <div>
+            <SectionHeading>FIRM LOGO</SectionHeading>
+            <div className="flex items-center gap-4 mb-4">
+              <div
+                className="w-16 h-16 rounded flex items-center justify-center flex-shrink-0 overflow-hidden"
+                style={{ background: "rgba(0,255,195,0.04)", border: "0.5px solid var(--border-hair)" }}
+              >
+                {settings.firmLogo
+                  ? <img src={settings.firmLogo} alt="Firm logo" className="w-full h-full object-contain" />
+                  : <span className="font-mono text-[9px] tracking-widest uppercase" style={{ color: "var(--fg-quaternary)" }}>Logo</span>
+                }
+              </div>
+              <div className="flex flex-col gap-2">
+                <label
+                  className="lex-btn lex-btn--secondary cursor-pointer text-xs"
+                  style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+                >
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={e => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = () => set("firmLogo", reader.result as string);
+                      reader.readAsDataURL(file);
+                    }}
+                  />
+                  Upload logo
+                </label>
+                {settings.firmLogo && (
+                  <button className="lex-btn lex-btn--ghost text-xs" onClick={() => set("firmLogo", null)}>
+                    Remove
+                  </button>
+                )}
+              </div>
+            </div>
+
             <SectionHeading>FIRM INFORMATION</SectionHeading>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
               <Field label="FIRM NAME">
