@@ -52,7 +52,7 @@ const PROVIDERS: Provider[] = [
     name: "groq",
     key: process.env.GROQ_API_KEY,
     url: "https://api.groq.com/openai/v1/chat/completions",
-    model: (m) => m.includes("haiku") ? "llama3-8b-8192" : "llama-3.3-70b-versatile",
+    model: (m) => m.includes("haiku") ? "llama-3.1-8b-instant" : "llama-3.3-70b-versatile",
   },
   {
     name: "cerebras",
@@ -86,7 +86,7 @@ const PROVIDERS: Provider[] = [
     name: "xai",
     key: process.env.XAI_API_KEY,
     url: "https://api.x.ai/v1/chat/completions",
-    model: () => "grok-3-mini-beta",
+    model: () => "grok-3-mini",
   },
   {
     name: "mistral",
@@ -275,8 +275,11 @@ anthropicRouter.post(
     const byok    = c.get("byok");
     const { role, byokKey } = await resolveRoleContext(userId);
 
-    // ── Admin path: free 9-provider waterfall (testing, zero-cost) ────────
-    if (role === "admin") {
+    // ── Routing: admin or no-key users → waterfall; keyed users → Anthropic ──
+    const keyToUse = byokKey ?? ANTHROPIC_KEY;
+    const useWaterfall = role === "admin" || !keyToUse;
+
+    if (useWaterfall) {
       const hasAnyFreeKey = PROVIDERS.some((p) => !!p.key);
       if (!hasAnyFreeKey) {
         return c.json(
@@ -285,7 +288,7 @@ anthropicRouter.post(
             error: {
               type: "configuration_error",
               message:
-                "Admin waterfall enabled but no free provider keys configured. Add GROQ_API_KEY, GEMINI_API_KEY, or another provider key to apps/api/.env",
+                "AI is not available. No provider keys configured. Add GROQ_API_KEY, GEMINI_API_KEY, or ANTHROPIC_API_KEY to the server environment.",
             },
           },
           503
@@ -293,7 +296,6 @@ anthropicRouter.post(
       }
       try {
         const result = await tryProviders(messages, system, max_tokens, model);
-        // Fire-and-forget: errors must never break the response.
         void logUsage(
           userId,
           {
@@ -304,7 +306,7 @@ anthropicRouter.post(
             matterId,
           },
           byok
-        ).catch((e) => console.warn("[quota] logUsage failed (admin):", e));
+        ).catch((e) => console.warn("[quota] logUsage failed (waterfall):", e));
         return c.json({
           id: `msg_${Date.now()}`,
           type: "message",
@@ -318,7 +320,7 @@ anthropicRouter.post(
             output_tokens: result.outputTokens,
           },
           _provider: result.provider,
-          _tier: "admin-waterfall",
+          _tier: role === "admin" ? "admin-waterfall" : "free-waterfall",
         });
       } catch (err) {
         return c.json(
@@ -328,21 +330,7 @@ anthropicRouter.post(
       }
     }
 
-    // ── User path: Anthropic via BYOK key, else platform key ──────────────
-    const keyToUse = byokKey ?? ANTHROPIC_KEY;
-    if (!keyToUse) {
-      return c.json(
-        {
-          type: "error",
-          error: {
-            type: "configuration_error",
-            message:
-              "AI is not available. Add your Anthropic API key in Settings → API Key, or contact support.",
-          },
-        },
-        503
-      );
-    }
+    // ── Keyed path: Anthropic via BYOK or platform key ──────────────────
 
     const upstream = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",

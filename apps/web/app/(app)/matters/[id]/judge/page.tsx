@@ -59,8 +59,13 @@ export default function JudgePage() {
     try {
       const headers = getApiHeaders();
 
+      // CourtListener /people/ supports name_first / name_last, not full_name.
+      // Extract last word as last name for best match.
+      const nameParts = name.trim().split(/\s+/);
+      const lastName = nameParts[nameParts.length - 1].replace(/[^a-zA-Z]/g, "");
+      const firstName = nameParts[0];
       const judgeRes = await fetch(
-        `${COURTLISTENER_BASE}/people/?full_name=${encodeURIComponent(name)}`,
+        `${COURTLISTENER_BASE}/people/?name_last=${encodeURIComponent(lastName)}&name_first=${encodeURIComponent(firstName)}`,
         { headers }
       );
       const judgeData = await judgeRes.json() as { results?: JudgeResult[] };
