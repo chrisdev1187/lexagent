@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Building2, Key, Activity, ChevronRight, Users, CreditCard,
-  UsersRound, Plus, Trash2, ClipboardList, Lock, BarChart3,
+  UsersRound, Plus, Trash2, ClipboardList, Lock, BarChart3, Terminal,
 } from "lucide-react";
 import { useSettings } from "@/providers/settings-provider";
 import { useAuth } from "@/lib/auth";
@@ -12,10 +12,11 @@ import { supabase } from "@/lib/supabase";
 import { PRACTICE_AREAS } from "@/lib/settings";
 import { LexTooltip } from "@/components/shared/LexTooltip";
 import { useQuota } from "@/hooks/useQuota";
+import { readLog, clearLog, type LogEntry } from "@/lib/logger";
 import { storagePercent, aiPercent, matterPercent } from "@/lib/quota";
 import { useMyTokenUsage, useAdminTokenUsage } from "@/hooks/useTokenUsage";
 
-type TabKey = "firm" | "apikeys" | "billing" | "users" | "teams" | "auditlog" | "telemetry" | "quota";
+type TabKey = "firm" | "apikeys" | "billing" | "users" | "teams" | "auditlog" | "telemetry" | "quota" | "debuglog";
 
 const TABS: { id: TabKey; icon: React.ElementType; label: string }[] = [
   { id: "firm",      icon: Building2,     label: "Firm Profile"    },
@@ -26,6 +27,7 @@ const TABS: { id: TabKey; icon: React.ElementType; label: string }[] = [
   { id: "auditlog",  icon: ClipboardList, label: "Audit Log"       },
   { id: "telemetry", icon: Activity,      label: "Telemetry"       },
   { id: "quota",     icon: BarChart3,     label: "Quota & Usage"   },
+  { id: "debuglog",  icon: Terminal,      label: "Debug Log"       },
 ];
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
@@ -77,6 +79,58 @@ const PLAN_DETAILS: Record<string, { name: string; usd_budget: number; matter_li
 };
 
 /* ── Billing tab (admin view) ───────────────────────────────────────────── */
+function DebugLogTab() {
+  const [entries, setEntries] = useState<LogEntry[]>([]);
+
+  useEffect(() => { setEntries(readLog().slice().reverse()); }, []);
+
+  const levelColor: Record<string, string> = {
+    info:  "var(--fg-secondary)",
+    warn:  "var(--verdict-amber)",
+    error: "var(--verdict-crimson)",
+    debug: "var(--fg-quaternary)",
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <SectionHeading>CLIENT DEBUG LOG</SectionHeading>
+        <button
+          className="lex-btn lex-btn--ghost text-xs"
+          onClick={() => { clearLog(); setEntries([]); }}
+        >
+          Clear
+        </button>
+      </div>
+      {entries.length === 0 ? (
+        <p className="font-mono text-xs" style={{ color: "var(--fg-quaternary)" }}>No log entries yet. Perform some actions to populate.</p>
+      ) : (
+        <div className="overflow-y-auto max-h-[520px] rounded" style={{ background: "rgba(0,0,0,0.35)", border: "0.5px solid rgba(224,224,224,0.08)" }}>
+          {entries.map((e, i) => (
+            <div key={i} className="flex gap-2 px-3 py-1.5 font-mono text-[11px] border-b" style={{ borderColor: "rgba(224,224,224,0.05)" }}>
+              <span className="flex-shrink-0 opacity-50" style={{ color: "var(--fg-quaternary)" }}>{e.ts.slice(11, 23)}</span>
+              <span className="flex-shrink-0 w-10 uppercase" style={{ color: levelColor[e.level] ?? "var(--fg-secondary)" }}>{e.level}</span>
+              <span className="flex-shrink-0 w-20 truncate opacity-70" style={{ color: "var(--verdict-neon)" }}>{e.tag}</span>
+              <span className="flex-1 truncate" style={{ color: "var(--fg-secondary)" }} title={e.msg}>{e.msg}</span>
+              {e.data !== undefined && (
+                <span className="flex-shrink-0 max-w-[200px] truncate opacity-60" style={{ color: "var(--fg-tertiary)" }} title={JSON.stringify(e.data)}>
+                  {JSON.stringify(e.data)}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      <button
+        className="lex-btn lex-btn--secondary text-xs mt-3"
+        onClick={() => setEntries(readLog().slice().reverse())}
+      >
+        Refresh
+      </button>
+    </div>
+  );
+}
+
 function BillingTab() {
   const { user, isAdmin } = useAuth();
   const [data, setData] = useState<{ spent: number; budget: number; plan_id: string; requests: number } | null>(null);
@@ -912,6 +966,9 @@ export default function AdministrationPage() {
             ))}
           </div>
         );
+
+      case "debuglog":
+        return <DebugLogTab />;
     }
   };
 

@@ -10,6 +10,7 @@ import {
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 import { setAuthToken } from "./api";
+import { log } from "./logger";
 
 export type AuthErrorCode =
   | "invalid_credentials"
@@ -95,7 +96,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
+    supabase.auth.getSession().then(({ data, error }) => {
+      log.info("auth", "getSession", { hasSession: !!data.session, userId: data.session?.user?.id, error: error?.message });
       setSession(data.session);
       setUser(data.session?.user ?? null);
       setAuthToken(data.session?.access_token ?? null);
@@ -104,7 +106,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, newSession) => {
+      (event, newSession) => {
+        log.info("auth", `onAuthStateChange: ${event}`, { hasSession: !!newSession, userId: newSession?.user?.id, expiresAt: newSession?.expires_at });
         setSession(newSession);
         setUser(newSession?.user ?? null);
         setAuthToken(newSession?.access_token ?? null);
@@ -116,25 +119,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signInWithEmail = async (email: string, password: string) => {
+    log.info("auth", "signInWithEmail attempt", { email });
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
-        console.error("[auth] signInWithPassword error:", { message: error.message, code: (error as {code?: string}).code, status: (error as {status?: number}).status });
+        log.error("auth", "signInWithEmail failed", { message: error.message, code: (error as {code?: string}).code, status: (error as {status?: number}).status });
       } else {
-        console.log("[auth] signInWithPassword OK, hasSession:", !!data.session);
+        log.info("auth", "signInWithEmail OK", { hasSession: !!data.session, userId: data.session?.user?.id, expiresAt: data.session?.expires_at });
       }
       return { error: error ? classifyError(error) : null };
     } catch (err) {
-      console.error("[auth] signInWithPassword threw:", err);
+      log.error("auth", "signInWithEmail threw", { err: String(err) });
       return { error: classifyError(err) };
     }
   };
 
   const signUpWithEmail = async (email: string, password: string) => {
+    log.info("auth", "signUpWithEmail attempt", { email });
     try {
-      const { error } = await supabase.auth.signUp({ email, password });
+      const { data, error } = await supabase.auth.signUp({ email, password });
+      if (error) log.error("auth", "signUpWithEmail failed", { message: error.message });
+      else log.info("auth", "signUpWithEmail OK", { userId: data.user?.id, confirmed: data.user?.confirmed_at });
       return { error: error ? classifyError(error) : null };
     } catch (err) {
+      log.error("auth", "signUpWithEmail threw", { err: String(err) });
       return { error: classifyError(err) };
     }
   };

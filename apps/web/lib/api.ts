@@ -1,4 +1,5 @@
 import { setBudgetState, BudgetStatus } from "@/lib/budget-store";
+import { log } from "@/lib/logger";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
@@ -7,7 +8,10 @@ export function setAnthropicKey(key: string) { _anthropicKey = key; }
 export function getAnthropicKey(): string { return _anthropicKey; }
 
 let _authToken: string | null = null;
-export function setAuthToken(token: string | null) { _authToken = token; }
+export function setAuthToken(token: string | null) {
+  log.debug("api", `auth token ${token ? "set" : "cleared"}`, { hasToken: !!token });
+  _authToken = token;
+}
 function authHeaders(): Record<string, string> {
   return _authToken ? { Authorization: `Bearer ${_authToken}` } : {};
 }
@@ -15,6 +19,8 @@ function authHeaders(): Record<string, string> {
 export const ANTHROPIC_ENDPOINT = API_URL
   ? `${API_URL}/api/anthropic/messages`
   : "https://api.anthropic.com/v1/messages";
+
+log.info("api", "API_URL resolved", { API_URL: API_URL || "(empty — direct Anthropic)", ANTHROPIC_ENDPOINT });
 
 export class QuotaExceededError extends Error {
   constructor() { super("AI quota exceeded — upgrade your plan to continue."); this.name = "QuotaExceededError"; }
@@ -24,26 +30,71 @@ export async function anthropicFetch(
   body: Record<string, unknown>,
   extraHeaders?: Record<string, string>
 ): Promise<Response> {
+  const hasToken = !!_authToken;
+  const model = body.model as string ?? "unknown";
+  log.info("anthropic", `→ POST ${ANTHROPIC_ENDPOINT}`, { model, hasToken, hasApiUrl: !!API_URL });
+
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(API_URL ? authHeaders() : {}),
     ...extraHeaders,
   };
-  const res = await fetch(ANTHROPIC_ENDPOINT, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(body),
-  });
 
-  // Read budget headers on every response (headers absent when hitting Anthropic directly).
+  let res: Response;
+  try {
+    res = await fetch(ANTHROPIC_ENDPOINT, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+    });
+  } catch (err) {
+    log.error("anthropic", "fetch threw (network error)", { err: String(err), endpoint: ANTHROPIC_ENDPOINT });
+    throw err;
+  }
+
   const spent  = parseFloat(res.headers.get("X-Budget-USD-Spent")  ?? "0");
   const budget = parseFloat(res.headers.get("X-Budget-USD-Budget") ?? "0");
   const rawStatus = (res.headers.get("X-Budget-Status") ?? "ok") as BudgetStatus;
-  if (budget > 0 || rawStatus !== "ok") {
+  const provider = res.headers.get("X-Provider") ?? res.headers.get("_provider") ?? "unknown";
+  const tier = res.headers.get("X-Tier") ?? "unknown";
+
+  if ((budget > 0 || rawStatus !== "ok") && Number.isFinite(spent) && Number.isFinite(budget)) {
     setBudgetState({ status: rawStatus, spent, budget });
   }
 
+  if (!res.ok) {
+    const body = await res.clone().text().catch(() => "(unreadable)");
+    log.error("anthropic", `← ${res.status} ${res.statusText}`, { status: res.status, body, provider, tier, model });
+  } else {
+    log.info("anthropic", `← ${res.status} OK`, { provider, tier, model, spent, budget });
+  }
+
   if (res.status === 429) throw new QuotaExceededError();
+  return res;
+}
+
+export async function adminFetch(path: string, body: unknown): Promise<Response> {
+  log.info("admin", `→ POST ${path}`, body);
+  let res: Response;
+  try {
+    res = await fetch(path, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders(),
+      },
+      body: JSON.stringify(body),
+    });
+  } catch (err) {
+    log.error("admin", `fetch threw for ${path}`, { err: String(err) });
+    throw err;
+  }
+  if (!res.ok) {
+    const text = await res.clone().text().catch(() => "(unreadable)");
+    log.error("admin", `← ${res.status} ${res.statusText} for ${path}`, { body: text });
+  } else {
+    log.info("admin", `← ${res.status} OK for ${path}`);
+  }
   return res;
 }
 

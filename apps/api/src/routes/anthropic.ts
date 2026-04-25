@@ -196,15 +196,17 @@ async function tryProviders(
     }
 
     if (res.status === 429) {
-      errors.push(`${provider.name}: rate limited`);
-      console.warn(`[llm-router] ${provider.name} rate limited — trying next provider`);
+      const msg = `${provider.name}: 429 rate-limited`;
+      errors.push(msg);
+      console.warn(JSON.stringify({ tag: "llm-router", event: "rate_limited", provider: provider.name, model: provider.model(requestedModel) }));
       continue;
     }
 
     if (!res.ok) {
       const errText = await res.text();
-      errors.push(`${provider.name}: ${res.status} — ${errText.slice(0, 120)}`);
-      console.warn(`[llm-router] ${provider.name} error ${res.status} — trying next provider`);
+      const msg = `${provider.name}: ${res.status} — ${errText.slice(0, 200)}`;
+      errors.push(msg);
+      console.error(JSON.stringify({ tag: "llm-router", event: "provider_error", provider: provider.name, status: res.status, body: errText.slice(0, 300), model: provider.model(requestedModel) }));
       continue;
     }
 
@@ -217,18 +219,19 @@ async function tryProviders(
 
     if (!text.trim()) {
       errors.push(`${provider.name}: empty response content`);
-      console.warn(`[llm-router] ${provider.name} returned empty content — trying next provider`);
+      console.warn(JSON.stringify({ tag: "llm-router", event: "empty_content", provider: provider.name, model: provider.model(requestedModel) }));
       continue;
     }
 
     const inputTokens = data.usage?.prompt_tokens ?? 0;
     const outputTokens = data.usage?.completion_tokens ?? 0;
 
-    console.log(`[llm-router] served by ${provider.name} (in:${inputTokens} out:${outputTokens})`);
+    console.log(JSON.stringify({ tag: "llm-router", event: "success", provider: provider.name, model: provider.model(requestedModel), inputTokens, outputTokens }));
 
     return { text, provider: provider.name, inputTokens, outputTokens };
   }
 
+  console.error(JSON.stringify({ tag: "llm-router", event: "all_exhausted", errors }));
   throw new Error(`All providers exhausted.\n${errors.join("\n")}`);
 }
 
@@ -274,6 +277,8 @@ anthropicRouter.post(
     const userId = c.get("userId");
     const byok    = c.get("byok");
     const { role, byokKey } = await resolveRoleContext(userId);
+
+    console.log(JSON.stringify({ tag: "anthropic", event: "request", userId, role, hasByok: !!byokKey, hasPlatformKey: !!ANTHROPIC_KEY, model, max_tokens }));
 
     // ── Routing: admin or no-key users → waterfall; keyed users → Anthropic ──
     const keyToUse = byokKey ?? ANTHROPIC_KEY;
