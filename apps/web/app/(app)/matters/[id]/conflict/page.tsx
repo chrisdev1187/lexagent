@@ -5,9 +5,11 @@ import { Scale, AlertTriangle, CheckCircle, Zap, Loader2 } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useMatters } from "@/providers/matters-provider";
 import { useSettings } from "@/providers/settings-provider";
-import { anthropicFetch, QuotaExceededError, FreeTierExhaustedError } from "@/lib/api";
+import { QuotaExceededError, FreeTierExhaustedError } from "@/lib/api";
+import { withLexMemory } from "@/lib/lex-memory";
 import { UpgradeCTA } from "@/components/shared/UpgradeCTA";
 import { PanelShell } from "@/components/panels/PanelShell";
+import { Markdown } from "@/components/shared/Markdown";
 
 interface ConflictMatch {
   matterId: string;
@@ -23,13 +25,14 @@ function normalize(s: string) {
 
 export default function ConflictPage() {
   const { id } = useParams<{ id: string }>();
-  const { getMatter, matters } = useMatters();
+  const { getMatter, matters, updateMatter } = useMatters();
   const { settings } = useSettings();
   const matter = getMatter(id);
 
   const [conflicts, setConflicts] = useState<ConflictMatch[]>([]);
   const [aiAnalysis, setAiAnalysis] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
+  const [streamingText, setStreamingText] = useState("");
   const [aiError, setAiError] = useState<string | null>(null);
   const [freeTierMsg, setFreeTierMsg] = useState<string | null>(null);
 
@@ -76,14 +79,13 @@ export default function ConflictPage() {
       const otherMatters = matters.filter(m => m.id !== matter.id);
       const userContent = `Perform a conflict of interest analysis for a law firm:\n\nNew Matter:\n- Client: ${matter.client}\n- Case Type: ${matter.caseType}\n- Title: ${matter.title}\n- Facts: ${matter.facts}\n\nExisting Matters:\n${otherMatters.map(m => `- ${m.title} (Client: ${m.client}, Type: ${m.caseType})`).join("\n")}\n\nIdentify any potential conflicts of interest and explain the applicable professional responsibility rules (ABA Model Rules 1.7, 1.9, 1.10).`;
 
-      const res = await anthropicFetch({
-        model: settings.model,
-        max_tokens: settings.maxTokens,
-        system: settings.systemPrompt,
-        messages: [{ role: "user", content: userContent }],
-        matter_id: matter.id,
-        tool_name: "conflict",
-      });
+      const lexFetch = withLexMemory(matter, updateMatter, { tab: "conflict" });
+      setStreamingText("");
+      const res = await lexFetch(
+        { model: settings.model, max_tokens: settings.maxTokens, system: settings.systemPrompt, messages: [{ role: "user", content: userContent }] },
+        undefined,
+        { onChunk: chunk => setStreamingText(prev => prev + chunk) }
+      );
       const data = await res.json() as { content?: Array<{ type: string; text: string }> };
       const text = data.content?.[0]?.text ?? "No response.";
       setAiAnalysis(text);
@@ -92,6 +94,7 @@ export default function ConflictPage() {
       else if (e instanceof QuotaExceededError) { setAiError("AI quota exceeded — upgrade your plan."); }
       else { setAiError((e as Error).message); }
     } finally {
+      setStreamingText("");
       setAiLoading(false);
     }
   };
@@ -200,7 +203,7 @@ export default function ConflictPage() {
           </div>
         )}
 
-        {aiLoading && (
+        {aiLoading && !streamingText && (
           <div className="flex items-center justify-center py-12 gap-3">
             <div className="flex gap-1">
               {[0, 1, 2].map(i => (
@@ -215,17 +218,15 @@ export default function ConflictPage() {
           </div>
         )}
 
-        {aiAnalysis && !aiLoading && (
+        {(aiAnalysis || streamingText) && (
           <div
             className="rounded p-5"
             style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}
           >
-            <pre
-              className="text-sm leading-relaxed whitespace-pre-wrap font-sans"
-              style={{ color: "var(--fg-primary)" }}
-            >
-              {aiAnalysis}
-            </pre>
+            <Markdown text={streamingText || aiAnalysis} />
+            {aiLoading && streamingText && (
+              <span className="inline-block w-1.5 h-4 ml-0.5 align-middle animate-pulse" style={{ background: "var(--verdict-neon)", borderRadius: "1px" }} />
+            )}
           </div>
         )}
 

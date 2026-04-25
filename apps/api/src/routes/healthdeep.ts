@@ -44,6 +44,10 @@ healthDeepRouter.get("/", async (c) => {
   const GOVINFO_KEY   = process.env.DATA_GOV_KEY;
   const OPENSTATES_KEY = process.env.OPENSTATES_KEY;
 
+  const CONGRESS_KEY   = process.env.CONGRESS_KEY ?? process.env.DATA_GOV_KEY;
+  const SAMBANOVA_KEY  = process.env.SAMBANOVA_API_KEY;
+  const NVIDIA_KEY     = process.env.NVIDIA_API_KEY;
+
   const [
     supabaseResult,
     anthropicResult,
@@ -55,13 +59,19 @@ healthDeepRouter.get("/", async (c) => {
     openstatesResult,
     xaiResult,
     mistralResult,
+    sambanovaResult,
+    nvidiaResult,
+    congressResult,
+    ecfrResult,
+    renderSelfResult,
   ] = await Promise.all([
-    // Supabase: lightweight health check
-    probe(async () => {
-      if (!supabase) throw new Error("not configured");
-      const { error } = await supabase.from("plans").select("id").limit(1);
-      if (error) throw new Error(error.message);
-    }),
+    // Supabase: HTTP health check (avoids JS client auth overhead)
+    (() => {
+      const url  = process.env.SUPABASE_URL;
+      const key  = process.env.SUPABASE_SERVICE_KEY;
+      if (!url || !key) return Promise.resolve<ServiceResult>({ status: "red", latencyMs: 0, error: "not configured" });
+      return probeUrl(`${url}/rest/v1/plans?select=id&limit=1`, { apikey: key, Authorization: `Bearer ${key}` });
+    })(),
 
     // Anthropic: model list (doesn't cost tokens)
     ANTHROPIC_KEY
@@ -114,6 +124,27 @@ healthDeepRouter.get("/", async (c) => {
     process.env.MISTRAL_API_KEY
       ? probeUrl("https://api.mistral.ai/v1/models", { Authorization: `Bearer ${process.env.MISTRAL_API_KEY}` })
       : Promise.resolve<ServiceResult>({ status: "red", latencyMs: 0, error: "key not configured" }),
+
+    // SambaNova
+    SAMBANOVA_KEY
+      ? probeUrl("https://api.sambanova.ai/v1/models", { Authorization: `Bearer ${SAMBANOVA_KEY}` })
+      : Promise.resolve<ServiceResult>({ status: "red", latencyMs: 0, error: "key not configured" }),
+
+    // NVIDIA
+    NVIDIA_KEY
+      ? probeUrl("https://integrate.api.nvidia.com/v1/models", { Authorization: `Bearer ${NVIDIA_KEY}` })
+      : Promise.resolve<ServiceResult>({ status: "red", latencyMs: 0, error: "key not configured" }),
+
+    // Congress.gov
+    CONGRESS_KEY
+      ? probeUrl(`https://api.congress.gov/v3/bill?api_key=${CONGRESS_KEY}&limit=1&format=json`)
+      : Promise.resolve<ServiceResult>({ status: "red", latencyMs: 0, error: "key not configured" }),
+
+    // eCFR (no key required)
+    probeUrl("https://www.ecfr.gov/api/search/v1/results?query=law&per_page=1"),
+
+    // Render self-check (cold-start indicator)
+    probeUrl(`${process.env.RENDER_EXTERNAL_URL ?? "https://lexagent-0o5u.onrender.com"}/api/health`),
   ]);
 
   const services = {
@@ -122,11 +153,16 @@ healthDeepRouter.get("/", async (c) => {
     groq:          groqResult,
     gemini:        geminiResult,
     cerebras:      cerebrasResult,
+    xai:           xaiResult,
+    mistral:       mistralResult,
+    sambanova:     sambanovaResult,
+    nvidia:        nvidiaResult,
     courtlistener: courtlistenerResult,
     govinfo:       govinfoResult,
     openstates:    openstatesResult,
-    xai:           xaiResult,
-    mistral:       mistralResult,
+    congress:      congressResult,
+    ecfr:          ecfrResult,
+    render:        renderSelfResult,
   };
 
   const overall = Object.values(services).every(s => s.status !== "red")

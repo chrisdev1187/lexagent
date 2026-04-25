@@ -21,6 +21,7 @@ export default function StrategyPage() {
   const editingUsers = present.filter(u => u.tab === "strategy");
 
   const [loading, setLoading] = useState(false);
+  const [streamingText, setStreamingText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [freeTierMsg, setFreeTierMsg] = useState<string | null>(null);
@@ -71,12 +72,12 @@ Practical 2-3 sentence summary of the recommended approach.
 Use Bluebook citation format. Flag any circuit splits.`;
 
       const lexFetch = withLexMemory(matter, updateMatter, { tab: "strategy" });
-      const res = await lexFetch({
-        model: settings.model,
-        max_tokens: settings.maxTokens,
-        system: settings.systemPrompt,
-        messages: [{ role: "user", content: userContent }],
-      });
+      setStreamingText("");
+      const res = await lexFetch(
+        { model: settings.model, max_tokens: settings.maxTokens, system: settings.systemPrompt, messages: [{ role: "user", content: userContent }] },
+        undefined,
+        { onChunk: chunk => setStreamingText(prev => prev + chunk) }
+      );
       const data = await res.json() as { content?: Array<{ type: string; text: string }> };
       const text = data.content?.[0]?.text;
       if (text) {
@@ -89,6 +90,7 @@ Use Bluebook citation format. Flag any circuit splits.`;
       else if (e instanceof QuotaExceededError) { setShowUpgrade(true); }
       else { setError((e as Error).message); }
     } finally {
+      setStreamingText("");
       setLoading(false);
     }
   };
@@ -173,19 +175,21 @@ Use Bluebook citation format. Flag any circuit splits.`;
         )}
 
         {loading && (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="flex gap-1.5 mb-4">
-              {[0, 1, 2].map(i => (
-                <div
-                  key={i}
-                  className="w-2 h-2 rounded-full animate-pulse"
-                  style={{ background: "var(--verdict-neon)", animationDelay: `${i * 0.15}s` }}
-                />
-              ))}
+          streamingText ? (
+            <div className="lex-card overflow-auto" style={{ maxHeight: "720px" }}>
+              <Markdown text={streamingText} />
+              <span className="inline-block w-1.5 h-4 ml-0.5 align-middle animate-pulse" style={{ background: "var(--verdict-neon)", borderRadius: "1px" }} />
             </div>
-            <p className="text-sm" style={{ color: "var(--fg-tertiary)" }}>Generating strategy…</p>
-            <p className="text-xs mt-1" style={{ color: "var(--fg-tertiary)" }}>This may take 15-30 seconds</p>
-          </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <div className="flex gap-1.5 mb-4">
+                {[0, 1, 2].map(i => (
+                  <div key={i} className="w-2 h-2 rounded-full animate-pulse" style={{ background: "var(--verdict-neon)", animationDelay: `${i * 0.15}s` }} />
+                ))}
+              </div>
+              <p className="text-sm" style={{ color: "var(--fg-tertiary)" }}>Generating strategy…</p>
+            </div>
+          )
         )}
 
         {strategy && !loading && (

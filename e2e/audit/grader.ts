@@ -1,10 +1,11 @@
-// V1.2.3 — AI grader for Intelligence Audit
-// Calls the LexAgent LLM waterfall to grade each AI feature output.
+// V1.3.0 — AI grader: direct Anthropic when E2E_GRADER_KEY set, waterfall fallback
+// Fixes circular grading (Groq Haiku grading Groq output = unreliable)
 
 import { GRADING_RUBRIC } from "./fixture";
 
-const API_BASE =
-  process.env.E2E_API_URL ?? "https://lexagent-0o5u.onrender.com";
+const API_BASE = process.env.E2E_API_URL ?? "https://lexagent-0o5u.onrender.com";
+const GRADER_KEY = process.env.E2E_GRADER_KEY ?? "";
+const GRADER_URL = process.env.E2E_GRADER_URL ?? "https://api.anthropic.com/v1/messages";
 
 export interface GradeResult {
   total: number;
@@ -29,6 +30,41 @@ const FALLBACK_GRADE: GradeResult = {
   issues: ["Grader API error"],
 };
 
+async function callDirect(prompt: string): Promise<Response> {
+  return fetch(GRADER_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": GRADER_KEY,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-6",
+      max_tokens: 1200,
+      temperature: 0,
+      system: GRADING_RUBRIC,
+      messages: [{ role: "user", content: prompt }],
+    }),
+  });
+}
+
+async function callWaterfall(prompt: string, authToken: string): Promise<Response> {
+  return fetch(`${API_BASE}/api/anthropic/messages`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${authToken}`,
+    },
+    body: JSON.stringify({
+      model: "auto",
+      max_tokens: 1200,
+      temperature: 0,
+      system: GRADING_RUBRIC,
+      messages: [{ role: "user", content: prompt }],
+    }),
+  });
+}
+
 export async function gradeOutput(
   feature: string,
   output: string,
@@ -38,19 +74,9 @@ export async function gradeOutput(
 
   let res: Response;
   try {
-    res = await fetch(`${API_BASE}/api/anthropic/messages`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${authToken}`,
-      },
-      body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 600,
-        system: GRADING_RUBRIC,
-        messages: [{ role: "user", content: prompt }],
-      }),
-    });
+    res = GRADER_KEY
+      ? await callDirect(prompt)
+      : await callWaterfall(prompt, authToken);
   } catch (e) {
     return { ...FALLBACK_GRADE, raw: String(e) };
   }
@@ -68,11 +94,8 @@ export async function gradeOutput(
   }
 
   const text = body?.content?.[0]?.text ?? "";
-  // Extract JSON from response — providers sometimes wrap in prose
   const match = text.match(/\{[\s\S]*\}/);
-  if (!match) {
-    return { ...FALLBACK_GRADE, raw: text };
-  }
+  if (!match) return { ...FALLBACK_GRADE, raw: text };
 
   try {
     const parsed = JSON.parse(match[0]) as GradeResult;

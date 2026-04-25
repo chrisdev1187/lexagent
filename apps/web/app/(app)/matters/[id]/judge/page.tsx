@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Users, Search, ExternalLink, Loader2, Zap, Target } from "lucide-react";
+import { Users, Search, ExternalLink, Loader2, Zap, Target, BookOpen } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useMatters } from "@/providers/matters-provider";
 import { useSettings } from "@/providers/settings-provider";
 import { COURTLISTENER_BASE, getApiHeaders, anthropicFetch, QuotaExceededError, FreeTierExhaustedError } from "@/lib/api";
 import { withLexMemory } from "@/lib/lex-memory";
+import { supabase } from "@/lib/supabase";
 import { PanelShell } from "@/components/panels/PanelShell";
 import { Markdown } from "@/components/shared/Markdown";
 
@@ -33,6 +34,24 @@ interface Opinion {
   absoluteUrl: string;
 }
 
+interface FjcJudge {
+  nid: string;
+  last_name: string;
+  first_name: string | null;
+  middle_name: string | null;
+  birth_year: number | null;
+  death_year: number | null;
+  gender: string | null;
+  law_school: string | null;
+  undergrad: string | null;
+  appointing_president: string | null;
+  party_of_president: string | null;
+  commission_date: string | null;
+  court_name: string | null;
+  court_type: string | null;
+  termination_date: string | null;
+}
+
 export default function JudgePage() {
   const { id } = useParams<{ id: string }>();
   const { getMatter, updateMatter } = useMatters();
@@ -41,9 +60,11 @@ export default function JudgePage() {
 
   const [searchName, setSearchName] = useState(matter?.judgeName ?? "");
   const [judge, setJudge] = useState<JudgeResult | null>(null);
+  const [fjc, setFjc] = useState<FjcJudge | null>(null);
   const [opinions, setOpinions] = useState<Opinion[]>([]);
   const [loading, setLoading] = useState(false);
   const [synthesizing, setSynthesizing] = useState(false);
+  const [streamingText, setStreamingText] = useState("");
   const [searched, setSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [freeTierMsg, setFreeTierMsg] = useState<string | null>(null);
@@ -55,6 +76,7 @@ export default function JudgePage() {
     setLoading(true);
     setError(null);
     setJudge(null);
+    setFjc(null);
     setOpinions([]);
     setSearched(true);
     try {
@@ -72,6 +94,15 @@ export default function JudgePage() {
       const judgeData = await judgeRes.json() as { results?: JudgeResult[] };
       const foundJudge = judgeData.results?.[0] ?? null;
       setJudge(foundJudge);
+
+      // FJC biographical lookup
+      if (foundJudge) {
+        const { data: fjcRows } = await supabase.rpc("lookup_judge", {
+          p_last_name: lastName,
+          p_first_name: firstName,
+        });
+        setFjc((fjcRows as FjcJudge[] | null)?.[0] ?? null);
+      }
 
       const opinionRes = await fetch(
         `${COURTLISTENER_BASE}/search/?q=${encodeURIComponent(`judge:${name}`)}&type=o&page_size=10`,
@@ -146,12 +177,12 @@ Any potential concerns or preferences to avoid.
 Be direct and actionable. This is for attorney preparation only.`;
 
       const lexFetch = withLexMemory(matter, updateMatter, { tab: "judge" });
-      const res = await lexFetch({
-        model: settings.model,
-        max_tokens: 4000,
-        system: settings.systemPrompt,
-        messages: [{ role: "user", content }],
-      });
+      setStreamingText("");
+      const res = await lexFetch(
+        { model: settings.model, max_tokens: 4000, system: settings.systemPrompt, messages: [{ role: "user", content }] },
+        undefined,
+        { onChunk: chunk => setStreamingText(prev => prev + chunk) }
+      );
       const data = await res.json() as { content?: Array<{ type: string; text: string }> };
       const text = data.content?.[0]?.text ?? "No response.";
       await updateMatter({ ...matter, judgeAnalysis: text });
@@ -160,6 +191,7 @@ Be direct and actionable. This is for attorney preparation only.`;
       else if (e instanceof QuotaExceededError) { setError("AI quota exceeded — upgrade your plan."); }
       else { setError((e as Error).message); }
     } finally {
+      setStreamingText("");
       setSynthesizing(false);
     }
   };
@@ -299,8 +331,71 @@ Be direct and actionable. This is for attorney preparation only.`;
             </div>
           </div>
 
+          {/* FJC biographical panel */}
+          {fjc && (
+            <div
+              className="rounded p-5"
+              style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(0,255,195,0.12)" }}
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <BookOpen size={13} style={{ color: "var(--verdict-neon)" }} />
+                <span className="text-xs font-mono tracking-wide" style={{ color: "var(--verdict-neon)" }}>FJC BIOGRAPHICAL DATA</span>
+              </div>
+              <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-xs">
+                {fjc.law_school && (
+                  <div>
+                    <span style={{ color: "var(--fg-tertiary)" }}>Law School</span>
+                    <p className="font-medium mt-0.5" style={{ color: "var(--fg-primary)" }}>{fjc.law_school}</p>
+                  </div>
+                )}
+                {fjc.undergrad && (
+                  <div>
+                    <span style={{ color: "var(--fg-tertiary)" }}>Undergraduate</span>
+                    <p className="font-medium mt-0.5" style={{ color: "var(--fg-primary)" }}>{fjc.undergrad}</p>
+                  </div>
+                )}
+                {fjc.appointing_president && (
+                  <div>
+                    <span style={{ color: "var(--fg-tertiary)" }}>Appointing President</span>
+                    <p className="font-medium mt-0.5" style={{ color: "var(--fg-primary)" }}>
+                      {fjc.appointing_president}
+                      {fjc.party_of_president && (
+                        <span style={{ color: "var(--fg-tertiary)" }}> ({fjc.party_of_president})</span>
+                      )}
+                    </p>
+                  </div>
+                )}
+                {fjc.commission_date && (
+                  <div>
+                    <span style={{ color: "var(--fg-tertiary)" }}>Commission Date</span>
+                    <p className="font-medium mt-0.5" style={{ color: "var(--fg-primary)" }}>
+                      {new Date(fjc.commission_date).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
+                    </p>
+                  </div>
+                )}
+                {fjc.court_name && (
+                  <div className="col-span-2">
+                    <span style={{ color: "var(--fg-tertiary)" }}>Court</span>
+                    <p className="font-medium mt-0.5" style={{ color: "var(--fg-primary)" }}>
+                      {fjc.court_name}
+                      {fjc.court_type && <span style={{ color: "var(--fg-tertiary)" }}> · {fjc.court_type}</span>}
+                    </p>
+                  </div>
+                )}
+                {(fjc.birth_year ?? fjc.gender) && (
+                  <div>
+                    <span style={{ color: "var(--fg-tertiary)" }}>Background</span>
+                    <p className="font-medium mt-0.5" style={{ color: "var(--fg-primary)" }}>
+                      {[fjc.gender, fjc.birth_year ? `b. ${fjc.birth_year}` : null].filter(Boolean).join(" · ")}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* AI synthesis */}
-          {judgeAnalysis && (
+          {(judgeAnalysis || streamingText) && (
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <Target size={13} style={{ color: "var(--verdict-neon)" }} />
@@ -310,7 +405,10 @@ Be direct and actionable. This is for attorney preparation only.`;
                 className="rounded p-4 overflow-auto"
                 style={{ background: "rgba(17,17,20,0.8)", border: "0.5px solid rgba(0,255,195,0.14)", maxHeight: "480px" }}
               >
-                <Markdown text={judgeAnalysis} />
+                <Markdown text={streamingText || judgeAnalysis || ""} />
+                {synthesizing && streamingText && (
+                  <span className="inline-block w-1.5 h-4 ml-0.5 align-middle animate-pulse" style={{ background: "var(--verdict-neon)", borderRadius: "1px" }} />
+                )}
               </div>
             </div>
           )}

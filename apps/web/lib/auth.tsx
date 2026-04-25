@@ -89,9 +89,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchRole = async (uid: string | undefined) => {
     if (!uid) { setIsAdmin(false); setUserRole("member"); return; }
-    const { data } = await supabase.from("user_roles").select("role").eq("user_id", uid).single();
+    const { data } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", uid)
+      .order("role", { ascending: true }) // 'admin' sorts before 'member' — picks highest privilege
+      .limit(1)
+      .maybeSingle();
     const role = (data?.role ?? "member") as "member" | "admin" | "owner";
-    setIsAdmin(role === "admin");
+    setIsAdmin(role === "admin" || role === "owner");
     setUserRole(role);
   };
 

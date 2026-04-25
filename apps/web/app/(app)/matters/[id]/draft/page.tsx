@@ -38,6 +38,7 @@ export default function DraftPage() {
   const [instructions, setInstructions] = useState("");
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(false);
+  const [streamingText, setStreamingText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
@@ -52,31 +53,47 @@ export default function DraftPage() {
         ? `\n\nATTORNEY/FIRM:\n${settings.firmName}${settings.firmAddress ? `\n${settings.firmAddress}` : ""}${settings.firmCity ? `, ${settings.firmCity}` : ""}${settings.firmState ? `, ${settings.firmState}` : ""}${settings.firmZip ? ` ${settings.firmZip}` : ""}${settings.barNumber ? `\nBar No. ${settings.barNumber}${settings.barJurisdiction ? ` (${settings.barJurisdiction})` : ""}` : ""}`
         : "";
 
+      const verifiedCitations = (matter.verifiedCitations as string[] | undefined) ?? [];
+      const citationsBlock = verifiedCitations.length > 0
+        ? `\n\nVERIFIED AUTHORITIES (use these Bluebook citations verbatim):\n${verifiedCitations.map((c, i) => `${i + 1}. ${c}`).join("\n")}`
+        : "";
+
+      const judgeBlock = matter.judgeAnalysis
+        ? `\n\nJUDGE INTELLIGENCE BRIEF (tailor tone and argument framing accordingly):\n${(matter.judgeAnalysis as string).slice(0, 1200)}`
+        : "";
+
       const userContent = `Draft a complete, court-ready ${docType} for the following matter:
 
 Matter: ${matter.title}
 Case Type: ${matter.caseType ?? "N/A"}
 Jurisdiction: ${matter.jurisdiction ?? "N/A"}
 Court: ${matter.court ?? "N/A"}
-Facts: ${matter.facts ?? "N/A"}${firmBlock}
+Judge: ${matter.judgeName || "N/A"}
+Parties: ${(matter.parties as string | undefined) || "N/A"}
+Case No.: ${(matter.caseNumber as string | undefined) || "N/A"}
+Facts: ${matter.facts ?? "N/A"}${firmBlock}${citationsBlock}${judgeBlock}
 
 Special Instructions: ${instructions || "None"}
 
 DRAFTING REQUIREMENTS:
-- Include proper caption block (Court, Parties, Case No., Document Title)
-- Use correct Bluebook citations throughout (Rule 10 for cases, Rule 12 for statutes)
-- Structure with numbered sections and proper headings
-- Include Certificate of Service at the end
-- All margins 1 inch, font Times New Roman 12pt, double-spaced argument sections
-- End with signature block including firm name, bar number, and contact info`;
+1. Caption block first: Court name, parties (Plaintiff v. Defendant), Case No., and document title — centered
+2. Introduction/Preliminary Statement: one paragraph stating relief sought and basis
+3. Argument sections numbered (I, II, III…) with ## headings; sub-points lettered (A, B…)
+4. Use ONLY verified Bluebook citations (Rule 10 cases, Rule 12 statutes) — no placeholders
+5. Factual citations: "Compl. ¶ __" or "Ex. __ at __" — do not fabricate record references
+6. Include CONCLUSION paragraph restating relief sought
+7. Signature block: firm name, address, bar number, date line
+8. Certificate of Service at end
+9. BOTTOM LINE: one sentence stating the exact legal standard and why it is met
+10. Flag any element requiring factual record cite with [VERIFY: ___]`;
 
       const lexFetch = withLexMemory(matter, updateMatter, { tab: "draft" });
-      const res = await lexFetch({
-        model: settings.model,
-        max_tokens: settings.maxTokens,
-        system: settings.systemPrompt,
-        messages: [{ role: "user", content: userContent }],
-      });
+      setStreamingText("");
+      const res = await lexFetch(
+        { model: settings.model, max_tokens: settings.maxTokens, system: settings.systemPrompt, messages: [{ role: "user", content: userContent }] },
+        undefined,
+        { onChunk: chunk => setStreamingText(prev => prev + chunk) }
+      );
       const data = await res.json() as { content?: Array<{ type: string; text: string }> };
       const text = data.content?.[0]?.text ?? "No response.";
       setDraft(text);
@@ -85,6 +102,7 @@ DRAFTING REQUIREMENTS:
       else if (e instanceof QuotaExceededError) { setShowUpgrade(true); }
       else { setError((e as Error).message); }
     } finally {
+      setStreamingText("");
       setLoading(false);
     }
   };
@@ -212,19 +230,21 @@ DRAFTING REQUIREMENTS:
         )}
 
         {loading && (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="flex gap-1.5 mb-4">
-              {[0, 1, 2].map(i => (
-                <div
-                  key={i}
-                  className="w-2 h-2 rounded-full animate-pulse"
-                  style={{ background: "var(--verdict-neon)", animationDelay: `${i * 0.15}s` }}
-                />
-              ))}
+          streamingText ? (
+            <div className="lex-card overflow-auto" style={{ maxHeight: "720px", fontFamily: "var(--font-mono, monospace)", fontSize: "0.82rem", whiteSpace: "pre-wrap" }}>
+              <Markdown text={streamingText} />
+              <span className="inline-block w-1.5 h-4 ml-0.5 align-middle animate-pulse" style={{ background: "var(--verdict-neon)", borderRadius: "1px" }} />
             </div>
-            <p className="text-sm" style={{ color: "var(--fg-tertiary)" }}>Drafting {docType}…</p>
-            <p className="text-xs mt-1" style={{ color: "var(--fg-tertiary)" }}>This may take 20–40 seconds</p>
-          </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <div className="flex gap-1.5 mb-4">
+                {[0, 1, 2].map(i => (
+                  <div key={i} className="w-2 h-2 rounded-full animate-pulse" style={{ background: "var(--verdict-neon)", animationDelay: `${i * 0.15}s` }} />
+                ))}
+              </div>
+              <p className="text-sm" style={{ color: "var(--fg-tertiary)" }}>Drafting {docType}…</p>
+            </div>
+          )
         )}
 
         {draft && !loading && (

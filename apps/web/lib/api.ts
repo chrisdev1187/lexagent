@@ -37,13 +37,82 @@ export class FreeTierExhaustedError extends Error {
   }
 }
 
+export interface AnthropicFetchOptions {
+  onChunk?: (text: string) => void;
+  signal?: AbortSignal;
+}
+
+/** Parse Anthropic SSE stream, call onChunk per text delta, return synthetic Response. */
+async function streamAnthropicSse(
+  res: Response,
+  onChunk: (text: string) => void,
+  model: string
+): Promise<Response> {
+  if (!res.body) throw new Error("No response body for streaming");
+  const reader = res.body.getReader();
+  const dec = new TextDecoder();
+  let buf = "";
+  let fullText = "";
+  let inputTokens = 0;
+  let outputTokens = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const lines = buf.split("\n");
+      buf = lines.pop() ?? "";
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const raw = line.slice(6).trim();
+        if (!raw || raw === "{}") continue;
+        try {
+          const ev = JSON.parse(raw) as {
+            type?: string;
+            message?: { usage?: { input_tokens?: number } };
+            delta?: { type?: string; text?: string };
+            usage?: { output_tokens?: number; input_tokens?: number };
+            index?: number;
+          };
+          if (ev.type === "message_start") {
+            inputTokens = ev.message?.usage?.input_tokens ?? 0;
+          }
+          if (ev.type === "content_block_delta" && ev.delta?.type === "text_delta") {
+            const chunk = ev.delta.text ?? "";
+            if (chunk) { fullText += chunk; onChunk(chunk); }
+          }
+          if (ev.type === "message_delta") {
+            outputTokens = ev.usage?.output_tokens ?? 0;
+          }
+        } catch { /* skip malformed SSE line */ }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  return new Response(JSON.stringify({
+    id: `msg_stream_${Date.now()}`,
+    type: "message",
+    role: "assistant",
+    model,
+    content: [{ type: "text", text: fullText }],
+    stop_reason: "end_turn",
+    stop_sequence: null,
+    usage: { input_tokens: inputTokens, output_tokens: outputTokens },
+  }), { status: 200, headers: { "Content-Type": "application/json" } });
+}
+
 export async function anthropicFetch(
   body: Record<string, unknown>,
-  extraHeaders?: Record<string, string>
+  extraHeaders?: Record<string, string>,
+  options?: AnthropicFetchOptions
 ): Promise<Response> {
+  const { onChunk, signal } = options ?? {};
+  const model = (body.model as string) ?? "unknown";
   const hasToken = !!_authToken;
-  const model = body.model as string ?? "unknown";
-  log.info("anthropic", `→ POST ${ANTHROPIC_ENDPOINT}`, { model, hasToken, hasApiUrl: !!API_URL });
+  log.info("anthropic", `→ POST ${ANTHROPIC_ENDPOINT}`, { model, hasToken, hasApiUrl: !!API_URL, streaming: !!onChunk });
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -51,12 +120,16 @@ export async function anthropicFetch(
     ...extraHeaders,
   };
 
+  // When streaming, inject stream:true into the request body
+  const fetchBody = onChunk ? { ...body, stream: true } : body;
+
   let res: Response;
   try {
     res = await fetch(ANTHROPIC_ENDPOINT, {
       method: "POST",
       headers,
-      body: JSON.stringify(body),
+      body: JSON.stringify(fetchBody),
+      signal,
     });
   } catch (err) {
     log.error("anthropic", "fetch threw (network error)", { err: String(err), endpoint: ANTHROPIC_ENDPOINT });
@@ -98,6 +171,12 @@ export async function anthropicFetch(
   }
 
   log.info("anthropic", `← ${res.status} OK`, { provider, tier, model, spent, budget });
+
+  // Streaming: consume SSE, call onChunk per text delta, return synthetic JSON response
+  if (onChunk) {
+    return streamAnthropicSse(res, onChunk, model);
+  }
+
   return res;
 }
 

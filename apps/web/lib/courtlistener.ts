@@ -86,6 +86,75 @@ export async function searchPeople(name: string): Promise<CLPerson[]> {
   }));
 }
 
+export interface CLOpinionDetail {
+  id: number;
+  caseName: string;
+  court: string;
+  dateFiled: string;
+  citations: string[];
+  plainText: string;
+  absoluteUrl: string;
+}
+
+export interface CLDocket {
+  id: number;
+  caseName: string;
+  court: string;
+  docketNumber: string;
+  dateFiled: string;
+  dateTerminated: string | null;
+  assignedTo: string | null;
+  absoluteUrl: string;
+}
+
+export async function getOpinion(id: number): Promise<CLOpinionDetail | null> {
+  const res = await fetch(`${COURTLISTENER_BASE}/opinions/${id}/`, { headers: getApiHeaders() });
+  if (!res.ok) return null;
+  const d = await res.json() as {
+    id?: number;
+    case_name?: string;
+    court?: string;
+    date_filed?: string;
+    citations?: Array<{ volume?: number; reporter?: string; page?: number }>;
+    plain_text?: string;
+    absolute_url?: string;
+  };
+  return {
+    id: d.id ?? id,
+    caseName: d.case_name ?? "Unknown",
+    court: d.court ?? "",
+    dateFiled: d.date_filed ?? "",
+    citations: (d.citations ?? []).map(c => `${c.volume} ${c.reporter} ${c.page}`).filter(Boolean),
+    plainText: (d.plain_text ?? "").slice(0, 5000),
+    absoluteUrl: d.absolute_url ? `https://www.courtlistener.com${d.absolute_url}` : "",
+  };
+}
+
+export async function getDocket(docketId: number): Promise<CLDocket | null> {
+  const res = await fetch(`${COURTLISTENER_BASE}/dockets/${docketId}/`, { headers: getApiHeaders() });
+  if (!res.ok) return null;
+  const d = await res.json() as {
+    id?: number;
+    case_name?: string;
+    court?: string;
+    docket_number?: string;
+    date_filed?: string;
+    date_terminated?: string | null;
+    assigned_to_str?: string | null;
+    absolute_url?: string;
+  };
+  return {
+    id: d.id ?? docketId,
+    caseName: d.case_name ?? "Unknown",
+    court: d.court ?? "",
+    docketNumber: d.docket_number ?? "",
+    dateFiled: d.date_filed ?? "",
+    dateTerminated: d.date_terminated ?? null,
+    assignedTo: d.assigned_to_str ?? null,
+    absoluteUrl: d.absolute_url ? `https://www.courtlistener.com${d.absolute_url}` : "",
+  };
+}
+
 export async function citationLookup(citations: string[]): Promise<CLLookupResult[]> {
   const body = new URLSearchParams();
   citations.forEach(c => body.append("citations[]", c));

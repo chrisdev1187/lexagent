@@ -1,16 +1,61 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Plus, Search, Clock, ShieldCheck, AlertTriangle,
-  Briefcase, ChevronRight, Calendar,
+  Briefcase, ChevronRight, Calendar, Zap,
 } from "lucide-react";
 import { useMatters, Matter } from "@/providers/matters-provider";
 import { NewMatterModal } from "@/components/shared/NewMatterModal";
 import { LexTooltip } from "@/components/shared/LexTooltip";
 import { DeadlineAlert } from "@/components/shared/DeadlineAlert";
 import { FirstMatterWizard } from "@/components/shared/FirstMatterWizard";
+import { supabase } from "@/lib/supabase";
+
+interface RecentCall { id: string; tab: string; model: string | null; input_tok: number; output_tok: number; created_at: string; matter_id: string | null; }
+
+function RecentActivity({ matters }: { matters: Matter[] }) {
+  const [calls, setCalls] = useState<RecentCall[]>([]);
+
+  useEffect(() => {
+    supabase
+      .from("ai_usage")
+      .select("id, tab, model, input_tok, output_tok, created_at, matter_id")
+      .order("created_at", { ascending: false })
+      .limit(5)
+      .then(({ data }) => setCalls(data ?? []));
+  }, []);
+
+  if (calls.length === 0) return null;
+
+  return (
+    <div className="mb-6">
+      <div className="flex items-center gap-2 mb-3">
+        <Zap size={12} style={{ color: "var(--verdict-neon)" }} />
+        <span className="font-mono text-[10px] tracking-[0.2em] uppercase" style={{ color: "var(--fg-quaternary)" }}>Recent Activity</span>
+      </div>
+      <div className="space-y-1.5">
+        {calls.map(call => {
+          const matter = matters.find(m => m.id === call.matter_id);
+          return (
+            <div key={call.id} className="flex items-center gap-3 rounded px-3 py-2" style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.07)" }}>
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded flex-shrink-0" style={{ background: "rgba(0,255,195,0.06)", color: "var(--verdict-neon)", border: "0.5px solid rgba(0,255,195,0.18)" }}>
+                {call.tab}
+              </span>
+              <span className="text-xs flex-1 truncate" style={{ color: "var(--fg-secondary)" }}>
+                {matter?.title ?? "Unknown matter"}
+              </span>
+              <span className="text-xs font-mono flex-shrink-0" style={{ color: "var(--fg-quaternary)" }}>
+                {call.input_tok + call.output_tok} tok · {new Date(call.created_at).toLocaleTimeString()}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 function StatCard({ icon: Icon, label, value, sub, color = "var(--verdict-neon)" }: {
   icon: React.ElementType; label: string; value: string | number; sub?: string; color?: string;
@@ -210,6 +255,8 @@ export default function DashboardPage() {
             />
             <StatCard icon={Clock} label="Billable Hours" value={`${(totalHours / 60).toFixed(1)}h`} color="var(--verdict-amber)" />
           </div>
+
+          <RecentActivity matters={matters} />
 
           {/* Search + filters */}
           <div className="flex flex-col sm:flex-row gap-3 mb-5">

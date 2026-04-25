@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Building2, Palette, Key, Cpu, ShieldCheck, FileText, Activity, ChevronRight, Users,
   CreditCard, UsersRound, Plus, Trash2, ClipboardList, Lock, BarChart3, KeyRound, UserPlus, X,
+  RefreshCw, Brain, Radio, Zap, ExternalLink,
 } from "lucide-react";
+import { getApiHeaders } from "@/lib/api";
 import { useSettings } from "@/providers/settings-provider";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
@@ -13,8 +15,9 @@ import { LexTooltip } from "@/components/shared/LexTooltip";
 import { useQuota } from "@/hooks/useQuota";
 import { storagePercent, aiPercent, matterPercent } from "@/lib/quota";
 import { useMyTokenUsage, useAdminTokenUsage } from "@/hooks/useTokenUsage";
+import { useWaterfallStats, type WaterfallStat } from "@/hooks/useWaterfallStats";
 
-type TabKey = "firm" | "ui" | "apikeys" | "model" | "shield" | "prompt" | "telemetry" | "users" | "billing" | "teams" | "auditlog" | "quota";
+type TabKey = "firm" | "ui" | "apikeys" | "model" | "shield" | "prompt" | "telemetry" | "users" | "billing" | "teams" | "auditlog" | "quota" | "ares" | "livefeed";
 
 const ADMIN_TABS: { id: TabKey; icon: React.ElementType; label: string }[] = [
   { id: "firm",      icon: Building2,   label: "Firm Profile"    },
@@ -25,6 +28,8 @@ const ADMIN_TABS: { id: TabKey; icon: React.ElementType; label: string }[] = [
   { id: "shield",    icon: ShieldCheck, label: "Hallucination Shield" },
   { id: "prompt",    icon: FileText,    label: "System Prompt"   },
   { id: "telemetry", icon: Activity,    label: "Telemetry"       },
+  { id: "ares",      icon: Brain,        label: "ARES Inspector" },
+  { id: "livefeed",  icon: Radio,       label: "Live Feed"       },
   { id: "teams",     icon: UsersRound,  label: "Teams"           },
   { id: "users",     icon: Users,       label: "User Management" },
   { id: "auditlog",  icon: ClipboardList, label: "Audit Log"     },
@@ -952,7 +957,546 @@ function QuotaTab() {
   );
 }
 
-const ADMIN_ONLY_TABS: TabKey[] = ["apikeys", "prompt", "telemetry", "users", "teams", "auditlog"];
+// ── ARES Inspector Tab ────────────────────────────────────────────────────────
+
+interface AiUsageRow {
+  id: string;
+  user_id: string;
+  matter_id: string | null;
+  tab: string;
+  input_tok: number;
+  output_tok: number;
+  mem_injected: number;
+  model: string | null;
+  created_at: string;
+  user_email?: string;
+  matter_title?: string;
+}
+
+function AresTab() {
+  const { settings } = useSettings();
+  const [rows, setRows] = useState<AiUsageRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [lexStats, setLexStats] = useState<{ mattersWithMemory: number; avgNodes: number; totalInputTok: number; totalOutputTok: number; memRatio: number } | null>(null);
+
+  useEffect(() => {
+    async function load() {
+      const [usageRes, statsRes] = await Promise.all([
+        supabase
+          .from("ai_usage")
+          .select("id, user_id, matter_id, tab, input_tok, output_tok, mem_injected, model, created_at")
+          .order("created_at", { ascending: false })
+          .limit(20),
+        supabase.rpc("get_admin_token_summary"),
+      ]);
+
+      setRows(usageRes.data ?? []);
+
+      if (statsRes.data) {
+        const d = statsRes.data as { total_input_tok: number; total_output_tok: number; total_mem_injected: number } | null;
+        if (d) {
+          const totalIn = Number(d.total_input_tok ?? 0);
+          const totalOut = Number(d.total_output_tok ?? 0);
+          const memIn = Number(d.total_mem_injected ?? 0);
+          setLexStats({ mattersWithMemory: 0, avgNodes: 0, totalInputTok: totalIn, totalOutputTok: totalOut, memRatio: totalIn > 0 ? Math.round((memIn / totalIn) * 100) : 0 });
+        }
+      }
+      setLoading(false);
+    }
+    load();
+  }, []);
+
+  const promptTok = Math.round(settings.systemPrompt.length / 4);
+  const promptChars = settings.systemPrompt.length;
+
+  return (
+    <div>
+      <SectionHeading>ACTIVE SYSTEM PROMPT (ARES v3.0)</SectionHeading>
+      <div className="rounded p-4 mb-6" style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(0,255,195,0.14)" }}>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-3">
+            <Brain size={14} style={{ color: "var(--verdict-neon)" }} />
+            <span className="text-xs font-mono" style={{ color: "var(--verdict-neon)" }}>ARES v3.0</span>
+          </div>
+          <div className="flex items-center gap-3 text-xs font-mono" style={{ color: "var(--fg-tertiary)" }}>
+            <span>{promptChars.toLocaleString()} chars</span>
+            <span>~{promptTok.toLocaleString()} tokens</span>
+          </div>
+        </div>
+        <pre className="text-xs overflow-auto max-h-48 whitespace-pre-wrap leading-relaxed" style={{ color: "var(--fg-secondary)", fontFamily: "var(--font-mono)" }}>
+          {settings.systemPrompt.slice(0, 800)}{settings.systemPrompt.length > 800 ? "\n…(truncated)" : ""}
+        </pre>
+      </div>
+
+      {lexStats && (
+        <>
+          <SectionHeading>LEXMEMORY EFFICIENCY</SectionHeading>
+          <div className="grid grid-cols-3 gap-3 mb-6">
+            {[
+              { label: "Input Tokens", value: lexStats.totalInputTok.toLocaleString(), color: "var(--verdict-neon)" },
+              { label: "Output Tokens", value: lexStats.totalOutputTok.toLocaleString(), color: "var(--verdict-violet)" },
+              { label: "Memory Inject %", value: `${lexStats.memRatio}%`, color: "var(--verdict-amber)" },
+            ].map(stat => (
+              <div key={stat.label} className="rounded p-3 text-center" style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
+                <p className="text-lg font-mono font-semibold" style={{ color: stat.color }}>{stat.value}</p>
+                <p className="text-xs mt-0.5" style={{ color: "var(--fg-tertiary)" }}>{stat.label}</p>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      <SectionHeading>LAST 20 AI CALLS</SectionHeading>
+      {loading ? (
+        <p className="text-xs py-4 text-center" style={{ color: "var(--fg-tertiary)" }}>Loading…</p>
+      ) : rows.length === 0 ? (
+        <p className="text-xs py-4 text-center" style={{ color: "var(--fg-quaternary)" }}>No AI usage logged yet</p>
+      ) : (
+        <div className="space-y-1.5">
+          {rows.map(row => (
+            <div key={row.id} className="flex items-center justify-between rounded px-4 py-2.5" style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded flex-shrink-0" style={{ background: "rgba(0,255,195,0.06)", color: "var(--verdict-neon)", border: "0.5px solid rgba(0,255,195,0.2)" }}>
+                  {row.tab}
+                </span>
+                <div className="min-w-0">
+                  <p className="text-xs font-mono truncate" style={{ color: "var(--fg-secondary)" }}>
+                    {row.model ?? "waterfall"} · in:{row.input_tok} out:{row.output_tok}
+                    {row.mem_injected > 0 && <span style={{ color: "var(--verdict-amber)" }}> mem:{row.mem_injected}</span>}
+                  </p>
+                </div>
+              </div>
+              <span className="text-xs flex-shrink-0 ml-4 font-mono" style={{ color: "var(--fg-quaternary)" }}>
+                {new Date(row.created_at).toLocaleTimeString()}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Live Feed Tab (B5) ────────────────────────────────────────────────────────
+
+function LiveFeedTab() {
+  const [rows, setRows] = useState<AiUsageRow[]>([]);
+  const [paused, setPaused] = useState(false);
+
+  useEffect(() => {
+    // Load recent 50 rows
+    supabase
+      .from("ai_usage")
+      .select("id, user_id, matter_id, tab, input_tok, output_tok, mem_injected, model, created_at")
+      .order("created_at", { ascending: false })
+      .limit(50)
+      .then(({ data }) => setRows(data ?? []));
+
+    // Subscribe to new inserts
+    const channel = supabase
+      .channel("ai_usage_feed")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "ai_usage" }, payload => {
+        if (!paused) {
+          setRows(prev => [payload.new as AiUsageRow, ...prev].slice(0, 100));
+        }
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Update paused state effect for subscription
+  useEffect(() => {
+    if (!paused) return;
+    // when paused changes, we just gate the push in the handler above
+  }, [paused]);
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Radio size={14} style={{ color: paused ? "var(--fg-tertiary)" : "var(--verdict-neon)" }} />
+          <span className="text-xs font-mono" style={{ color: paused ? "var(--fg-tertiary)" : "var(--verdict-neon)" }}>
+            {paused ? "PAUSED" : "LIVE"}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs" style={{ color: "var(--fg-tertiary)" }}>{rows.length} events</span>
+          <button
+            onClick={() => setPaused(p => !p)}
+            className="lex-btn lex-btn--ghost text-xs"
+          >
+            {paused ? "Resume" : "Pause"}
+          </button>
+          <button
+            onClick={() => setRows([])}
+            className="lex-btn lex-btn--ghost text-xs"
+          >
+            Clear
+          </button>
+        </div>
+      </div>
+
+      {rows.length === 0 ? (
+        <div className="rounded px-4 py-10 text-center" style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
+          <Radio size={24} className="mx-auto mb-2" style={{ color: "var(--fg-tertiary)" }} />
+          <p className="text-xs" style={{ color: "var(--fg-tertiary)" }}>Waiting for AI requests… Make a request in any matter tab to see it appear here.</p>
+        </div>
+      ) : (
+        <div className="space-y-1">
+          {rows.map((row, i) => (
+            <div
+              key={row.id}
+              className="flex items-center justify-between rounded px-3 py-2"
+              style={{
+                background: i === 0 && !paused ? "rgba(0,255,195,0.04)" : "rgba(17,17,20,0.6)",
+                border: `0.5px solid ${i === 0 && !paused ? "rgba(0,255,195,0.18)" : "rgba(224,224,224,0.07)"}`,
+              }}
+            >
+              <div className="flex items-center gap-3 min-w-0 text-xs">
+                <span className="font-mono flex-shrink-0" style={{ color: "var(--fg-quaternary)" }}>
+                  {new Date(row.created_at).toLocaleTimeString()}
+                </span>
+                <span className="px-1.5 py-0.5 rounded font-mono text-[10px] flex-shrink-0" style={{ background: "rgba(0,255,195,0.06)", color: "var(--verdict-neon)", border: "0.5px solid rgba(0,255,195,0.18)" }}>
+                  {row.tab}
+                </span>
+                <span className="truncate" style={{ color: "var(--fg-secondary)" }}>{row.model ?? "waterfall"}</span>
+              </div>
+              <div className="flex items-center gap-3 text-xs flex-shrink-0 ml-4 font-mono" style={{ color: "var(--fg-tertiary)" }}>
+                <span style={{ color: "var(--verdict-neon)" }}>↑{row.input_tok}</span>
+                <span style={{ color: "var(--verdict-violet)" }}>↓{row.output_tok}</span>
+                {row.mem_injected > 0 && <span style={{ color: "var(--verdict-amber)" }}>M:{row.mem_injected}</span>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Telemetry Tab ─────────────────────────────────────────────────────────────
+
+type SvcStatus = "green" | "amber" | "red";
+interface SvcResult { status: SvcStatus; latencyMs: number; error?: string; }
+interface HealthDeepPayload {
+  overall: SvcStatus;
+  services: Record<string, SvcResult>;
+  ts: string;
+}
+
+const SERVICE_CATEGORIES: { label: string; keys: string[] }[] = [
+  { label: "AI PROVIDERS", keys: ["anthropic", "groq", "gemini", "cerebras", "xai", "mistral", "sambanova", "nvidia"] },
+  { label: "DATABASE", keys: ["supabase"] },
+  { label: "LEGAL APIs", keys: ["courtlistener", "govinfo", "openstates", "congress", "ecfr"] },
+  { label: "INFRASTRUCTURE", keys: ["render"] },
+];
+
+const SERVICE_META: Record<string, { label: string; desc: string }> = {
+  supabase:      { label: "Supabase",        desc: "Auth + database + realtime" },
+  anthropic:     { label: "Anthropic Claude", desc: "Primary AI — BYOK / paid tier" },
+  groq:          { label: "Groq",             desc: "Waterfall #1 — Llama ultra-fast" },
+  gemini:        { label: "Gemini",           desc: "Waterfall #2 — Google" },
+  cerebras:      { label: "Cerebras",         desc: "Waterfall #3 — wafer-scale" },
+  xai:           { label: "xAI Grok",         desc: "Waterfall #4" },
+  mistral:       { label: "Mistral",          desc: "Waterfall #5" },
+  sambanova:     { label: "SambaNova",        desc: "Waterfall #6 — RDU inference" },
+  nvidia:        { label: "NVIDIA NIM",       desc: "Waterfall #7 — accelerated" },
+  courtlistener: { label: "CourtListener",    desc: "9M+ opinions, judge profiles" },
+  govinfo:       { label: "GovInfo",          desc: "Federal Register, CFR, USCIS" },
+  openstates:    { label: "OpenStates",       desc: "State legislature & bills" },
+  congress:      { label: "Congress.gov",     desc: "Federal bills, resolutions" },
+  ecfr:          { label: "eCFR",             desc: "Electronic Code of Federal Regs" },
+  render:        { label: "Render (self)",    desc: "API cold-start / uptime" },
+};
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
+
+function StatusDot({ status }: { status: SvcStatus }) {
+  const colors: Record<SvcStatus, string> = { green: "#00FFC3", amber: "#FFB800", red: "#FF3355" };
+  return (
+    <span
+      className="inline-block w-2 h-2 rounded-full flex-shrink-0"
+      style={{ background: colors[status], boxShadow: `0 0 6px ${colors[status]}80` }}
+    />
+  );
+}
+
+const PROVIDER_COLOR: Record<string, string> = {
+  anthropic:  "var(--verdict-neon)",
+  groq:       "#f55",
+  cerebras:   "#a78bfa",
+  sambanova:  "var(--verdict-amber)",
+  openrouter: "#38bdf8",
+  nvidia:     "#76c93a",
+  xai:        "#e5e5e5",
+  mistral:    "#ff8c69",
+  gemini:     "#4285f4",
+  "gemini-2": "#4285f4",
+};
+
+function WaterfallStatsPanel() {
+  const { data, loading, error, reload } = useWaterfallStats(30);
+
+  return (
+    <div className="mt-8">
+      <div className="flex items-center justify-between mb-3">
+        <p className="font-mono text-[10px] tracking-widest" style={{ color: "var(--fg-tertiary)" }}>LLM PROVIDER ROUTING — LAST 30 DAYS</p>
+        <button onClick={reload} disabled={loading} className="lex-btn lex-btn--secondary" style={{ fontSize: "0.7rem", padding: "3px 10px" }}>
+          <RefreshCw size={11} className={loading ? "animate-spin" : ""} />
+          {loading ? "Loading…" : "Refresh"}
+        </button>
+      </div>
+
+      {error && (
+        <p className="text-xs mb-2" style={{ color: "var(--verdict-crimson)" }}>{error}</p>
+      )}
+
+      {!loading && data.length === 0 && (
+        <p className="text-xs" style={{ color: "var(--fg-quaternary)" }}>No AI calls recorded yet — apply migration 016 if needed.</p>
+      )}
+
+      {data.length > 0 && (
+        <div className="rounded overflow-hidden" style={{ border: "0.5px solid rgba(224,224,224,0.09)" }}>
+          <table className="w-full text-sm">
+            <thead>
+              <tr style={{ background: "rgba(255,255,255,0.02)" }}>
+                {["Provider", "Calls", "Avg Tok", "Total Tok", "Share", "Last Used"].map(h => (
+                  <th key={h} className="px-3 py-2 text-left font-mono text-[9px] tracking-[0.14em] uppercase" style={{ color: "var(--fg-quaternary)" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {data.map((row: WaterfallStat) => {
+                const color = PROVIDER_COLOR[row.provider] ?? "var(--fg-secondary)";
+                return (
+                  <tr key={row.provider} style={{ borderTop: "0.5px solid rgba(224,224,224,0.06)" }}>
+                    <td className="px-3 py-2">
+                      <span className="font-mono text-[10px] px-2 py-0.5 rounded" style={{ background: `${color}14`, color, border: `0.5px solid ${color}40` }}>
+                        {row.provider}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 font-mono text-[11px]" style={{ color: "var(--fg-primary)" }}>{row.call_count.toLocaleString()}</td>
+                    <td className="px-3 py-2 font-mono text-[11px]" style={{ color: "var(--fg-tertiary)" }}>{Number(row.avg_tok).toLocaleString()}</td>
+                    <td className="px-3 py-2 font-mono text-[11px]" style={{ color: "var(--fg-tertiary)" }}>
+                      {(Number(row.total_input_tok) + Number(row.total_output_tok)).toLocaleString()}
+                    </td>
+                    <td className="px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 h-1 rounded-full" style={{ background: "rgba(224,224,224,0.07)", minWidth: 48 }}>
+                          <div className="h-1 rounded-full" style={{ width: `${row.pct_of_total}%`, background: color }} />
+                        </div>
+                        <span className="font-mono text-[10px] flex-shrink-0" style={{ color: "var(--fg-quaternary)" }}>{row.pct_of_total}%</span>
+                      </div>
+                    </td>
+                    <td className="px-3 py-2 font-mono text-[10px]" style={{ color: "var(--fg-quaternary)" }}>
+                      {new Date(row.last_seen).toLocaleDateString()}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const SERVICE_LINKS: Record<string, string> = {
+  supabase:      "https://supabase.com/dashboard",
+  anthropic:     "https://console.anthropic.com",
+  groq:          "https://console.groq.com",
+  gemini:        "https://aistudio.google.com",
+  cerebras:      "https://cloud.cerebras.ai",
+  xai:           "https://console.x.ai",
+  mistral:       "https://console.mistral.ai",
+  sambanova:     "https://cloud.sambanova.ai",
+  nvidia:        "https://build.nvidia.com",
+  courtlistener: "https://www.courtlistener.com",
+  govinfo:       "https://api.govinfo.gov",
+  congress:      "https://api.congress.gov",
+  ecfr:          "https://www.ecfr.gov",
+  render:        "https://dashboard.render.com",
+};
+
+const STATUS_COLOR: Record<SvcStatus, string> = {
+  green: "rgba(0,255,195,0.28)",
+  amber: "rgba(255,184,0,0.28)",
+  red:   "rgba(255,51,85,0.3)",
+};
+
+function TelemetryTab() {
+  const [health, setHealth] = useState<HealthDeepPayload | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [lastRun, setLastRun] = useState<string | null>(null);
+  const [selectedSvc, setSelectedSvc] = useState<string | null>(null);
+
+  const runCheck = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const base = API_URL || "https://lexagent-0o5u.onrender.com";
+      const res = await fetch(`${base}/api/health/deep`, { headers: getApiHeaders() });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json() as HealthDeepPayload;
+      setHealth(data);
+      setLastRun(new Date().toLocaleTimeString());
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  return (
+    <div>
+      <SectionHeading>API CONNECTIVITY</SectionHeading>
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-xs" style={{ color: "var(--fg-tertiary)" }}>
+          Live probe of all integrated services. Results shown in milliseconds.
+          {lastRun && <span className="ml-2">Last run: {lastRun}</span>}
+        </p>
+        <button
+          onClick={runCheck}
+          disabled={loading}
+          className="lex-btn lex-btn--primary"
+        >
+          <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
+          {loading ? "Probing…" : health ? "Re-run" : "Run Health Check"}
+        </button>
+      </div>
+
+      {error && (
+        <div className="rounded px-4 py-3 mb-4 text-xs" style={{ background: "rgba(255,51,85,0.08)", border: "0.5px solid rgba(255,51,85,0.3)", color: "var(--verdict-crimson)" }}>
+          {error}
+        </div>
+      )}
+
+      {health && (
+        <div className="mb-4 rounded px-4 py-2.5 flex items-center gap-2 text-xs" style={{
+          background: health.overall === "green" ? "rgba(0,255,195,0.05)" : health.overall === "amber" ? "rgba(255,184,0,0.06)" : "rgba(255,51,85,0.08)",
+          border: `0.5px solid ${health.overall === "green" ? "rgba(0,255,195,0.28)" : health.overall === "amber" ? "rgba(255,184,0,0.28)" : "rgba(255,51,85,0.3)"}`,
+          color: health.overall === "green" ? "var(--verdict-neon)" : health.overall === "amber" ? "var(--verdict-amber)" : "var(--verdict-crimson)",
+        }}>
+          <StatusDot status={health.overall} />
+          Overall: {health.overall.toUpperCase()} — {Object.values(health.services).filter(s => s.status === "green").length}/{Object.values(health.services).length} services healthy
+        </div>
+      )}
+
+      <div className="space-y-5">
+        {SERVICE_CATEGORIES.map(cat => (
+          <div key={cat.label}>
+            <p className="font-mono text-[10px] tracking-widest mb-2" style={{ color: "var(--fg-tertiary)" }}>{cat.label}</p>
+            <div className="space-y-1.5">
+              {cat.keys.map(key => {
+                const meta = SERVICE_META[key];
+                if (!meta) return null;
+                const svc = health?.services[key];
+                const isSelected = selectedSvc === key;
+                return (
+                  <div
+                    key={key}
+                    className="flex items-center justify-between rounded px-4 py-3 cursor-pointer transition-all"
+                    onClick={() => setSelectedSvc(isSelected ? null : key)}
+                    style={{
+                      background: isSelected ? "rgba(0,255,195,0.04)" : "rgba(17,17,20,0.7)",
+                      border: `0.5px solid ${isSelected ? "rgba(0,255,195,0.28)" : "rgba(224,224,224,0.09)"}`,
+                    }}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      {svc ? <StatusDot status={svc.status} /> : <span className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ background: "rgba(224,224,224,0.18)" }} />}
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium" style={{ color: "var(--fg-primary)" }}>{meta.label}</p>
+                        <p className="text-xs" style={{ color: "var(--fg-tertiary)" }}>{meta.desc}</p>
+                      </div>
+                    </div>
+                    <div className="text-right flex-shrink-0 ml-4 flex items-center gap-3">
+                      {svc ? (
+                        <>
+                          <p className="text-xs font-mono" style={{ color: svc.status === "green" ? "var(--verdict-neon)" : svc.status === "amber" ? "var(--verdict-amber)" : "var(--verdict-crimson)" }}>
+                            {svc.latencyMs}ms
+                          </p>
+                          {svc.error && <p className="text-xs truncate max-w-[160px]" style={{ color: "var(--fg-quaternary)" }}>{svc.error}</p>}
+                        </>
+                      ) : (
+                        <p className="text-xs font-mono" style={{ color: "var(--fg-quaternary)" }}>—</p>
+                      )}
+                      <ChevronRight size={12} style={{ color: isSelected ? "var(--verdict-neon)" : "rgba(224,224,224,0.2)", transform: isSelected ? "rotate(90deg)" : "none", transition: "transform 0.15s" }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* B6 — Service detail panel */}
+      {selectedSvc && (() => {
+        const meta = SERVICE_META[selectedSvc];
+        const svc = health?.services[selectedSvc];
+        const link = SERVICE_LINKS[selectedSvc];
+        const borderColor = svc ? STATUS_COLOR[svc.status] : "rgba(224,224,224,0.09)";
+        const textColor = svc
+          ? svc.status === "green" ? "var(--verdict-neon)" : svc.status === "amber" ? "var(--verdict-amber)" : "var(--verdict-crimson)"
+          : "var(--fg-tertiary)";
+        return (
+          <div className="mt-4 rounded p-4" style={{ background: "rgba(8,8,12,0.9)", border: `0.5px solid ${borderColor}` }}>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                {svc ? <StatusDot status={svc.status} /> : <span className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ background: "rgba(224,224,224,0.18)" }} />}
+                <span className="text-sm font-medium" style={{ color: "var(--fg-primary)" }}>{meta?.label}</span>
+                <span className="text-xs" style={{ color: "var(--fg-tertiary)" }}>{meta?.desc}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                {link && (
+                  <a href={link} target="_blank" rel="noreferrer" className="lex-btn lex-btn--ghost text-xs">
+                    <ExternalLink size={10} /> Dashboard
+                  </a>
+                )}
+                <button onClick={runCheck} disabled={loading} className="lex-btn lex-btn--secondary text-xs">
+                  <RefreshCw size={10} className={loading ? "animate-spin" : ""} /> Force re-probe
+                </button>
+                <button onClick={() => setSelectedSvc(null)} className="lex-btn lex-btn--ghost text-xs">✕</button>
+              </div>
+            </div>
+            {svc ? (
+              <div className="grid grid-cols-2 gap-4 text-xs font-mono">
+                <div className="rounded p-3" style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.07)" }}>
+                  <p style={{ color: "var(--fg-tertiary)" }} className="mb-1">STATUS</p>
+                  <p className="font-semibold" style={{ color: textColor }}>{svc.status.toUpperCase()}</p>
+                </div>
+                <div className="rounded p-3" style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.07)" }}>
+                  <p style={{ color: "var(--fg-tertiary)" }} className="mb-1">LATENCY</p>
+                  <p className="font-semibold" style={{ color: "var(--fg-primary)" }}>{svc.latencyMs}ms</p>
+                </div>
+                {svc.error && (
+                  <div className="col-span-2 rounded p-3" style={{ background: "rgba(255,51,85,0.06)", border: "0.5px solid rgba(255,51,85,0.2)" }}>
+                    <p style={{ color: "var(--fg-tertiary)" }} className="mb-1">ERROR</p>
+                    <p style={{ color: "var(--verdict-crimson)" }}>{svc.error}</p>
+                  </div>
+                )}
+                <div className="col-span-2 rounded p-3" style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.07)" }}>
+                  <p style={{ color: "var(--fg-tertiary)" }} className="mb-1">LAST PROBED</p>
+                  <p style={{ color: "var(--fg-secondary)" }}>{health?.ts ? new Date(health.ts).toLocaleString() : "—"}</p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs py-2" style={{ color: "var(--fg-tertiary)" }}>Run a health check first to see probe details.</p>
+            )}
+          </div>
+        );
+      })()}
+
+      <WaterfallStatsPanel />
+    </div>
+  );
+}
+
+const ADMIN_ONLY_TABS: TabKey[] = ["apikeys", "prompt", "telemetry", "ares", "livefeed", "users", "teams", "auditlog"];
 
 export default function AdminPage() {
   const { settings, updateSettings } = useSettings();
@@ -1333,37 +1877,13 @@ export default function AdminPage() {
         return <QuotaTab />;
 
       case "telemetry":
-        return (
-          <div>
-            <SectionHeading>API CONNECTIVITY</SectionHeading>
-            <p className="text-xs mb-4" style={{ color: "var(--fg-tertiary)" }}>
-              Test connectivity to all integrated APIs. Requires API keys to be set.
-            </p>
-            {[
-              { name: "Anthropic Claude", desc: "AI inference — all research and drafting" },
-              { name: "CourtListener", desc: "Case law database — 9M+ opinions" },
-              { name: "GovInfo", desc: "Federal Register, CFR, statutes" },
-              { name: "OpenStates", desc: "State legislature data" },
-            ].map(api => (
-              <div
-                key={api.name}
-                className="flex items-center justify-between rounded px-4 py-3 mb-2"
-                style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}
-              >
-                <div>
-                  <p className="text-sm font-medium" style={{ color: "var(--fg-primary)" }}>{api.name}</p>
-                  <p className="text-xs" style={{ color: "var(--fg-tertiary)" }}>{api.desc}</p>
-                </div>
-                <button
-                  className="rounded px-3 py-1.5 text-xs font-mono tracking-wide cursor-pointer transition-all duration-150"
-                  style={{ background: "var(--bg-raised)", border: "0.5px solid rgba(0,255,195,0.14)", color: "var(--fg-tertiary)" }}
-                >
-                  PING
-                </button>
-              </div>
-            ))}
-          </div>
-        );
+        return <TelemetryTab />;
+
+      case "ares":
+        return <AresTab />;
+
+      case "livefeed":
+        return <LiveFeedTab />;
     }
   };
 

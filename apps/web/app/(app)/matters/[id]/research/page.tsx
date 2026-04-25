@@ -35,6 +35,7 @@ export default function ResearchPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
+  const [streamingText, setStreamingText] = useState("");
   const [loadingPhase, setLoadingPhase] = useState(0);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [freeTierMsg, setFreeTierMsg] = useState<string | null>(null);
@@ -95,12 +96,12 @@ export default function ResearchPage() {
         : currentQuery;
 
       const lexFetch = matter ? withLexMemory(matter, updateMatter, { tab: "research" }) : anthropicFetch;
-      const res = await lexFetch({
-        model: settings.model,
-        max_tokens: settings.maxTokens,
-        system: systemWithGrounding,
-        messages: [...history, { role: "user", content: userContent }],
-      });
+      setStreamingText("");
+      const res = await lexFetch(
+        { model: settings.model, max_tokens: settings.maxTokens, system: systemWithGrounding, messages: [...history, { role: "user", content: userContent }] },
+        undefined,
+        { onChunk: chunk => setStreamingText(prev => prev + chunk) }
+      );
 
       const data = await res.json() as { content?: Array<{ type: string; text: string }> };
       const text = data.content?.[0]?.text ?? "No response.";
@@ -117,6 +118,7 @@ export default function ResearchPage() {
       loadingTimers.current.forEach(clearTimeout);
       loadingTimers.current = [];
       setLoadingPhase(0);
+      setStreamingText("");
       setLoading(false);
     }
   };
@@ -261,23 +263,26 @@ export default function ResearchPage() {
 
           {loading && (
             <div className="flex justify-start">
-              <div
-                className="rounded px-4 py-3 flex items-center gap-2"
-                style={{ background: "rgba(17,17,20,0.8)", border: "0.5px solid rgba(224,224,224,0.09)" }}
-              >
-                <div className="flex gap-1">
-                  {[0, 1, 2].map(i => (
-                    <div
-                      key={i}
-                      className="w-1.5 h-1.5 rounded-full animate-pulse"
-                      style={{ background: "var(--verdict-neon)", animationDelay: `${i * 0.15}s` }}
-                    />
-                  ))}
+              {streamingText ? (
+                <div className="max-w-3xl w-full rounded px-4 py-3" style={{ background: "rgba(17,17,20,0.8)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
+                  <Markdown text={streamingText} />
+                  <span className="inline-block w-1.5 h-4 ml-0.5 align-middle animate-pulse" style={{ background: "var(--verdict-neon)", borderRadius: "1px" }} />
                 </div>
-                <span className="text-xs" style={{ color: "var(--fg-tertiary)" }}>
-                  {LOADING_LABELS[loadingPhase]}
-                </span>
-              </div>
+              ) : (
+                <div
+                  className="rounded px-4 py-3 flex items-center gap-2"
+                  style={{ background: "rgba(17,17,20,0.8)", border: "0.5px solid rgba(224,224,224,0.09)" }}
+                >
+                  <div className="flex gap-1">
+                    {[0, 1, 2].map(i => (
+                      <div key={i} className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "var(--verdict-neon)", animationDelay: `${i * 0.15}s` }} />
+                    ))}
+                  </div>
+                  <span className="text-xs" style={{ color: "var(--fg-tertiary)" }}>
+                    {LOADING_LABELS[loadingPhase]}
+                  </span>
+                </div>
+              )}
             </div>
           )}
         </div>

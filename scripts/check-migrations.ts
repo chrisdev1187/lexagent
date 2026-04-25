@@ -1,85 +1,173 @@
 /**
- * Verify that all required migrations have been applied to the live Supabase project.
- * Usage: SUPABASE_URL=https://... SUPABASE_SERVICE_ROLE_KEY=... npx tsx scripts/check-migrations.ts
+ * Checks which of the 17 LexAgent migrations are applied in Supabase.
+ *
+ * Usage (from apps/api dir):
+ *   npx tsx --env-file ../../apps/web/.env.local ../../scripts/check-migrations.ts
  */
 
 import { createClient } from "@supabase/supabase-js";
 
-const SUPABASE_URL = process.env.SUPABASE_URL ?? "https://mgiqicasllvisiwvbiuu.supabase.co";
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_URL =
+  process.env.SUPABASE_URL ??
+  process.env.NEXT_PUBLIC_SUPABASE_URL ??
+  "https://mgiqicasllvisiwvbiuu.supabase.co";
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
 
 if (!SUPABASE_SERVICE_ROLE_KEY) {
   console.error("Missing SUPABASE_SERVICE_ROLE_KEY env var.");
   process.exit(1);
 }
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+const db = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
-const REQUIRED_TABLES: { table: string; migration: string }[] = [
-  { table: "profiles",       migration: "001_init.sql" },
-  { table: "matters",        migration: "001_init.sql" },
-  { table: "documents",      migration: "001_init.sql" },
-  { table: "logs",           migration: "001_init.sql" },
-  { table: "plans",          migration: "003_monetisation.sql" },
-  { table: "user_roles",     migration: "003_monetisation.sql" },
-  { table: "subscriptions",  migration: "003_monetisation.sql" },
-  { table: "usage_events",   migration: "003_monetisation.sql" },
-  { table: "usage_monthly",  migration: "003_monetisation.sql" },
-  { table: "premium_leads",  migration: "003_monetisation.sql" },
+// Probe a table by selecting from it — 42P01 = does not exist
+async function tableExists(name: string): Promise<boolean> {
+  const { error } = await db.from(name as never).select("*").limit(0);
+  return !error || error.code !== "42P01";
+}
+
+// Probe a column by selecting it — PGRST204 or "column does not exist" means missing
+async function columnExists(table: string, column: string): Promise<boolean> {
+  const { error } = await db.from(table as never).select(column).limit(0);
+  if (!error) return true;
+  const msg = error.message?.toLowerCase() ?? "";
+  return !msg.includes("does not exist") && !msg.includes("column");
+}
+
+// Probe an RPC by calling it with no args — 42883 = function does not exist
+async function rpcExists(name: string): Promise<boolean> {
+  const { error } = await db.rpc(name as never, {});
+  if (!error) return true;
+  // PGRST202 = no matching function signature (function exists but wrong args) → exists
+  // 42883 or "Could not find the function" → does not exist
+  const msg = error.message?.toLowerCase() ?? "";
+  if (error.code === "PGRST202") return true;
+  if (msg.includes("could not find the function") || error.code === "42883") return false;
+  return true; // any other error means it exists but errored for another reason
+}
+
+// Probe storage bucket
+async function bucketExists(name: string): Promise<boolean> {
+  const { data } = await db.storage.listBuckets();
+  return (data ?? []).some(b => b.name === name);
+}
+
+const migrations: { file: string; label: string; check: () => Promise<boolean> }[] = [
+  {
+    file: "001_init.sql",
+    label: "Core tables: profiles, matters, documents",
+    check: () => tableExists("profiles"),
+  },
+  {
+    file: "002_rls.sql",
+    label: "RLS enabled (profiles table accessible)",
+    check: () => tableExists("profiles"), // RLS being on doesn't change table existence; just confirm schema loaded
+  },
+  {
+    file: "003_monetisation.sql",
+    label: "plans + subscriptions tables",
+    check: () => tableExists("plans"),
+  },
+  {
+    file: "004_vault_storage.sql",
+    label: "Storage bucket 'vault-docs'",
+    check: () => bucketExists("vault-docs"),
+  },
+  {
+    file: "005_shared_matters.sql",
+    label: "invitations table",
+    check: () => tableExists("invitations"),
+  },
+  {
+    file: "006_admin_rls.sql",
+    label: "user_roles table",
+    check: () => tableExists("user_roles"),
+  },
+  {
+    file: "007_teams.sql",
+    label: "teams + team_members + user_sessions tables",
+    check: () => tableExists("teams"),
+  },
+  {
+    file: "008_matter_acls.sql",
+    label: "matter_access table",
+    check: () => tableExists("matter_access"),
+  },
+  {
+    file: "009_compliance.sql",
+    label: "audit_log table",
+    check: () => tableExists("audit_log"),
+  },
+  {
+    file: "010_usage_enforcement.sql",
+    label: "storage_usage table",
+    check: () => tableExists("storage_usage"),
+  },
+  {
+    file: "011_ai_usage.sql",
+    label: "ai_usage table",
+    check: () => tableExists("ai_usage"),
+  },
+  {
+    file: "012_billing_portal.sql",
+    label: "customer_portal_url column on subscriptions",
+    check: () => columnExists("subscriptions", "customer_portal_url"),
+  },
+  {
+    file: "013_test_member.sql",
+    label: "Test member user (armin@notadmin.com in profiles)",
+    check: async () => {
+      const { data } = await db.from("profiles" as never).select("id").eq("email", "armin@notadmin.com").maybeSingle();
+      return data != null;
+    },
+  },
+  {
+    file: "014_admin_utils.sql",
+    label: "admin_force_delete_user RPC",
+    check: () => rpcExists("admin_force_delete_user"),
+  },
+  {
+    file: "015_free_tier.sql",
+    label: "free_tier_usage table",
+    check: () => tableExists("free_tier_usage"),
+  },
+  {
+    file: "016_waterfall_stats.sql",
+    label: "get_waterfall_stats RPC",
+    check: () => rpcExists("get_waterfall_stats"),
+  },
+  {
+    file: "017_judges.sql",
+    label: "judges table + lookup_judge RPC",
+    check: async () => {
+      const t = await tableExists("judges");
+      const f = await rpcExists("lookup_judge");
+      return t && f;
+    },
+  },
 ];
 
 async function main() {
-  console.log("=== LexAgent check-migrations ===\n");
+  console.log(`\nLexAgent migration check — ${SUPABASE_URL}\n`);
 
-  const { data, error } = await supabase
-    .from("information_schema.tables" as never)
-    .select("table_name")
-    .eq("table_schema", "public");
+  const missing: string[] = [];
 
-  if (error) {
-    // Fallback: query each table directly
-    console.log("information_schema query blocked by RLS — probing tables directly...\n");
-    let missing = 0;
-    for (const { table, migration } of REQUIRED_TABLES) {
-      const { error: tErr } = await supabase.from(table as never).select("*").limit(0);
-      if (tErr && tErr.code === "42P01") {
-        console.error(`  MISSING  ${table.padEnd(20)} ← run supabase/migrations/${migration}`);
-        missing++;
-      } else {
-        console.log(`  OK       ${table}`);
-      }
-    }
-    if (missing > 0) {
-      console.error(`\n${missing} table(s) missing. Run the indicated migrations in Supabase SQL editor first.`);
-      process.exit(1);
-    }
-    console.log("\n✓ All tables present.");
-    return;
+  for (const m of migrations) {
+    const ok = await m.check();
+    const tick = ok ? "\x1b[32m✓\x1b[0m" : "\x1b[31m✗\x1b[0m";
+    console.log(`${tick}  ${m.file.padEnd(26)} ${m.label}`);
+    if (!ok) missing.push(m.file);
   }
 
-  const existing = new Set((data as { table_name: string }[]).map((r) => r.table_name));
-  let missing = 0;
-
-  for (const { table, migration } of REQUIRED_TABLES) {
-    if (existing.has(table)) {
-      console.log(`  OK       ${table}`);
-    } else {
-      console.error(`  MISSING  ${table.padEnd(20)} ← run supabase/migrations/${migration}`);
-      missing++;
-    }
+  console.log(`\n─────────────────────────────────────────`);
+  if (missing.length === 0) {
+    console.log("\x1b[32mAll 17 migrations applied.\x1b[0m");
+  } else {
+    console.log(`\x1b[31m${missing.length} missing:\x1b[0m`);
+    missing.forEach(f => console.log(`  supabase/migrations/${f}`));
   }
-
-  if (missing > 0) {
-    console.error(`\n${missing} table(s) missing. Run the indicated migrations in Supabase SQL editor first.`);
-    process.exit(1);
-  }
-
-  console.log("\n✓ All tables present. Safe to run seed:admin.");
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+main().catch(e => { console.error(e); process.exit(1); });

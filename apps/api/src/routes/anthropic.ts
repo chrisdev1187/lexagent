@@ -112,6 +112,136 @@ const PROVIDERS: Provider[] = [
   },
 ];
 
+// ── SSE helpers ───────────────────────────────────────────────────────────────
+
+function sseEvent(event: string, data: unknown): string {
+  return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+}
+
+interface OaiChunk {
+  text?: string;
+  done: boolean;
+  usage?: { prompt_tokens?: number; completion_tokens?: number };
+}
+
+function parseOaiSseLine(line: string): OaiChunk | null {
+  if (!line.startsWith("data: ")) return null;
+  const payload = line.slice(6).trim();
+  if (payload === "[DONE]") return { done: true };
+  try {
+    const d = JSON.parse(payload) as {
+      choices?: Array<{ delta?: { content?: string } }>;
+      usage?: { prompt_tokens?: number; completion_tokens?: number };
+    };
+    return { text: d.choices?.[0]?.delta?.content, done: false, usage: d.usage };
+  } catch { return null; }
+}
+
+/** Open a streaming connection to one provider, translate OAI SSE → Anthropic SSE. */
+async function waterfallStream(
+  oaiMessages: Array<{ role: string; content: string }>,
+  maxTokens: number,
+  requestedModel: string,
+  onComplete: (inputTokens: number, outputTokens: number, provider: string) => void
+): Promise<ReadableStream<Uint8Array>> {
+  const encoder = new TextEncoder();
+
+  return new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const enq = (s: string) => controller.enqueue(encoder.encode(s));
+      const providers = orderedProviders(requestedModel).filter((p) => !!p.key);
+      let succeeded = false;
+
+      for (const provider of providers) {
+        let res: Response;
+        try {
+          res = await fetch(provider.url, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${provider.key}`,
+              ...provider.extraHeaders,
+            },
+            body: JSON.stringify({
+              model: provider.model(requestedModel),
+              max_tokens: maxTokens,
+              messages: oaiMessages,
+              stream: true,
+            }),
+          });
+        } catch (err) {
+          console.warn(JSON.stringify({ tag: "llm-stream", event: "network_error", provider: provider.name, err: String(err) }));
+          continue;
+        }
+
+        if (!res.ok || !res.body) {
+          console.warn(JSON.stringify({ tag: "llm-stream", event: "http_error", provider: provider.name, status: res.status }));
+          continue;
+        }
+
+        const msgId = `msg_${Date.now()}`;
+        enq(sseEvent("message_start", {
+          type: "message_start",
+          message: { id: msgId, type: "message", role: "assistant", content: [], model: requestedModel, stop_reason: null, usage: { input_tokens: 0, output_tokens: 0 } },
+        }));
+        enq(sseEvent("content_block_start", { type: "content_block_start", index: 0, content_block: { type: "text", text: "" } }));
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let inputTokens = 0;
+        let outputTokens = 0;
+        let streamError = false;
+
+        try {
+          outer: while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
+            buffer = lines.pop() ?? "";
+            for (const line of lines) {
+              const chunk = parseOaiSseLine(line.trim());
+              if (!chunk) continue;
+              if (chunk.done) break outer;
+              if (chunk.usage) {
+                inputTokens  = chunk.usage.prompt_tokens  ?? inputTokens;
+                outputTokens = chunk.usage.completion_tokens ?? outputTokens;
+              }
+              if (chunk.text) {
+                if (!outputTokens) outputTokens++; // rough estimate when usage not in chunk
+                enq(sseEvent("content_block_delta", {
+                  type: "content_block_delta", index: 0,
+                  delta: { type: "text_delta", text: chunk.text },
+                }));
+              }
+            }
+          }
+        } catch (err) {
+          console.error(JSON.stringify({ tag: "llm-stream", event: "mid_stream_error", provider: provider.name, err: String(err) }));
+          streamError = true;
+        }
+
+        enq(sseEvent("content_block_stop", { type: "content_block_stop", index: 0 }));
+        enq(sseEvent("message_delta", {
+          type: "message_delta",
+          delta: { stop_reason: streamError ? "error" : "end_turn", stop_sequence: null },
+          usage: { output_tokens: outputTokens },
+        }));
+        enq(sseEvent("message_stop", { type: "message_stop" }));
+        onComplete(inputTokens, outputTokens, provider.name);
+        succeeded = true;
+        break;
+      }
+
+      if (!succeeded) {
+        enq(sseEvent("error", { type: "error", error: { type: "provider_error", message: "All providers exhausted" } }));
+      }
+      controller.close();
+    },
+  });
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 /** Flatten Anthropic content blocks to plain string for OpenAI-compat APIs.
@@ -284,13 +414,22 @@ anthropicRouter.post(
     console.log(JSON.stringify({ tag: "anthropic", event: "request", userId, role, planId, hasByok: !!byokKey, hasPlatformKey: !!ANTHROPIC_KEY, model, max_tokens }));
 
     // ── Routing ──────────────────────────────────────────────────────────────
-    // admin              → free waterfall (internal, zero-cost)
-    // free-plan user     → free waterfall (limited by checkFreeTier)
-    // paid user + BYOK   → Anthropic via their key
-    // paid user, no BYOK → Anthropic via platform key (if set), else waterfall
+    // BYOK              → Anthropic via their own key (always)
+    // claude-* model    → Anthropic via platform key if set, else waterfall
+    // admin / free tier → free waterfall (unless claude-* above applies)
+    // paid, no BYOK     → Anthropic via platform key (if set), else waterfall
     const isFreeOrAdmin = role === "admin" || planId === "free";
-    const keyToUse = byokKey ?? (isFreeOrAdmin ? null : ANTHROPIC_KEY);
-    const useWaterfall = isFreeOrAdmin || !keyToUse;
+    const isClaudeModel = model.startsWith("claude-");
+    const keyToUse = byokKey ?? ((isClaudeModel || !isFreeOrAdmin) && ANTHROPIC_KEY ? ANTHROPIC_KEY : null);
+    const useWaterfall = !keyToUse;
+    const streamMode = aiPayload.stream === true;
+
+    const SSE_HEADERS: Record<string, string> = {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      "Connection": "keep-alive",
+      "X-Accel-Buffering": "no",
+    };
 
     if (useWaterfall) {
       const hasAnyFreeKey = PROVIDERS.some((p) => !!p.key);
@@ -307,6 +446,30 @@ anthropicRouter.post(
           503
         );
       }
+
+      // Build OAI messages once (shared between stream/non-stream paths)
+      const oaiMessages: Array<{ role: string; content: string }> = [];
+      if (system) oaiMessages.push({ role: "system", content: system });
+      for (const m of messages) oaiMessages.push({ role: m.role, content: flattenContent(m.content) });
+
+      // ── Waterfall streaming ───────────────────────────────────────────────
+      if (streamMode) {
+        const readable = await waterfallStream(
+          oaiMessages,
+          max_tokens,
+          model,
+          (inputTokens, outputTokens, provider) => {
+            void logUsage(
+              userId,
+              { toolName: toolName ?? "unknown", model: `${provider}/${model}`, inputTokens, outputTokens, matterId },
+              byok
+            ).catch((e) => console.warn("[quota] logUsage failed (waterfall-stream):", e));
+          }
+        );
+        return new Response(readable, { status: 200, headers: { ...SSE_HEADERS, "X-Tier": role === "admin" ? "admin-waterfall" : "free-waterfall" } });
+      }
+
+      // ── Waterfall non-streaming (unchanged) ───────────────────────────────
       try {
         const result = await tryProviders(messages, system, max_tokens, model);
         void logUsage(
@@ -355,6 +518,50 @@ anthropicRouter.post(
       body: JSON.stringify(aiPayload),
     });
 
+    // ── Keyed streaming: pipe Anthropic SSE through + async usage logging ──
+    if (streamMode) {
+      if (!upstream.ok || !upstream.body) {
+        const errText = await upstream.text();
+        return c.json({ type: "error", error: { type: "api_error", message: errText } }, upstream.status as 400 | 401 | 429 | 500);
+      }
+
+      const [forClient, forLogging] = upstream.body.tee();
+
+      // Fire-and-forget: scan logging stream for usage events
+      void (async () => {
+        try {
+          const reader = forLogging.getReader();
+          const dec = new TextDecoder();
+          let buf = "";
+          let inputTokens = 0;
+          let outputTokens = 0;
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buf += dec.decode(value, { stream: true });
+            for (const match of buf.matchAll(/data: (\{[^\n]+\})/g)) {
+              try {
+                const d = JSON.parse(match[1]) as { type?: string; message?: { usage?: { input_tokens?: number } }; usage?: { output_tokens?: number } };
+                if (d.type === "message_start") inputTokens  = d.message?.usage?.input_tokens ?? 0;
+                if (d.type === "message_delta") outputTokens = d.usage?.output_tokens ?? 0;
+              } catch { /* skip */ }
+            }
+            if (buf.length > 50_000) buf = buf.slice(-10_000);
+          }
+          if (inputTokens > 0 || outputTokens > 0) {
+            void logUsage(userId, { toolName: toolName ?? "unknown", model, inputTokens, outputTokens, matterId }, !!byokKey)
+              .catch((e) => console.warn("[quota] logUsage failed (keyed-stream):", e));
+          }
+        } catch { /* silent */ }
+      })();
+
+      return new Response(forClient, {
+        status: 200,
+        headers: { ...SSE_HEADERS, "X-Tier": byokKey ? "byok" : "platform" },
+      });
+    }
+
+    // ── Keyed non-streaming (unchanged) ───────────────────────────────────
     const responseBody = await upstream.text();
 
     // Best-effort usage parse — log on success only. Failures are silent.

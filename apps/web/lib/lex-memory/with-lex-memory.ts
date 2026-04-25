@@ -1,5 +1,5 @@
 import { Matter } from "@/providers/matters-provider";
-import { anthropicFetch } from "@/lib/api";
+import { anthropicFetch, AnthropicFetchOptions } from "@/lib/api";
 import { LexMemory, TabId } from "./types";
 import { bootstrapMemory } from "./bootstrap";
 import { buildContext } from "./build-context";
@@ -54,7 +54,8 @@ export function withLexMemory(
 ) {
   return async function lexFetch(
     body: Record<string, unknown>,
-    extraHeaders?: Record<string, string>
+    extraHeaders?: Record<string, string>,
+    options?: AnthropicFetchOptions
   ): Promise<Response> {
     const mem = getOrBootstrap(matter);
     const { text: ctxBlock, tokensUsed: memInjected } = buildContext(mem, {
@@ -70,7 +71,7 @@ export function withLexMemory(
     // usage_events.matter_id and usage_events.tool_name.
     const patchedBody = { ...baseBody, matter_id: matter.id, tool_name: opts.tab };
 
-    const res = await anthropicFetch(patchedBody, extraHeaders);
+    const res = await anthropicFetch(patchedBody, extraHeaders, options);
 
     const clone = res.clone();
     void (async () => {

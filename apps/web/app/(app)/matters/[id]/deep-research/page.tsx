@@ -1,12 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { ScanSearch, Search, Bookmark, BookmarkCheck, Trash2, ExternalLink } from "lucide-react";
+import { ScanSearch, Search, Bookmark, BookmarkCheck, Trash2, ExternalLink, Zap, Loader2 } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useMatters } from "@/providers/matters-provider";
+import { useSettings } from "@/providers/settings-provider";
 import { useAuth } from "@/lib/auth";
 import { PanelShell } from "@/components/panels/PanelShell";
-import { CONGRESS_BASE, ECFR_BASE } from "@/lib/api";
+import { CONGRESS_BASE, ECFR_BASE, EDGAR_BASE, QuotaExceededError, FreeTierExhaustedError } from "@/lib/api";
+import { withLexMemory } from "@/lib/lex-memory";
+import { Markdown } from "@/components/shared/Markdown";
 import { searchOpinions, CLOpinion } from "@/lib/courtlistener";
 
 interface CongressBill {
@@ -28,16 +31,25 @@ interface EcfrResult {
   hierarchy_headings?: { title?: string; part?: string };
 }
 
+interface EdgarFiling {
+  id: string;
+  entityName: string;
+  formType: string;
+  fileDate: string;
+  periodOfReport?: string;
+  description?: string;
+}
+
 interface SavedPrecedent {
   id: string;
-  source: "congress" | "ecfr" | "opinion";
+  source: "congress" | "ecfr" | "opinion" | "edgar";
   title: string;
   citation: string;
   url?: string;
   savedAt: number;
 }
 
-type Tab = "congress" | "ecfr" | "opinions";
+type Tab = "congress" | "ecfr" | "opinions" | "edgar";
 
 function formatBillCitation(bill: CongressBill): string {
   const typeMap: Record<string, string> = {
@@ -51,6 +63,7 @@ function formatBillCitation(bill: CongressBill): string {
 export default function DeepResearchPage() {
   const { id } = useParams<{ id: string }>();
   const { getMatter, updateMatter } = useMatters();
+  const { settings } = useSettings();
   const { session } = useAuth();
   const matter = getMatter(id);
 
@@ -60,7 +73,12 @@ export default function DeepResearchPage() {
   const [congressResults, setCongressResults] = useState<CongressBill[]>([]);
   const [ecfrResults, setEcfrResults] = useState<EcfrResult[]>([]);
   const [opinionResults, setOpinionResults] = useState<CLOpinion[]>([]);
+  const [edgarResults, setEdgarResults] = useState<EdgarFiling[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [synthesizing, setSynthesizing] = useState(false);
+  const [streamingText, setStreamingText] = useState("");
+  const [synthesis, setSynthesis] = useState("");
+  const [synthError, setSynthError] = useState<string | null>(null);
 
   const savedPrecedents = (matter?.precedents ?? []) as SavedPrecedent[];
   const savedIds = new Set(savedPrecedents.map((p) => p.id));
@@ -101,6 +119,30 @@ export default function DeepResearchPage() {
     }
   };
 
+  const searchEdgar = async () => {
+    setSearching(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams({ q: query, dateRange: "custom", startdt: "2015-01-01", hits_from: "0" });
+      const res = await fetch(`${EDGAR_BASE}/search?${params}`, { headers: authHeader });
+      if (!res.ok) throw new Error(`SEC EDGAR ${res.status}`);
+      const data = await res.json() as { hits?: { hits?: Array<{ _id: string; _source?: { entity_name?: string; form_type?: string; file_date?: string; period_of_report?: string; description?: string } }> } };
+      const hits = data.hits?.hits ?? [];
+      setEdgarResults(hits.map(h => ({
+        id: h._id,
+        entityName: h._source?.entity_name ?? "Unknown",
+        formType: h._source?.form_type ?? "",
+        fileDate: h._source?.file_date ?? "",
+        periodOfReport: h._source?.period_of_report,
+        description: h._source?.description,
+      })));
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSearching(false);
+    }
+  };
+
   const searchOpinionResults = async () => {
     setSearching(true);
     setError(null);
@@ -118,6 +160,7 @@ export default function DeepResearchPage() {
     if (!query.trim() || searching || !matter) return;
     if (tab === "congress") searchCongress();
     else if (tab === "ecfr") searchEcfr();
+    else if (tab === "edgar") searchEdgar();
     else searchOpinionResults();
   };
 
@@ -144,23 +187,93 @@ export default function DeepResearchPage() {
     savePrecedent({ id: `opinion-${op.id}`, source: "opinion", title: op.caseName, citation: op.citation, url: op.absoluteUrl, savedAt: Date.now() });
   };
 
+  const hasResults = opinionResults.length > 0 || congressResults.length > 0 || ecfrResults.length > 0 || edgarResults.length > 0;
+
+  const saveEdgarFiling = (f: EdgarFiling) => {
+    savePrecedent({ id: `edgar-${f.id}`, source: "edgar", title: `${f.entityName} — ${f.formType}`, citation: `${f.formType}, ${f.entityName}${f.fileDate ? ` (${new Date(f.fileDate).getFullYear()})` : ""}`, savedAt: Date.now() });
+  };
+
+  const synthesize = async () => {
+    if (!matter || !hasResults) return;
+    setSynthesizing(true);
+    setSynthError(null);
+    try {
+      const opBlock = opinionResults.length > 0
+        ? `\nCASE OPINIONS (${opinionResults.length}):\n${opinionResults.slice(0, 10).map((op, i) => `${i + 1}. ${op.caseName}${op.citation ? `, ${op.citation}` : ""} (${op.court})${op.snippet ? `\n   "${op.snippet}"` : ""}`).join("\n")}`
+        : "";
+      const billBlock = congressResults.length > 0
+        ? `\nCONGRESS BILLS (${congressResults.length}):\n${congressResults.slice(0, 10).map((b, i) => `${i + 1}. ${formatBillCitation(b)} — ${b.title}${b.latestAction ? `\n   Status: ${b.latestAction.text}` : ""}`).join("\n")}`
+        : "";
+      const ecfrBlock = ecfrResults.length > 0
+        ? `\neCFR REGULATIONS (${ecfrResults.length}):\n${ecfrResults.slice(0, 10).map((r, i) => `${i + 1}. ${r.fr_citation ?? r.label} — ${r.label_description ?? ""}${r.full_text_excerpt ? `\n   "${r.full_text_excerpt}"` : ""}`).join("\n")}`
+        : "";
+
+      const edgarBlock = edgarResults.length > 0
+        ? `\nSEC EDGAR FILINGS (${edgarResults.length}):\n${edgarResults.slice(0, 10).map((f, i) => `${i + 1}. ${f.formType} — ${f.entityName}${f.fileDate ? ` (${new Date(f.fileDate).getFullYear()})` : ""}${f.description ? `\n   ${f.description}` : ""}`).join("\n")}`
+        : "";
+
+      const content = `Synthesize a comprehensive legal research memo for the following matter based on the retrieved sources.
+
+Matter: ${matter.title}
+Client: ${matter.client ?? "N/A"}
+Case Type: ${matter.caseType ?? "N/A"}
+Jurisdiction: ${matter.jurisdiction ?? "N/A"}
+Key Facts: ${matter.facts ?? "N/A"}
+
+RETRIEVED SOURCES:${opBlock}${billBlock}${ecfrBlock}${edgarBlock}
+
+Provide:
+## RESEARCH SUMMARY
+Key findings and how they relate to the matter.
+
+## APPLICABLE AUTHORITY
+Most relevant cases, statutes, or regulations with Bluebook citations.
+
+## STRATEGIC IMPLICATIONS
+How these sources shape legal strategy and argument framing.
+
+## OPEN QUESTIONS
+Gaps or areas requiring further research.
+
+Be precise, cite sources by number, and flag any circuit splits or conflicting authority.`;
+
+      const lexFetch = withLexMemory(matter, updateMatter, { tab: "deep-research" });
+      setStreamingText("");
+      const res = await lexFetch(
+        { model: settings.model, max_tokens: settings.maxTokens, system: settings.systemPrompt, messages: [{ role: "user", content }] },
+        undefined,
+        { onChunk: chunk => setStreamingText(prev => prev + chunk) }
+      );
+      const data = await res.json() as { content?: Array<{ type: string; text: string }> };
+      setSynthesis(data.content?.[0]?.text ?? "No response.");
+    } catch (e) {
+      if (e instanceof FreeTierExhaustedError) { setSynthError(e.message); }
+      else if (e instanceof QuotaExceededError) { setSynthError("AI quota exceeded — upgrade your plan."); }
+      else { setSynthError((e as Error).message); }
+    } finally {
+      setStreamingText("");
+      setSynthesizing(false);
+    }
+  };
+
   const SOURCE_BADGE: Record<string, { label: string; color: string }> = {
     congress: { label: "Congress", color: "var(--verdict-amber)" },
     ecfr:     { label: "eCFR",    color: "var(--verdict-neon)" },
     opinion:  { label: "Opinion", color: "var(--verdict-violet)" },
+    edgar:    { label: "SEC",     color: "#0ea5e9" },
   };
 
-  const TAB_LABELS: Record<Tab, string> = { congress: "Congress Bills", ecfr: "eCFR Regs", opinions: "Case Opinions" };
+  const TAB_LABELS: Record<Tab, string> = { congress: "Congress Bills", ecfr: "eCFR Regs", opinions: "Case Opinions", edgar: "SEC EDGAR" };
 
   return (
     <PanelShell
       icon={ScanSearch}
       title="Deep Research"
-      description="Multi-source legal research: opinions, Congress bills, eCFR regulations"
+      description="Multi-source legal research: opinions, Congress bills, eCFR regulations, SEC EDGAR filings"
     >
       {/* Source tabs */}
       <div className="flex gap-1 mb-4">
-        {(["opinions", "congress", "ecfr"] as Tab[]).map((t) => (
+        {(["opinions", "congress", "ecfr", "edgar"] as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => { setTab(t); setError(null); }}
@@ -188,6 +301,7 @@ export default function DeepResearchPage() {
           placeholder={
             tab === "congress" ? "Search bills — e.g. 'immigration reform'…"
             : tab === "ecfr" ? "Search CFR — e.g. 'clean air emissions'…"
+            : tab === "edgar" ? "Search SEC filings — e.g. 'securities fraud disclosure'…"
             : "Search case opinions — e.g. 'fourth amendment search'…"
           }
           className="flex-1 px-4 py-2.5 text-sm"
@@ -330,6 +444,86 @@ export default function DeepResearchPage() {
         </div>
       )}
 
+      {/* EDGAR results */}
+      {tab === "edgar" && edgarResults.length > 0 && (
+        <div className="space-y-2 mb-6">
+          <p className="text-xs font-mono tracking-wider mb-2" style={{ color: "var(--fg-tertiary)" }}>
+            SEC EDGAR FILINGS ({edgarResults.length})
+          </p>
+          {edgarResults.map((f) => {
+            const pid = `edgar-${f.id}`;
+            const saved = savedIds.has(pid);
+            return (
+              <div key={pid} className="rounded p-3 flex items-start gap-3" style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                    <span className="font-mono text-[10px] px-1.5 py-0.5 rounded" style={{ background: "rgba(14,165,233,0.1)", color: "#0ea5e9", border: "0.5px solid rgba(14,165,233,0.3)" }}>{f.formType}</span>
+                    <span className="text-xs font-semibold" style={{ color: "var(--fg-primary)" }}>{f.entityName}</span>
+                  </div>
+                  {f.fileDate && (
+                    <p className="text-xs" style={{ color: "var(--fg-tertiary)" }}>Filed: {new Date(f.fileDate).toLocaleDateString()}{f.periodOfReport ? ` · Period: ${f.periodOfReport}` : ""}</p>
+                  )}
+                  {f.description && (
+                    <p className="text-xs mt-1 line-clamp-2" style={{ color: "var(--fg-secondary)" }}>{f.description}</p>
+                  )}
+                </div>
+                <button
+                  onClick={() => !saved && saveEdgarFiling(f)}
+                  className="p-1.5 rounded-md cursor-pointer flex-shrink-0"
+                  style={{ color: saved ? "var(--verdict-neon)" : "var(--fg-tertiary)" }}
+                  title={saved ? "Saved" : "Save to precedents"}
+                >
+                  {saved ? <BookmarkCheck size={13} /> : <Bookmark size={13} />}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* AI Synthesis */}
+      {hasResults && (
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-mono tracking-wider" style={{ color: "var(--fg-tertiary)" }}>ARES SYNTHESIS</p>
+            <button
+              onClick={synthesize}
+              disabled={synthesizing}
+              className="lex-btn lex-btn--primary"
+            >
+              {synthesizing ? <Loader2 size={12} className="animate-spin" /> : <Zap size={12} />}
+              {synthesizing ? "Synthesizing…" : synthesis ? "Re-synthesize" : "Synthesize with ARES"}
+            </button>
+          </div>
+
+          {synthError && (
+            <div className="rounded px-4 py-2 mb-3 text-xs" style={{ background: "rgba(255,51,85,0.08)", border: "0.5px solid rgba(255,51,85,0.3)", color: "var(--verdict-crimson)" }}>
+              {synthError}
+            </div>
+          )}
+
+          {(synthesis || streamingText) && (
+            <div className="rounded p-4" style={{ background: "rgba(17,17,20,0.8)", border: "0.5px solid rgba(0,255,195,0.14)" }}>
+              <Markdown text={streamingText || synthesis} />
+              {synthesizing && streamingText && (
+                <span className="inline-block w-1.5 h-4 ml-0.5 align-middle animate-pulse" style={{ background: "var(--verdict-neon)", borderRadius: "1px" }} />
+              )}
+            </div>
+          )}
+
+          {synthesizing && !streamingText && (
+            <div className="flex items-center gap-2 py-4">
+              <div className="flex gap-1">
+                {[0, 1, 2].map(i => (
+                  <div key={i} className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "var(--verdict-neon)", animationDelay: `${i * 0.15}s` }} />
+                ))}
+              </div>
+              <span className="text-xs" style={{ color: "var(--fg-tertiary)" }}>ARES is analyzing sources…</span>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Saved precedents */}
       {savedPrecedents.length > 0 && (
         <div>
@@ -372,7 +566,7 @@ export default function DeepResearchPage() {
       )}
 
       {/* Empty state */}
-      {!searching && opinionResults.length === 0 && congressResults.length === 0 && ecfrResults.length === 0 && savedPrecedents.length === 0 && (
+      {!searching && opinionResults.length === 0 && congressResults.length === 0 && ecfrResults.length === 0 && edgarResults.length === 0 && savedPrecedents.length === 0 && (
         <div className="rounded p-8 text-center" style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
           <ScanSearch size={28} className="mx-auto mb-3" style={{ color: "var(--fg-tertiary)" }} />
           <p className="text-sm mb-1" style={{ color: "var(--fg-primary)" }}>Search federal sources</p>

@@ -498,32 +498,47 @@ function ShieldTab({ settings, set }: { settings: any; set: (k: string, v: unkno
 
 /* ── System Prompt tab ──────────────────────────────────────────────────── */
 function PromptTab({ settings, set }: { settings: any; set: (k: string, v: unknown) => void }) {
+  const charCount = (settings.systemPrompt ?? "").length;
+  const tokEstimate = Math.round(charCount / 4);
   return (
     <div>
-      <SectionHeading>SYSTEM PROMPT</SectionHeading>
-      <Field label="ARES SYSTEM PROMPT" tooltip="This prompt defines ARES's behavior — modify with care">
+      <SectionHeading>SYSTEM PROMPT — ARES v3.0</SectionHeading>
+      <div className="flex items-center justify-between mb-2">
+        <span className="font-mono text-[10px] tracking-[0.1em]" style={{ color: "var(--fg-quaternary)" }}>
+          {charCount.toLocaleString()} chars · ~{tokEstimate.toLocaleString()} tokens
+        </span>
+        <button
+          onClick={() => set("systemPrompt", DEFAULT_SYSTEM)}
+          className="lex-btn lex-btn--secondary"
+          style={{ fontSize: "0.7rem", padding: "4px 10px" }}
+        >
+          Reset to ARES v3.0
+        </button>
+      </div>
+      <Field label="ACTIVE SYSTEM PROMPT" tooltip="Read-only view of the ARES v3.0 system prompt. Use 'Reset to ARES v3.0' to restore defaults.">
         <textarea
+          readOnly
           className="lex-textarea"
-          style={{ minHeight: 320, fontFamily: "var(--font-mono)", fontSize: "0.75rem", lineHeight: 1.7 }}
+          style={{ minHeight: 320, fontFamily: "var(--font-mono)", fontSize: "0.75rem", lineHeight: 1.7, cursor: "default", opacity: 0.85 }}
           value={settings.systemPrompt}
-          onChange={e => set("systemPrompt", e.target.value)}
         />
       </Field>
-      <button onClick={() => set("systemPrompt", DEFAULT_SYSTEM)} className="text-xs underline cursor-pointer" style={{ color: "var(--fg-tertiary)" }}>
-        Reset to default
-      </button>
     </div>
   );
 }
 
+const ADMIN_ONLY_TABS: Tab[] = ["api-key", "prompt"];
+
 /* ── Inner component ────────────────────────────────────────────────────── */
 function SettingsInner() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { settings, updateSettings } = useSettings();
   const searchParams = useSearchParams();
   const toast = useToast();
 
-  const initialTab = (searchParams.get("tab") as Tab | null) ?? "profile";
+  const visibleTabs = TABS.filter(t => isAdmin || !ADMIN_ONLY_TABS.includes(t.id));
+  const initialTabParam = (searchParams.get("tab") as Tab | null) ?? "profile";
+  const initialTab: Tab = (!isAdmin && ADMIN_ONLY_TABS.includes(initialTabParam)) ? "profile" : initialTabParam;
   const [activeTab, setActiveTab] = useState<Tab>(initialTab);
   const [settingsSaved, setSettingsSaved] = useState(false);
 
@@ -568,7 +583,7 @@ function SettingsInner() {
     setTimeout(() => setSettingsSaved(false), 2000);
   };
 
-  const settingsTabs: Tab[] = ["ui", "model", "shield", "prompt"];
+  const settingsTabs: Tab[] = ["ui", "model", "shield"];
   const needsSave = settingsTabs.includes(activeTab);
 
   const renderContent = () => {
@@ -604,7 +619,7 @@ function SettingsInner() {
 
       <div className="flex gap-6">
         <nav className="w-48 flex-shrink-0 space-y-0.5">
-          {TABS.map(({ id, icon: Icon, label }) => {
+          {visibleTabs.map(({ id, icon: Icon, label }) => {
             const active = activeTab === id;
             return (
               <button

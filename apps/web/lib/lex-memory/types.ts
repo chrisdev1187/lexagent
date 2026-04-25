@@ -1,4 +1,4 @@
-export type TabId = "research" | "strategy" | "draft" | "judge" | "citations" | "deep-research";
+export type TabId = "research" | "strategy" | "draft" | "judge" | "citations" | "deep-research" | "conflict";
 
 export type AuthorityKind = "case" | "statute" | "regulation" | "rule" | "constitutional";
 export type CourtTier = "scotus" | "circuit" | "district" | "state-high" | "state-lower" | "unknown";
