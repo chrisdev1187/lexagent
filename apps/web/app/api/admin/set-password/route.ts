@@ -13,12 +13,18 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { error } = await serviceClient().auth.admin.updateUserById(userId, {
-    password,
-  });
+  const svc = serviceClient();
+  const { error } = await svc.auth.admin.updateUserById(userId, { password });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+    // GoTrue Admin API fails on malformed auth.users records — fall back to direct SQL.
+    const { error: rpcErr } = await svc.rpc("admin_set_user_password", {
+      uid: userId,
+      new_pw: password,
+    });
+    if (rpcErr) {
+      return NextResponse.json({ error: rpcErr.message }, { status: 400 });
+    }
   }
 
   return NextResponse.json({ ok: true });

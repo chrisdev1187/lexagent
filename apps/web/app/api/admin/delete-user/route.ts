@@ -15,9 +15,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Cannot delete your own account" }, { status: 400 });
   }
 
-  const { error } = await serviceClient().auth.admin.deleteUser(userId);
+  const svc = serviceClient();
+  const { error } = await svc.auth.admin.deleteUser(userId);
+
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+    // GoTrue Admin API fails on malformed auth.users records — fall back to direct SQL.
+    const { error: rpcErr } = await svc.rpc("admin_force_delete_user", { uid: userId });
+    if (rpcErr) {
+      return NextResponse.json({ error: rpcErr.message }, { status: 400 });
+    }
   }
 
   return NextResponse.json({ ok: true });
