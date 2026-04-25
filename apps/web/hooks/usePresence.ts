@@ -34,6 +34,11 @@ export function usePresence(matterId: string, currentTab: string) {
   useEffect(() => {
     if (!user || !matterId) return;
 
+    // Supabase returns the same channel instance if the topic already exists.
+    // Adding presence callbacks to an already-subscribed channel throws, so remove it first.
+    const existing = supabase.getChannels().find(c => c.topic === `realtime:matter:${matterId}`);
+    if (existing) supabase.removeChannel(existing);
+
     const ch = supabase.channel(`matter:${matterId}`, {
       config: { presence: { key: user.id } },
     });
