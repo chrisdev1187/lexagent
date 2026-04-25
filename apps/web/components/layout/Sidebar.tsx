@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   Scale, LayoutDashboard, Settings, ChevronLeft, ChevronRight,
   Plus, Circle, Folder, LogOut, User, Square, Play, Users,
-  UserCircle, CreditCard, Key,
+  UserCircle, CreditCard, Key, Building2,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useSettings } from "@/providers/settings-provider";
@@ -35,7 +35,7 @@ interface SidebarProps {
 
 export function Sidebar({ onNewMatter }: SidebarProps) {
   const pathname = usePathname();
-  const { user, signOut } = useAuth();
+  const { user, signOut, isAdmin } = useAuth();
   const { settings, updateSettings } = useSettings();
   const { matters, getMatter, updateMatter } = useMatters();
   const [collapsed, setCollapsed] = useState(settings.sidebarCollapsed);
@@ -120,9 +120,10 @@ export function Sidebar({ onNewMatter }: SidebarProps) {
   useEffect(() => () => { if (intervalRef.current) clearInterval(intervalRef.current); }, []);
 
   const navItems = [
-    { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-    { href: "/clients", icon: Users, label: "Clients" },
-    { href: "/admin", icon: Settings, label: "Administration" },
+    { href: "/dashboard",      icon: LayoutDashboard, label: "Dashboard"      },
+    { href: "/clients",        icon: Users,           label: "Clients"        },
+    { href: "/settings",       icon: Settings,        label: "Settings"       },
+    ...(isAdmin ? [{ href: "/administration", icon: Building2, label: "Administration" }] : []),
   ];
 
   const fmtElapsed = (s: number) =>
@@ -144,13 +145,16 @@ export function Sidebar({ onNewMatter }: SidebarProps) {
         style={{ height: 56, borderBottom: "0.5px solid rgba(224,224,224,0.08)", flexShrink: 0 }}
       >
         <div
-          className="flex-shrink-0 w-8 h-8 rounded flex items-center justify-center"
+          className="flex-shrink-0 w-8 h-8 rounded flex items-center justify-center overflow-hidden"
           style={{
             background: "rgba(0,255,195,0.06)",
             border: "0.5px solid rgba(0,255,195,0.25)",
           }}
         >
-          <Scale size={15} style={{ color: "var(--verdict-neon)" }} />
+          {settings.firmLogo
+            ? <img src={settings.firmLogo} alt="Firm logo" className="w-full h-full object-contain" />
+            : <Scale size={15} style={{ color: "var(--verdict-neon)" }} />
+          }
         </div>
         {!collapsed && (
           <div className="overflow-hidden">
@@ -159,12 +163,6 @@ export function Sidebar({ onNewMatter }: SidebarProps) {
               style={{ color: "var(--fg-primary)" }}
             >
               {settings.firmName || "LEX PROTOCOL"}
-            </div>
-            <div
-              className="font-mono text-[9px] tracking-[0.2em] uppercase mt-1"
-              style={{ color: "var(--fg-quaternary)" }}
-            >
-              v1.1.1
             </div>
           </div>
         )}

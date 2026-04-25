@@ -15,6 +15,7 @@ import { useQuota } from "@/hooks/useQuota";
 import { readLog, clearLog, type LogEntry } from "@/lib/logger";
 import { storagePercent, aiPercent, matterPercent } from "@/lib/quota";
 import { useMyTokenUsage, useAdminTokenUsage } from "@/hooks/useTokenUsage";
+import { fetchDeepHealth, type DeepHealthResult, type ServiceStatus } from "@/lib/telemetry";
 
 type TabKey = "firm" | "apikeys" | "billing" | "users" | "teams" | "auditlog" | "telemetry" | "quota" | "debuglog";
 
@@ -77,6 +78,131 @@ const PLAN_DETAILS: Record<string, { name: string; usd_budget: number; matter_li
   firm:         { name: "Firm",         usd_budget: 35,  matter_limit: 60,   seat_limit: 10,   price_usd: 200,  features: ["Research","Draft","Citations","Strategy","Judge Intel","Conflict","Timeline"] },
   premium:      { name: "Premium",      usd_budget: 150, matter_limit: null, seat_limit: null, price_usd: 2000, features: ["All features","Custom development","Dedicated support","Personal onboarding"] },
 };
+
+/* ── Telemetry tab ──────────────────────────────────────────────────────── */
+const SERVICE_LABELS: Record<string, { name: string; desc: string }> = {
+  supabase:      { name: "Supabase",         desc: "Auth + database" },
+  anthropic:     { name: "Anthropic",        desc: "AI inference (platform key)" },
+  groq:          { name: "Groq",             desc: "Free waterfall — primary" },
+  gemini:        { name: "Gemini",           desc: "Free waterfall — Google" },
+  cerebras:      { name: "Cerebras",         desc: "Free waterfall — inference" },
+  xai:           { name: "xAI / Grok",       desc: "Free waterfall" },
+  mistral:       { name: "Mistral",          desc: "Free waterfall" },
+  courtlistener: { name: "CourtListener",    desc: "Case law (9M+ opinions)" },
+  govinfo:       { name: "GovInfo",          desc: "Federal Register, CFR, statutes" },
+  openstates:    { name: "OpenStates",       desc: "State legislature data" },
+};
+
+function StatusDot({ status }: { status: ServiceStatus }) {
+  const color = status === "green" ? "var(--verdict-neon)" : status === "amber" ? "var(--verdict-amber)" : status === "red" ? "var(--verdict-crimson)" : "var(--fg-quaternary)";
+  return (
+    <span className="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: color, boxShadow: status !== "unknown" ? `0 0 6px ${color}` : "none" }} />
+  );
+}
+
+function TelemetryTab() {
+  const [health, setHealth]     = useState<DeepHealthResult | null>(null);
+  const [loading, setLoading]   = useState(false);
+  const [lastRun, setLastRun]   = useState<string | null>(null);
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [error, setError]       = useState<string | null>(null);
+
+  const run = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await fetchDeepHealth();
+      setHealth(result);
+      setLastRun(new Date().toLocaleTimeString());
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { run(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const id = setInterval(run, 30_000);
+    return () => clearInterval(id);
+  }, [autoRefresh]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const overallColor = health?.overall === "green" ? "var(--verdict-neon)" : health?.overall === "amber" ? "var(--verdict-amber)" : "var(--verdict-crimson)";
+  const greenCount   = health ? Object.values(health.services).filter(s => s.status === "green").length : 0;
+  const totalCount   = health ? Object.keys(health.services).length : 0;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <SectionHeading>LIVE SERVICE HEALTH</SectionHeading>
+        <div className="flex items-center gap-2">
+          <label className="flex items-center gap-1.5 text-xs cursor-pointer" style={{ color: "var(--fg-tertiary)" }}>
+            <input type="checkbox" checked={autoRefresh} onChange={e => setAutoRefresh(e.target.checked)} className="w-3 h-3" />
+            Auto 30s
+          </label>
+          <button onClick={run} disabled={loading} className="lex-btn lex-btn--secondary text-xs">
+            {loading ? "Probing…" : "Refresh All"}
+          </button>
+        </div>
+      </div>
+
+      {error && (
+        <div className="rounded px-3 py-2 mb-4 text-xs font-mono" style={{ background: "rgba(255,60,60,0.08)", color: "var(--verdict-crimson)", border: "0.5px solid rgba(255,60,60,0.2)" }}>
+          {error}
+        </div>
+      )}
+
+      {health && (
+        <div className="flex items-center gap-3 rounded px-4 py-3 mb-4" style={{ background: "rgba(17,17,20,0.7)", border: `0.5px solid ${overallColor}33` }}>
+          <StatusDot status={health.overall} />
+          <div>
+            <p className="text-sm font-medium" style={{ color: overallColor }}>
+              {health.overall === "green" ? "All Systems Operational" : health.overall === "amber" ? "Partial Degradation" : "Service Outage Detected"}
+            </p>
+            <p className="text-xs" style={{ color: "var(--fg-tertiary)" }}>
+              {greenCount}/{totalCount} services healthy · Last checked {lastRun ?? "—"}
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 gap-2">
+        {health
+          ? Object.entries(health.services).map(([key, svc]) => {
+              const label = SERVICE_LABELS[key] ?? { name: key, desc: "" };
+              const latColor = svc.status === "green" ? "var(--verdict-neon)" : svc.status === "amber" ? "var(--verdict-amber)" : "var(--verdict-crimson)";
+              return (
+                <div key={key} className="flex items-center gap-3 rounded px-4 py-3" style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
+                  <StatusDot status={svc.status} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium" style={{ color: "var(--fg-primary)" }}>{label.name}</p>
+                    <p className="text-xs truncate" style={{ color: "var(--fg-tertiary)" }}>
+                      {svc.error ?? label.desc}
+                    </p>
+                  </div>
+                  {svc.latencyMs > 0 && (
+                    <span className="font-mono text-xs flex-shrink-0" style={{ color: latColor }}>
+                      {svc.latencyMs}ms
+                    </span>
+                  )}
+                  <span className="font-mono text-[10px] uppercase px-2 py-0.5 rounded flex-shrink-0" style={{ background: `${latColor}18`, color: latColor }}>
+                    {svc.status}
+                  </span>
+                </div>
+              );
+            })
+          : loading
+          ? Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="h-14 rounded animate-pulse" style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }} />
+            ))
+          : null
+        }
+      </div>
+    </div>
+  );
+}
 
 /* ── Billing tab (admin view) ───────────────────────────────────────────── */
 function DebugLogTab() {
@@ -942,30 +1068,7 @@ export default function AdministrationPage() {
         return <QuotaTab />;
 
       case "telemetry":
-        return (
-          <div>
-            <SectionHeading>API CONNECTIVITY</SectionHeading>
-            <p className="text-xs mb-4" style={{ color: "var(--fg-tertiary)" }}>
-              Test connectivity to all integrated APIs. Requires API keys to be set in API Credentials.
-            </p>
-            {[
-              { name: "Anthropic Claude", desc: "AI inference — all research and drafting" },
-              { name: "CourtListener", desc: "Case law database — 9M+ opinions" },
-              { name: "GovInfo", desc: "Federal Register, CFR, statutes" },
-              { name: "OpenStates", desc: "State legislature data" },
-            ].map(api => (
-              <div key={api.name} className="flex items-center justify-between rounded px-4 py-3 mb-2" style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
-                <div>
-                  <p className="text-sm font-medium" style={{ color: "var(--fg-primary)" }}>{api.name}</p>
-                  <p className="text-xs" style={{ color: "var(--fg-tertiary)" }}>{api.desc}</p>
-                </div>
-                <button className="rounded px-3 py-1.5 text-xs font-mono tracking-wide cursor-pointer transition-all duration-150" style={{ background: "var(--bg-raised)", border: "0.5px solid rgba(0,255,195,0.14)", color: "var(--fg-tertiary)" }}>
-                  PING
-                </button>
-              </div>
-            ))}
-          </div>
-        );
+        return <TelemetryTab />;
 
       case "debuglog":
         return <DebugLogTab />;

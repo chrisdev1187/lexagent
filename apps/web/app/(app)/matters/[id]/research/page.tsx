@@ -5,7 +5,7 @@ import { Search, Send, RotateCcw, Copy, Check, BookOpen } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useMatters } from "@/providers/matters-provider";
 import { useSettings } from "@/providers/settings-provider";
-import { anthropicFetch, QuotaExceededError } from "@/lib/api";
+import { anthropicFetch, QuotaExceededError, FreeTierExhaustedError } from "@/lib/api";
 import { withLexMemory } from "@/lib/lex-memory";
 import { searchOpinions, CLOpinion } from "@/lib/courtlistener";
 import { UpgradeCTA } from "@/components/shared/UpgradeCTA";
@@ -37,6 +37,7 @@ export default function ResearchPage() {
   const [loading, setLoading] = useState(false);
   const [loadingPhase, setLoadingPhase] = useState(0);
   const [showUpgrade, setShowUpgrade] = useState(false);
+  const [freeTierMsg, setFreeTierMsg] = useState<string | null>(null);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const [expandedSources, setExpandedSources] = useState<Set<number>>(new Set());
   const loadingTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -101,11 +102,13 @@ export default function ResearchPage() {
         messages: [...history, { role: "user", content: userContent }],
       });
 
-      const data = await res.json() as { content?: Array<{ type: string; text: string }>; error?: { message: string } };
-      const text = data.content?.[0]?.text ?? data.error?.message ?? "No response.";
+      const data = await res.json() as { content?: Array<{ type: string; text: string }> };
+      const text = data.content?.[0]?.text ?? "No response.";
       setMessages(prev => [...prev, { role: "assistant", content: text, sources }]);
     } catch (e) {
-      if (e instanceof QuotaExceededError) {
+      if (e instanceof FreeTierExhaustedError) {
+        setFreeTierMsg(e.message);
+      } else if (e instanceof QuotaExceededError) {
         setShowUpgrade(true);
       } else {
         setMessages(prev => [...prev, { role: "assistant", content: `Error: ${(e as Error).message}` }]);
@@ -132,6 +135,15 @@ export default function ResearchPage() {
           reason="You've used your monthly AI quota. Upgrade to continue researching."
           onClose={() => setShowUpgrade(false)}
         />
+      )}
+      {freeTierMsg && (
+        <div className="rounded px-4 py-3 mb-4 flex items-start justify-between gap-3" style={{ background: "rgba(0,255,195,0.05)", border: "0.5px solid rgba(0,255,195,0.22)" }}>
+          <div>
+            <p className="text-sm font-medium mb-0.5" style={{ color: "var(--verdict-neon)" }}>Free plan limit reached</p>
+            <p className="text-xs" style={{ color: "var(--fg-tertiary)" }}>{freeTierMsg}</p>
+          </div>
+          <a href="/settings/billing" className="lex-btn lex-btn--primary text-xs flex-shrink-0">Upgrade</a>
+        </div>
       )}
       <PanelShell
         icon={Search}

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireAuth } from "../middleware/auth.js";
 import { rateLimit } from "../middleware/ratelimit.js";
 import { checkQuota, logUsage } from "../middleware/quota.js";
+import { checkFreeTier } from "../middleware/free_tier.js";
 import { supabase } from "../lib/supabase.js";
 
 const anthropicRpm = Number(process.env.ANTHROPIC_RPM ?? 60);
@@ -16,23 +17,24 @@ const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
 interface RoleContext {
   role: "admin" | "user";
   byokKey: string | null;
+  planId: string;
 }
 
 async function resolveRoleContext(userId: string): Promise<RoleContext> {
-  // No Supabase → local dev / demo mode → treat as admin (waterfall ok for dev)
   if (!supabase || userId === "anon") {
-    return { role: "admin", byokKey: null };
+    return { role: "admin", byokKey: null, planId: "starter" };
   }
 
   const { data } = await supabase
     .from("user_roles")
-    .select("role, byok_active, byok_key")
+    .select("role, byok_active, byok_key, plan_id")
     .eq("user_id", userId)
     .single();
 
-  const role = data?.role === "admin" ? "admin" : "user";
+  const role    = data?.role === "admin" ? "admin" : "user";
   const byokKey = data?.byok_active && data?.byok_key ? data.byok_key : null;
-  return { role, byokKey };
+  const planId  = data?.plan_id ?? "starter";
+  return { role, byokKey, planId };
 }
 
 // ── Provider waterfall ────────────────────────────────────────────────────────
@@ -263,6 +265,7 @@ anthropicRouter.post(
   "/messages",
   requireAuth,
   checkQuota,
+  checkFreeTier,
   rateLimit("anthropic", anthropicRpm),
   async (c) => {
     const parsed = BodySchema.safeParse(await c.req.json());
@@ -276,13 +279,18 @@ anthropicRouter.post(
 
     const userId = c.get("userId");
     const byok    = c.get("byok");
-    const { role, byokKey } = await resolveRoleContext(userId);
+    const { role, byokKey, planId } = await resolveRoleContext(userId);
 
-    console.log(JSON.stringify({ tag: "anthropic", event: "request", userId, role, hasByok: !!byokKey, hasPlatformKey: !!ANTHROPIC_KEY, model, max_tokens }));
+    console.log(JSON.stringify({ tag: "anthropic", event: "request", userId, role, planId, hasByok: !!byokKey, hasPlatformKey: !!ANTHROPIC_KEY, model, max_tokens }));
 
-    // ── Routing: admin or no-key users → waterfall; keyed users → Anthropic ──
-    const keyToUse = byokKey ?? ANTHROPIC_KEY;
-    const useWaterfall = role === "admin" || !keyToUse;
+    // ── Routing ──────────────────────────────────────────────────────────────
+    // admin              → free waterfall (internal, zero-cost)
+    // free-plan user     → free waterfall (limited by checkFreeTier)
+    // paid user + BYOK   → Anthropic via their key
+    // paid user, no BYOK → Anthropic via platform key (if set), else waterfall
+    const isFreeOrAdmin = role === "admin" || planId === "free";
+    const keyToUse = byokKey ?? (isFreeOrAdmin ? null : ANTHROPIC_KEY);
+    const useWaterfall = isFreeOrAdmin || !keyToUse;
 
     if (useWaterfall) {
       const hasAnyFreeKey = PROVIDERS.some((p) => !!p.key);

@@ -75,6 +75,7 @@ export function withLexMemory(
     const clone = res.clone();
     void (async () => {
       try {
+        if (!clone.ok) return;
         const json = await clone.json() as unknown;
         const text = extractText(json);
         if (text) {

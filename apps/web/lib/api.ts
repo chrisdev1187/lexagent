@@ -26,6 +26,17 @@ export class QuotaExceededError extends Error {
   constructor() { super("AI quota exceeded — upgrade your plan to continue."); this.name = "QuotaExceededError"; }
 }
 
+export class FreeTierExhaustedError extends Error {
+  tool: string;
+  matterId: string;
+  constructor(tool: string, matterId: string) {
+    super(`Free plan allows 1 use of "${tool}" per matter. Upgrade to continue.`);
+    this.name     = "FreeTierExhaustedError";
+    this.tool     = tool;
+    this.matterId = matterId;
+  }
+}
+
 export async function anthropicFetch(
   body: Record<string, unknown>,
   extraHeaders?: Record<string, string>
@@ -63,13 +74,30 @@ export async function anthropicFetch(
   }
 
   if (!res.ok) {
-    const body = await res.clone().text().catch(() => "(unreadable)");
-    log.error("anthropic", `← ${res.status} ${res.statusText}`, { status: res.status, body, provider, tier, model });
-  } else {
-    log.info("anthropic", `← ${res.status} OK`, { provider, tier, model, spent, budget });
+    const rawBody = await res.clone().text().catch(() => "");
+    let errMsg = `HTTP ${res.status}`;
+    let errCode: string | null = null;
+    try {
+      const j = JSON.parse(rawBody) as Record<string, unknown>;
+      errCode  = typeof j.error === "string" ? j.error : (j.error as any)?.type ?? null;
+      errMsg   = typeof j.error === "string"
+        ? j.error
+        : (j.error as any)?.message ?? (j.message as string) ?? errMsg;
+    } catch { /* body not JSON */ }
+    log.error("anthropic", `← ${res.status} ${res.statusText}`, { status: res.status, body: rawBody.slice(0, 300), provider, tier, model });
+
+    if (res.status === 429) {
+      if (errCode === "free_tier_exhausted") {
+        let tool = "", matterId = "";
+        try { const j = JSON.parse(rawBody) as any; tool = j.tool ?? ""; matterId = j.matter_id ?? ""; } catch { /**/ }
+        throw new FreeTierExhaustedError(tool, matterId);
+      }
+      throw new QuotaExceededError();
+    }
+    throw new Error(errMsg);
   }
 
-  if (res.status === 429) throw new QuotaExceededError();
+  log.info("anthropic", `← ${res.status} OK`, { provider, tier, model, spent, budget });
   return res;
 }
 

@@ -23,6 +23,9 @@ import { usptoRouter } from "./routes/uspto.js";
 import { openstatesRouter } from "./routes/openstates.js";
 import { billingRouter } from "./routes/billing.js";
 import { regionRouter } from "./routes/region.js";
+import { healthDeepRouter } from "./routes/healthdeep.js";
+import { debugRouter } from "./routes/debug.js";
+import { telemetry } from "./middleware/telemetry.js";
 
 const allowedOrigins = (process.env.ALLOWED_ORIGINS ?? "http://localhost:3000")
   .split(",")
@@ -47,6 +50,7 @@ app.use(
 );
 
 app.use("*", logger());
+app.use("*", telemetry);
 
 // Health check — Vercel cron keep-alive + Railway probe
 app.get("/health", (c) =>
@@ -73,6 +77,8 @@ app.route("/api/uspto", usptoRouter);
 app.route("/api/openstates", openstatesRouter);
 app.route("/api/billing", billingRouter);
 app.route("/api/region", regionRouter);
+app.route("/api/health/deep", healthDeepRouter);
+app.route("/api/debug", debugRouter);
 
 // ── Start ─────────────────────────────────────────────────────────────────
 const port = Number(process.env.PORT ?? 8080);

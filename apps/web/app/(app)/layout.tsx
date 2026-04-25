@@ -18,6 +18,14 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
     if (!loading && !user) router.replace("/login");
   }, [loading, user, router]);
 
+  useEffect(() => {
+    const handler = (e: PromiseRejectionEvent) => {
+      console.error("[unhandled rejection]", e.reason);
+    };
+    window.addEventListener("unhandledrejection", handler);
+    return () => window.removeEventListener("unhandledrejection", handler);
+  }, []);
+
   if (loading || !user) {
     return (
       <div className="flex h-screen items-center justify-center" style={{ background: "var(--midnight-court)" }}>

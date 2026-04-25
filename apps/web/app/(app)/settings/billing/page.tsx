@@ -22,11 +22,20 @@ interface UserRole {
 }
 
 const PLAN_COLOR: Record<string, string> = {
+  free:         "var(--fg-tertiary)",
   starter:      "var(--fg-tertiary)",
   professional: "var(--verdict-neon)",
   firm:         "var(--verdict-amber)",
   premium:      "var(--verdict-violet)",
 };
+
+const FREE_TIER_TOOLS = [
+  { name: "Research", tab: "research" },
+  { name: "Case Strategy", tab: "strategy" },
+  { name: "Document Drafting", tab: "draft" },
+  { name: "Judge Intel", tab: "judge" },
+  { name: "Conflict Check (AI)", tab: "conflict" },
+];
 
 export default function BillingSettingsPage() {
   const { user } = useAuth();
@@ -162,6 +171,43 @@ export default function BillingSettingsPage() {
               <ExternalLink size={11} />
             </button>
           </div>
+
+          {/* Free tier limits */}
+          {role?.plan_id === "free" && (
+            <div
+              className="rounded p-5 space-y-4"
+              style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}
+            >
+              <div>
+                <p className="font-mono text-[9px] tracking-[0.2em] uppercase mb-1" style={{ color: "var(--fg-quaternary)" }}>
+                  Free Plan Limits
+                </p>
+                <p className="text-[13px]" style={{ color: "var(--fg-tertiary)" }}>
+                  Free plan includes <strong style={{ color: "var(--fg-primary)" }}>1 AI use per tool per matter</strong>. Upgrade to unlock unlimited AI across all features.
+                </p>
+              </div>
+              <div className="space-y-2">
+                {FREE_TIER_TOOLS.map(t => (
+                  <div
+                    key={t.tab}
+                    className="flex items-center justify-between rounded px-3 py-2 text-xs"
+                    style={{ background: "rgba(255,255,255,0.03)", border: "0.5px solid rgba(224,224,224,0.07)" }}
+                  >
+                    <span style={{ color: "var(--fg-secondary)" }}>{t.name}</span>
+                    <span
+                      className="font-mono tracking-wide"
+                      style={{ color: "var(--fg-quaternary)" }}
+                    >
+                      1 use / matter
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <a href="/pricing" className="lex-btn lex-btn--primary w-full justify-center">
+                Upgrade to Unlock Unlimited AI
+              </a>
+            </div>
+          )}
 
           {/* Upgrade CTA */}
           {(role?.plan_id === "starter" || role?.plan_id === "professional") && (

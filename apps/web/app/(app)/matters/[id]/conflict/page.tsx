@@ -5,7 +5,7 @@ import { Scale, AlertTriangle, CheckCircle, Zap, Loader2 } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useMatters } from "@/providers/matters-provider";
 import { useSettings } from "@/providers/settings-provider";
-import { anthropicFetch, QuotaExceededError } from "@/lib/api";
+import { anthropicFetch, QuotaExceededError, FreeTierExhaustedError } from "@/lib/api";
 import { UpgradeCTA } from "@/components/shared/UpgradeCTA";
 import { PanelShell } from "@/components/panels/PanelShell";
 
@@ -31,6 +31,7 @@ export default function ConflictPage() {
   const [aiAnalysis, setAiAnalysis] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [freeTierMsg, setFreeTierMsg] = useState<string | null>(null);
 
   // Automated conflict check on load
   useEffect(() => {
@@ -83,17 +84,29 @@ export default function ConflictPage() {
         matter_id: matter.id,
         tool_name: "conflict",
       });
-      const data = await res.json() as { content?: Array<{ type: string; text: string }>; error?: { message: string } };
-      const text = data.content?.[0]?.text ?? data.error?.message ?? "No response.";
+      const data = await res.json() as { content?: Array<{ type: string; text: string }> };
+      const text = data.content?.[0]?.text ?? "No response.";
       setAiAnalysis(text);
     } catch (e) {
-      setAiError((e as Error).message);
+      if (e instanceof FreeTierExhaustedError) { setFreeTierMsg(e.message); }
+      else if (e instanceof QuotaExceededError) { setAiError("AI quota exceeded — upgrade your plan."); }
+      else { setAiError((e as Error).message); }
     } finally {
       setAiLoading(false);
     }
   };
 
   return (
+    <>
+      {freeTierMsg && (
+        <div className="rounded px-4 py-3 mb-4 flex items-start justify-between gap-3" style={{ background: "rgba(0,255,195,0.05)", border: "0.5px solid rgba(0,255,195,0.22)" }}>
+          <div>
+            <p className="text-sm font-medium mb-0.5" style={{ color: "var(--verdict-neon)" }}>Free plan limit reached</p>
+            <p className="text-xs" style={{ color: "var(--fg-tertiary)" }}>{freeTierMsg}</p>
+          </div>
+          <a href="/settings/billing" className="lex-btn lex-btn--primary text-xs flex-shrink-0">Upgrade</a>
+        </div>
+      )}
     <PanelShell
       icon={Scale}
       title="Conflict Check"
@@ -228,5 +241,6 @@ export default function ConflictPage() {
         )}
       </div>
     </PanelShell>
+    </>
   );
 }

@@ -5,7 +5,7 @@ import { Users, Search, ExternalLink, Loader2, Zap, Target } from "lucide-react"
 import { useParams } from "next/navigation";
 import { useMatters } from "@/providers/matters-provider";
 import { useSettings } from "@/providers/settings-provider";
-import { COURTLISTENER_BASE, getApiHeaders, anthropicFetch } from "@/lib/api";
+import { COURTLISTENER_BASE, getApiHeaders, anthropicFetch, QuotaExceededError, FreeTierExhaustedError } from "@/lib/api";
 import { withLexMemory } from "@/lib/lex-memory";
 import { PanelShell } from "@/components/panels/PanelShell";
 import { Markdown } from "@/components/shared/Markdown";
@@ -46,6 +46,7 @@ export default function JudgePage() {
   const [synthesizing, setSynthesizing] = useState(false);
   const [searched, setSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [freeTierMsg, setFreeTierMsg] = useState<string | null>(null);
 
   const judgeAnalysis = matter?.judgeAnalysis as string | undefined;
 
@@ -151,11 +152,13 @@ Be direct and actionable. This is for attorney preparation only.`;
         system: settings.systemPrompt,
         messages: [{ role: "user", content }],
       });
-      const data = await res.json() as { content?: Array<{ type: string; text: string }>; error?: { message: string } };
-      const text = data.content?.[0]?.text ?? data.error?.message ?? "No response.";
+      const data = await res.json() as { content?: Array<{ type: string; text: string }> };
+      const text = data.content?.[0]?.text ?? "No response.";
       await updateMatter({ ...matter, judgeAnalysis: text });
     } catch (e) {
-      setError((e as Error).message);
+      if (e instanceof FreeTierExhaustedError) { setFreeTierMsg(e.message); }
+      else if (e instanceof QuotaExceededError) { setError("AI quota exceeded — upgrade your plan."); }
+      else { setError((e as Error).message); }
     } finally {
       setSynthesizing(false);
     }
@@ -169,6 +172,16 @@ Be direct and actionable. This is for attorney preparation only.`;
   }, []);
 
   return (
+    <>
+      {freeTierMsg && (
+        <div className="rounded px-4 py-3 mb-4 flex items-start justify-between gap-3" style={{ background: "rgba(0,255,195,0.05)", border: "0.5px solid rgba(0,255,195,0.22)" }}>
+          <div>
+            <p className="text-sm font-medium mb-0.5" style={{ color: "var(--verdict-neon)" }}>Free plan limit reached</p>
+            <p className="text-xs" style={{ color: "var(--fg-tertiary)" }}>{freeTierMsg}</p>
+          </div>
+          <a href="/settings/billing" className="lex-btn lex-btn--primary text-xs flex-shrink-0">Upgrade</a>
+        </div>
+      )}
     <PanelShell
       icon={Users}
       title="Judge Intel"
@@ -343,5 +356,6 @@ Be direct and actionable. This is for attorney preparation only.`;
         </div>
       )}
     </PanelShell>
+    </>
   );
 }

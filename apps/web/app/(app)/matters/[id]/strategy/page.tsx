@@ -5,7 +5,7 @@ import { Target, RefreshCw, Zap, AlertTriangle, Copy, Check } from "lucide-react
 import { useParams } from "next/navigation";
 import { useMatters } from "@/providers/matters-provider";
 import { useSettings } from "@/providers/settings-provider";
-import { anthropicFetch, QuotaExceededError } from "@/lib/api";
+import { anthropicFetch, QuotaExceededError, FreeTierExhaustedError } from "@/lib/api";
 import { withLexMemory } from "@/lib/lex-memory";
 import { UpgradeCTA } from "@/components/shared/UpgradeCTA";
 import { PanelShell } from "@/components/panels/PanelShell";
@@ -23,6 +23,7 @@ export default function StrategyPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showUpgrade, setShowUpgrade] = useState(false);
+  const [freeTierMsg, setFreeTierMsg] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   const strategy = matter?.strategy as string | undefined;
@@ -76,11 +77,16 @@ Use Bluebook citation format. Flag any circuit splits.`;
         system: settings.systemPrompt,
         messages: [{ role: "user", content: userContent }],
       });
-      const data = await res.json() as { content?: Array<{ type: string; text: string }>; error?: { message: string } };
-      const text = data.content?.[0]?.text ?? data.error?.message ?? "No response.";
-      await updateMatter({ ...matter, strategy: text });
+      const data = await res.json() as { content?: Array<{ type: string; text: string }> };
+      const text = data.content?.[0]?.text;
+      if (text) {
+        await updateMatter({ ...matter, strategy: text });
+      } else {
+        setError("No response from AI. Check API keys and try again.");
+      }
     } catch (e) {
-      if (e instanceof QuotaExceededError) { setShowUpgrade(true); }
+      if (e instanceof FreeTierExhaustedError) { setFreeTierMsg(e.message); }
+      else if (e instanceof QuotaExceededError) { setShowUpgrade(true); }
       else { setError((e as Error).message); }
     } finally {
       setLoading(false);
@@ -94,6 +100,15 @@ Use Bluebook citation format. Flag any circuit splits.`;
           reason="You've used your monthly AI quota. Upgrade to continue generating strategies."
           onClose={() => setShowUpgrade(false)}
         />
+      )}
+      {freeTierMsg && (
+        <div className="rounded px-4 py-3 mb-4 flex items-start justify-between gap-3" style={{ background: "rgba(0,255,195,0.05)", border: "0.5px solid rgba(0,255,195,0.22)" }}>
+          <div>
+            <p className="text-sm font-medium mb-0.5" style={{ color: "var(--verdict-neon)" }}>Free plan limit reached</p>
+            <p className="text-xs" style={{ color: "var(--fg-tertiary)" }}>{freeTierMsg}</p>
+          </div>
+          <a href="/settings/billing" className="lex-btn lex-btn--primary text-xs flex-shrink-0">Upgrade</a>
+        </div>
       )}
       <PanelShell
         icon={Target}
