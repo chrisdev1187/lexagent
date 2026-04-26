@@ -1891,48 +1891,35 @@ export default function AdminPage() {
 
   return (
     <div className="flex-1 overflow-y-auto p-6 max-w-4xl mx-auto">
-      <div className="flex items-center gap-2.5 mb-6">
-        <div
-          className="w-8 h-8 rounded flex items-center justify-center"
-          style={{ background: "rgba(0,255,195,0.06)", border: "0.5px solid rgba(0,255,195,0.28)" }}
-        >
-          <Building2 size={15} style={{ color: "var(--verdict-neon)" }} />
-        </div>
-        <div>
-          <h1 className="text-sm font-semibold" style={{ color: "var(--fg-primary)" }}>Administration</h1>
-          <p className="text-xs" style={{ color: "var(--fg-tertiary)" }}>Firm profile, API keys, and preferences</p>
-        </div>
+      <div className="fade-in mb-10">
+        <p className="lex-page-eyebrow">Administration</p>
+        <h1 className="lex-page-title">Firm Settings</h1>
+        <p className="lex-page-subtitle">Firm profile, API keys, and preferences</p>
       </div>
 
       <div className="flex gap-6">
         {/* Sidebar nav */}
-        <nav className="w-48 flex-shrink-0 space-y-0.5">
+        <nav className="fade-in-d1 w-48 flex-shrink-0 space-y-0.5">
           {ADMIN_TABS.filter(t => isAdmin || !ADMIN_ONLY_TABS.includes(t.id)).map(({ id, icon: Icon, label }) => {
             const active = tab === id;
             return (
               <button
                 key={id}
                 onClick={() => setTab(id)}
-                className="w-full flex items-center gap-2.5 rounded px-3 py-2 text-sm cursor-pointer transition-all duration-150 text-left"
-                style={{
-                  background: active ? "rgba(0,255,195,0.06)" : "transparent",
-                  borderLeft: `2px solid ${active ? "var(--verdict-neon)" : "transparent"}`,
-                  color: active ? "var(--verdict-neon)" : "var(--fg-tertiary)",
-                }}
+                className={`lex-nav-item${active ? " is-active" : ""}`}
               >
-                <Icon size={14} className="flex-shrink-0" />
-                <span className="flex-1">{label}</span>
-                {active && <ChevronRight size={12} />}
+                <Icon size={14} className="lex-nav-item__icon" />
+                <span>{label}</span>
               </button>
             );
           })}
         </nav>
 
         {/* Content */}
-        <div className="flex-1 min-w-0">
+        <div className="fade-in-d2 flex-1 min-w-0">
           <div
-            className="rounded p-5"
-            style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}
+            className="rounded-xl"
+            style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)", padding: 28 }}
           >
             {renderTab()}
 

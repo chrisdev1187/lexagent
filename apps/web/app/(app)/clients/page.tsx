@@ -58,25 +58,24 @@ export default function ClientsPage() {
   return (
     <div className="flex-1 overflow-y-auto p-6 max-w-5xl mx-auto">
       {/* Header */}
-      <div className="mb-6">
-        <span className="font-mono text-[10px] tracking-[0.2em] uppercase" style={{ color: "var(--verdict-neon)" }}>▸</span>
-        <h1 className="font-serif text-2xl font-semibold tracking-tight mt-1" style={{ color: "var(--fg-primary)" }}>
-          Clients
-        </h1>
-        <p className="font-mono text-[10px] tracking-[0.14em] uppercase mt-1" style={{ color: "var(--fg-quaternary)" }}>
+      <div className="fade-in mb-10">
+        <p className="lex-page-eyebrow">Client Directory</p>
+        <h1 className="lex-page-title">Clients</h1>
+        <p className="lex-page-subtitle">
           {clients.length} client{clients.length !== 1 ? "s" : ""} · {matters.length} matter{matters.length !== 1 ? "s" : ""}
         </p>
       </div>
 
       {/* Search */}
-      <div className="relative mb-5">
+      <div className="fade-in-d1 relative mb-5">
         <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--fg-quaternary)" }} />
         <input
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search clients…"
-          className="w-full pl-9 pr-4 py-2.5 rounded text-sm lex-focus"
+          className="w-full pl-9 pr-4 rounded text-sm lex-focus"
           style={{
+            minHeight: 44,
             background: "rgba(255,255,255,0.03)",
             border: "0.5px solid rgba(224,224,224,0.10)",
             color: "var(--fg-primary)",

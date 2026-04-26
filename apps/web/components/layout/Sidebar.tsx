@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Scale, LayoutDashboard, Settings, ChevronLeft, ChevronRight,
+  Scale, LayoutDashboard, Settings, ChevronLeft,
   Plus, Circle, Folder, LogOut, User, Square, Play, Users,
   UserCircle, CreditCard, Key, Building2,
 } from "lucide-react";
@@ -275,15 +275,16 @@ export function Sidebar({ onNewMatter }: SidebarProps) {
           </div>
         )}
         <div className="space-y-px">
-          {matters.map((m: Matter) => {
+          {matters.map((m: Matter, idx: number) => {
             const active = activeMatterId === m.id;
             const dotColor = STATUS_DOT[m.status] ?? "var(--fg-tertiary)";
             return (
               <LexTooltip key={m.id} content={`${m.title} — ${m.status}`} side="right">
                 <Link
                   href={`/matters/${m.id}/overview`}
-                  className="flex items-center gap-2.5 rounded px-2.5 py-2.5 cursor-pointer transition-all duration-150 group"
+                  className="flex items-center gap-2.5 rounded px-2.5 py-2.5 cursor-pointer transition-all duration-150 group fade-in"
                   style={{
+                    animationDelay: `${idx * 0.04}s`,
                     background: active ? "rgba(0,255,195,0.06)" : "transparent",
                     borderLeft: active ? "2px solid var(--verdict-neon)" : "2px solid transparent",
                     paddingLeft: active ? 10 : 12,
@@ -489,15 +490,21 @@ export function Sidebar({ onNewMatter }: SidebarProps) {
         {/* Collapse */}
         <button
           onClick={toggle}
-          className="w-full flex items-center justify-center py-2 cursor-pointer transition-all duration-150"
+          className="w-full flex items-center justify-center py-2 cursor-pointer"
           style={{
             color: "var(--fg-quaternary)",
             background: "none",
             border: "none",
             borderTop: "0.5px solid rgba(224,224,224,0.06)",
+            transition: "color 0.15s",
           }}
+          onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = "var(--fg-primary)"}
+          onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = "var(--fg-quaternary)"}
         >
-          {collapsed ? <ChevronRight size={13} /> : <ChevronLeft size={13} />}
+          <ChevronLeft
+            size={13}
+            style={{ transition: "transform 0.2s var(--ease-terminal)", transform: collapsed ? "rotate(180deg)" : "rotate(0deg)" }}
+          />
         </button>
       </div>
     </aside>

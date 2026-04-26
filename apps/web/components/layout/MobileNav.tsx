@@ -69,7 +69,7 @@ export function MobileNav({ onNewMatter }: MobileNavProps) {
 
           <button
             onClick={onNewMatter}
-            className="cursor-pointer flex items-center justify-center"
+            className="cursor-pointer flex items-center justify-center glow-pulse"
             style={{
               width: 50,
               height: 50,

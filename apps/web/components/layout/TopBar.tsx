@@ -9,10 +9,10 @@ export function TopBar() {
 
   return (
     <header
-      className="flex items-center justify-center px-4 md:hidden flex-shrink-0"
+      className="flex items-center justify-center px-4 md:hidden flex-shrink-0 lex-texture"
       style={{
         height: 52,
-        background: "rgba(10,10,12,0.92)",
+        background: "rgba(10,10,12,0.94)",
         backdropFilter: "blur(20px) saturate(180%)",
         WebkitBackdropFilter: "blur(20px) saturate(180%)",
         borderBottom: "0.5px solid rgba(224,224,224,0.07)",

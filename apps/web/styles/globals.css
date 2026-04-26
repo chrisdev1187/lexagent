@@ -468,6 +468,56 @@ html, body, #__next {
   from { transform: translateX(-100%); opacity: 0; }
   to   { transform: translateX(0);     opacity: 1; }
 }
+@keyframes fadeInUp  { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes scaleIn   { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
+@keyframes glowPulse { 0%,100% { box-shadow: 0 0 16px rgba(0,255,195,0.22); } 50% { box-shadow: 0 0 32px rgba(0,255,195,0.55); } }
+@keyframes glowPulseViolet { 0%,100% { box-shadow: 0 0 16px rgba(106,0,255,0.22); } 50% { box-shadow: 0 0 32px rgba(106,0,255,0.55); } }
+
+/* Entrance animation utility classes */
+.fade-in    { animation: fadeInUp 0.35s var(--ease-terminal) both; }
+.fade-in-d1 { animation: fadeInUp 0.35s 0.05s var(--ease-terminal) both; }
+.fade-in-d2 { animation: fadeInUp 0.35s 0.10s var(--ease-terminal) both; }
+.fade-in-d3 { animation: fadeInUp 0.35s 0.15s var(--ease-terminal) both; }
+.fade-in-d4 { animation: fadeInUp 0.35s 0.20s var(--ease-terminal) both; }
+.fade-in-d5 { animation: fadeInUp 0.35s 0.25s var(--ease-terminal) both; }
+.scale-in   { animation: scaleIn  0.25s var(--ease-terminal) both; }
+.glow-pulse { animation: glowPulse 2.5s ease-in-out infinite; }
+
+/* Page-level typography system */
+.lex-page-eyebrow {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--verdict-neon);
+  text-shadow: 0 0 8px rgba(0,255,195,0.35);
+  margin-bottom: 8px;
+}
+.lex-page-title {
+  font-family: var(--font-serif);
+  font-size: 32px;
+  font-weight: 400;
+  font-style: italic;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  color: var(--fg-primary);
+  margin: 0;
+}
+.lex-page-subtitle {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--fg-quaternary);
+  margin-top: 6px;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .fade-in, .fade-in-d1, .fade-in-d2, .fade-in-d3, .fade-in-d4, .fade-in-d5,
+  .scale-in, .glow-pulse { animation: none; opacity: 1; transform: none; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
