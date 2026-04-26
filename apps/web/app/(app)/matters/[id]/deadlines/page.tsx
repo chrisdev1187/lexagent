@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Clock, Plus, Trash2, CheckSquare, Square } from "lucide-react";
+import { ExportButton } from "@/components/shared/ExportButton";
 import { useParams } from "next/navigation";
 import { useMatters } from "@/providers/matters-provider";
 import { PanelShell } from "@/components/panels/PanelShell";
@@ -77,6 +78,14 @@ export default function DeadlinesPage() {
       icon={Clock}
       title="Deadlines"
       description="Track filing deadlines, hearings, and key dates"
+      actions={
+        <ExportButton
+          content={sorted.map(d => `- [${d.done ? "x" : " "}] **${d.dueDate}** — ${d.title} (${d.priority} priority)`).join("\n")}
+          filename={`deadlines-${matter?.title ?? id}`}
+          format="markdown"
+          label="Export"
+        />
+      }
     >
       {/* Add form */}
       <div className="lex-card mb-6">

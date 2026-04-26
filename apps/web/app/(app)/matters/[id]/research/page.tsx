@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Search, Send, RotateCcw, Copy, Check, BookOpen } from "lucide-react";
+import { ExportButton } from "@/components/shared/ExportButton";
 import { useParams } from "next/navigation";
 import { useMatters } from "@/providers/matters-provider";
 import { useSettings } from "@/providers/settings-provider";
@@ -33,6 +34,7 @@ export default function ResearchPage() {
   const matter = getMatter(id);
 
   const [messages, setMessages] = useState<Message[]>([]);
+  const [initialized, setInitialized] = useState(false);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [streamingText, setStreamingText] = useState("");
@@ -43,6 +45,13 @@ export default function ResearchPage() {
   const [expandedSources, setExpandedSources] = useState<Set<number>>(new Set());
   const loadingTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (!matter || initialized) return;
+    setInitialized(true);
+    const saved = (matter.researchHistory as Message[] | undefined) ?? [];
+    if (saved.length > 0) setMessages(saved);
+  }, [matter?.id]);
 
   const copyMessage = async (content: string, idx: number) => {
     await navigator.clipboard.writeText(content);
@@ -105,7 +114,10 @@ export default function ResearchPage() {
 
       const data = await res.json() as { content?: Array<{ type: string; text: string }> };
       const text = data.content?.[0]?.text ?? "No response.";
-      setMessages(prev => [...prev, { role: "assistant", content: text, sources }]);
+      const aiMsg: Message = { role: "assistant", content: text, sources };
+      const updated = [...messages, userMsg, aiMsg].slice(-50);
+      setMessages(updated);
+      if (matter) updateMatter({ ...matter, researchHistory: updated });
     } catch (e) {
       if (e instanceof FreeTierExhaustedError) {
         setFreeTierMsg(e.message);
@@ -309,13 +321,19 @@ export default function ResearchPage() {
             <div className="flex items-center gap-2">
               <LexTooltip content="Clear conversation">
                 <button
-                  onClick={() => setMessages([])}
+                  onClick={() => { setMessages([]); if (matter) updateMatter({ ...matter, researchHistory: [] }); }}
                   className="cursor-pointer p-1.5 rounded-md transition-all duration-150"
                   style={{ color: "var(--fg-tertiary)", background: "none", border: "none" }}
                 >
                   <RotateCcw size={13} />
                 </button>
               </LexTooltip>
+              <ExportButton
+                content={messages.map(m => `**${m.role === "user" ? "You" : "ARES"}**: ${m.content}`).join("\n\n---\n\n")}
+                filename={`research-${matter?.title ?? id}`}
+                format="markdown"
+                label="Export"
+              />
               <span className="text-xs" style={{ color: "var(--fg-tertiary)" }}>
                 Enter to send · Shift+Enter for newline
               </span>

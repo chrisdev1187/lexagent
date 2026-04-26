@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ScanSearch, Search, Bookmark, BookmarkCheck, Trash2, ExternalLink, Zap, Loader2 } from "lucide-react";
+import { ExportButton } from "@/components/shared/ExportButton";
 import { useParams } from "next/navigation";
 import { useMatters } from "@/providers/matters-provider";
 import { useSettings } from "@/providers/settings-provider";
@@ -79,6 +80,12 @@ export default function DeepResearchPage() {
   const [streamingText, setStreamingText] = useState("");
   const [synthesis, setSynthesis] = useState("");
   const [synthError, setSynthError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!matter) return;
+    const saved = matter.deepResearchSynthesis as string | undefined;
+    if (saved) setSynthesis(saved);
+  }, [matter?.id]);
 
   const savedPrecedents = (matter?.precedents ?? []) as SavedPrecedent[];
   const savedIds = new Set(savedPrecedents.map((p) => p.id));
@@ -245,7 +252,9 @@ Be precise, cite sources by number, and flag any circuit splits or conflicting a
         { onChunk: chunk => setStreamingText(prev => prev + chunk) }
       );
       const data = await res.json() as { content?: Array<{ type: string; text: string }> };
-      setSynthesis(data.content?.[0]?.text ?? "No response.");
+      const text = data.content?.[0]?.text ?? "No response.";
+      setSynthesis(text);
+      updateMatter({ ...matter, deepResearchSynthesis: text });
     } catch (e) {
       if (e instanceof FreeTierExhaustedError) { setSynthError(e.message); }
       else if (e instanceof QuotaExceededError) { setSynthError("AI quota exceeded — upgrade your plan."); }
@@ -486,14 +495,17 @@ Be precise, cite sources by number, and flag any circuit splits or conflicting a
         <div className="mb-6">
           <div className="flex items-center justify-between mb-3">
             <p className="text-xs font-mono tracking-wider" style={{ color: "var(--fg-tertiary)" }}>ARES SYNTHESIS</p>
-            <button
-              onClick={synthesize}
-              disabled={synthesizing}
-              className="lex-btn lex-btn--primary"
-            >
-              {synthesizing ? <Loader2 size={12} className="animate-spin" /> : <Zap size={12} />}
-              {synthesizing ? "Synthesizing…" : synthesis ? "Re-synthesize" : "Synthesize with ARES"}
-            </button>
+            <div className="flex items-center gap-2">
+              <ExportButton content={synthesis} filename={`synthesis-${matter?.title ?? id}`} format="markdown" label="Export" />
+              <button
+                onClick={synthesize}
+                disabled={synthesizing}
+                className="lex-btn lex-btn--primary"
+              >
+                {synthesizing ? <Loader2 size={12} className="animate-spin" /> : <Zap size={12} />}
+                {synthesizing ? "Synthesizing…" : synthesis ? "Re-synthesize" : "Synthesize with ARES"}
+              </button>
+            </div>
           </div>
 
           {synthError && (

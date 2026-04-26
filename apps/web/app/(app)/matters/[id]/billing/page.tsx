@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Receipt, Clock, Plus, Trash2 } from "lucide-react";
+import { ExportButton } from "@/components/shared/ExportButton";
 import { useParams } from "next/navigation";
 import { useMatters } from "@/providers/matters-provider";
 import { PanelShell } from "@/components/panels/PanelShell";
@@ -72,6 +73,14 @@ export default function BillingPage() {
       icon={Receipt}
       title="Time &amp; Billing"
       description="Track billable hours and generate fee summaries"
+      actions={
+        <ExportButton
+          content={["Date,Description,Minutes,Rate,Amount", ...entries.map(e => `${e.date},"${e.description}",${e.minutes},${e.rate},${((e.minutes / 60) * e.rate).toFixed(2)}`)].join("\n")}
+          filename={`billing-${matter.title}`}
+          format="csv"
+          label="Export CSV"
+        />
+      }
     >
       {/* Summary */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">

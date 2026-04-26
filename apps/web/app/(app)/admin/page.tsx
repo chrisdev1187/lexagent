@@ -4,20 +4,20 @@ import { useState, useEffect, useCallback } from "react";
 import {
   Building2, Palette, Key, Cpu, ShieldCheck, FileText, Activity, ChevronRight, Users,
   CreditCard, UsersRound, Plus, Trash2, ClipboardList, Lock, BarChart3, KeyRound, UserPlus, X,
-  RefreshCw, Brain, Radio, Zap, ExternalLink,
+  RefreshCw, Brain, Radio, Zap, ExternalLink, MessageSquare,
 } from "lucide-react";
 import { getApiHeaders } from "@/lib/api";
 import { useSettings } from "@/providers/settings-provider";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
-import { PRACTICE_AREAS, DEFAULT_SYSTEM } from "@/lib/settings";
+import { DEFAULT_SYSTEM } from "@/lib/settings";
 import { LexTooltip } from "@/components/shared/LexTooltip";
 import { useQuota } from "@/hooks/useQuota";
 import { storagePercent, aiPercent, matterPercent } from "@/lib/quota";
 import { useMyTokenUsage, useAdminTokenUsage } from "@/hooks/useTokenUsage";
 import { useWaterfallStats, type WaterfallStat } from "@/hooks/useWaterfallStats";
 
-type TabKey = "firm" | "ui" | "apikeys" | "model" | "shield" | "prompt" | "telemetry" | "users" | "billing" | "teams" | "auditlog" | "quota" | "ares" | "livefeed";
+type TabKey = "firm" | "ui" | "apikeys" | "model" | "shield" | "prompt" | "telemetry" | "users" | "billing" | "teams" | "auditlog" | "quota" | "ares" | "livefeed" | "feedback";
 
 const ADMIN_TABS: { id: TabKey; icon: React.ElementType; label: string }[] = [
   { id: "firm",      icon: Building2,   label: "Firm Profile"    },
@@ -34,6 +34,7 @@ const ADMIN_TABS: { id: TabKey; icon: React.ElementType; label: string }[] = [
   { id: "users",     icon: Users,       label: "User Management" },
   { id: "auditlog",  icon: ClipboardList, label: "Audit Log"     },
   { id: "quota",     icon: BarChart3,    label: "Quota & Usage"  },
+  { id: "feedback",  icon: MessageSquare, label: "Feedback"      },
 ];
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
@@ -196,135 +197,7 @@ function BillingTab() {
   );
 }
 
-function TeamsTab() {
-  const [teams, setTeams] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [creating, setCreating] = useState(false);
-  const [newTeamName, setNewTeamName] = useState("");
-  const [saving, setSaving] = useState(false);
-  const { user } = useAuth();
 
-  useEffect(() => {
-    async function load() {
-      const { data } = await supabase.rpc("get_admin_teams");
-      setTeams(data ?? []);
-      setLoading(false);
-    }
-    load();
-  }, []);
-
-  async function createTeam() {
-    if (!newTeamName.trim() || !user) return;
-    setSaving(true);
-    const slug = newTeamName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-    const { data, error } = await supabase.from("teams").insert({
-      name: newTeamName.trim(),
-      slug: `${slug}-${Date.now()}`,
-      owner_id: user.id,
-    }).select().single();
-    if (!error && data) {
-      await supabase.from("team_members").insert({ team_id: data.id, user_id: user.id, role: "owner" });
-      setTeams((prev) => [{ ...data, owner_email: "", member_count: 1 }, ...prev]);
-      setNewTeamName("");
-      setCreating(false);
-    }
-    setSaving(false);
-  }
-
-  async function deleteTeam(teamId: string) {
-    await supabase.from("teams").delete().eq("id", teamId);
-    setTeams((prev) => prev.filter((t) => t.team_id !== teamId));
-  }
-
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-4">
-        <SectionHeading>ALL TEAMS</SectionHeading>
-        <button
-          onClick={() => setCreating(true)}
-          className="lex-btn lex-btn--primary"
-        >
-          <Plus size={12} /> New Team
-        </button>
-      </div>
-
-      {creating && (
-        <div className="rounded p-4 mb-4" style={{ background: "var(--bg-raised)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
-          <p className="text-xs font-mono mb-2" style={{ color: "var(--fg-tertiary)" }}>TEAM NAME</p>
-          <div className="flex gap-2">
-            <input
-              className={inputCls}
-              style={{ ...inputStyle, flex: 1 }}
-              value={newTeamName}
-              onChange={(e) => setNewTeamName(e.target.value)}
-              placeholder="Acme Legal Team"
-              onKeyDown={(e) => e.key === "Enter" && createTeam()}
-              autoFocus
-            />
-            <button
-              onClick={createTeam}
-              disabled={saving || !newTeamName.trim()}
-              className="lex-btn lex-btn--primary"
-            >
-              {saving ? "…" : "Create"}
-            </button>
-            <button
-              onClick={() => { setCreating(false); setNewTeamName(""); }}
-              className="lex-btn lex-btn--ghost"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-
-      {loading ? (
-        <p style={{ color: "var(--fg-tertiary)" }}>Loading…</p>
-      ) : teams.length === 0 ? (
-        <p className="text-sm" style={{ color: "var(--fg-tertiary)" }}>No teams yet. Create one to start collaborating.</p>
-      ) : (
-        <div style={{ overflowX: "auto" }}>
-          <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
-            <thead>
-              <tr style={{ background: "var(--bg-raised)" }}>
-                {["Name", "Owner", "Plan", "Members", "Created", ""].map((h) => (
-                  <th key={h} className="px-3 py-2 text-left font-mono text-[10px] tracking-wider" style={{ color: "var(--fg-tertiary)" }}>
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {teams.map((t) => (
-                <tr key={t.team_id} style={{ borderTop: "0.5px solid rgba(224,224,224,0.08)" }}>
-                  <td className="px-3 py-2.5 font-medium" style={{ color: "var(--fg-primary)" }}>{t.team_name}</td>
-                  <td className="px-3 py-2.5 text-xs" style={{ color: "var(--fg-tertiary)" }}>{t.owner_email || "—"}</td>
-                  <td className="px-3 py-2.5">
-                    <span className="px-2 py-0.5 rounded text-xs" style={{ background: "var(--bg-raised)", color: "var(--fg-tertiary)" }}>{t.plan_id}</span>
-                  </td>
-                  <td className="px-3 py-2.5 font-mono text-xs" style={{ color: "var(--fg-primary)" }}>{t.member_count}</td>
-                  <td className="px-3 py-2.5 text-xs" style={{ color: "var(--fg-tertiary)" }}>
-                    {new Date(t.created_at).toLocaleDateString()}
-                  </td>
-                  <td className="px-3 py-2.5">
-                    <button
-                      onClick={() => deleteTeam(t.team_id)}
-                      className="p-1 rounded cursor-pointer opacity-50 hover:opacity-100 transition-opacity"
-                      style={{ color: "var(--verdict-crimson)" }}
-                      title="Delete team"
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  );
-}
 
 function UserManagementTab() {
   const { user: selfUser } = useAuth();
@@ -1498,7 +1371,191 @@ function TelemetryTab() {
   );
 }
 
-const ADMIN_ONLY_TABS: TabKey[] = ["apikeys", "prompt", "telemetry", "ares", "livefeed", "users", "teams", "auditlog"];
+function FeedbackAdminTab() {
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<any | null>(null);
+  const [filter, setFilter] = useState<{ type: string; status: string }>({ type: "", status: "" });
+  const [updating, setUpdating] = useState(false);
+
+  useEffect(() => {
+    async function load() {
+      const { data } = await supabase
+        .from("feedback")
+        .select("*")
+        .order("created_at", { ascending: false });
+      setItems(data ?? []);
+      setLoading(false);
+    }
+    load();
+  }, []);
+
+  async function updateItem(id: string, patch: Record<string, string>) {
+    setUpdating(true);
+    await supabase.from("feedback").update(patch).eq("id", id);
+    setItems(prev => prev.map(i => i.id === id ? { ...i, ...patch } : i));
+    if (selected?.id === id) setSelected((prev: any) => ({ ...prev, ...patch }));
+    setUpdating(false);
+  }
+
+  const STATUS_OPTIONS = ["open", "in_review", "done", "closed"];
+  const PRIORITY_OPTIONS = ["low", "normal", "high", "critical"];
+  const TYPE_OPTIONS = ["bug", "feature", "general"];
+
+  const filtered = items.filter(i =>
+    (!filter.type || i.type === filter.type) &&
+    (!filter.status || i.status === filter.status)
+  );
+
+  const typeColor: Record<string, string> = {
+    bug: "var(--verdict-crimson)",
+    feature: "var(--verdict-neon)",
+    general: "var(--verdict-amber)",
+  };
+  const priorityColor: Record<string, string> = {
+    low: "var(--fg-tertiary)",
+    normal: "var(--fg-secondary)",
+    high: "var(--verdict-amber)",
+    critical: "var(--verdict-crimson)",
+  };
+  const statusColor: Record<string, string> = {
+    open: "var(--verdict-neon)",
+    in_review: "var(--verdict-amber)",
+    done: "var(--fg-tertiary)",
+    closed: "var(--fg-quaternary)",
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <SectionHeading>FEEDBACK SUBMISSIONS</SectionHeading>
+        <div className="flex gap-2">
+          <select
+            value={filter.type}
+            onChange={e => setFilter(f => ({ ...f, type: e.target.value }))}
+            className="rounded px-2 py-1 text-xs lex-focus"
+            style={{ background: "var(--bg-raised)", border: "0.5px solid rgba(224,224,224,0.09)", color: "var(--fg-secondary)", outline: "none" }}
+          >
+            <option value="">All types</option>
+            {TYPE_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+          <select
+            value={filter.status}
+            onChange={e => setFilter(f => ({ ...f, status: e.target.value }))}
+            className="rounded px-2 py-1 text-xs lex-focus"
+            style={{ background: "var(--bg-raised)", border: "0.5px solid rgba(224,224,224,0.09)", color: "var(--fg-secondary)", outline: "none" }}
+          >
+            <option value="">All statuses</option>
+            {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+      </div>
+
+      {loading ? (
+        <p style={{ color: "var(--fg-tertiary)" }}>Loading…</p>
+      ) : filtered.length === 0 ? (
+        <p className="text-sm" style={{ color: "var(--fg-tertiary)" }}>No feedback submissions yet.</p>
+      ) : (
+        <div style={{ overflowX: "auto" }}>
+          <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ background: "var(--bg-raised)" }}>
+                {["Type", "Title", "User", "Priority", "Status", "Date", ""].map(h => (
+                  <th key={h} className="px-3 py-2 text-left font-mono text-[10px] tracking-wider" style={{ color: "var(--fg-tertiary)" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(item => (
+                <tr key={item.id} style={{ borderTop: "0.5px solid rgba(224,224,224,0.08)" }}>
+                  <td className="px-3 py-2.5">
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-mono" style={{ color: typeColor[item.type] ?? "var(--fg-tertiary)", background: "rgba(255,255,255,0.04)" }}>{item.type}</span>
+                  </td>
+                  <td className="px-3 py-2.5 font-medium max-w-[200px] truncate" style={{ color: "var(--fg-primary)" }}>{item.title}</td>
+                  <td className="px-3 py-2.5 text-xs truncate max-w-[140px]" style={{ color: "var(--fg-tertiary)" }}>{item.metadata?.user_email ?? "—"}</td>
+                  <td className="px-3 py-2.5">
+                    <span className="text-xs" style={{ color: priorityColor[item.priority] ?? "var(--fg-tertiary)" }}>{item.priority}</span>
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-mono" style={{ color: statusColor[item.status] ?? "var(--fg-tertiary)", background: "rgba(255,255,255,0.04)" }}>{item.status}</span>
+                  </td>
+                  <td className="px-3 py-2.5 text-xs" style={{ color: "var(--fg-tertiary)" }}>{new Date(item.created_at).toLocaleDateString()}</td>
+                  <td className="px-3 py-2.5">
+                    <button onClick={() => setSelected(item)} className="lex-btn lex-btn--ghost text-xs py-0.5 px-2">View</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Detail drawer */}
+      {selected && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-end"
+          style={{ background: "rgba(0,0,0,0.5)" }}
+          onClick={e => { if (e.target === e.currentTarget) setSelected(null); }}
+        >
+          <div
+            className="h-full overflow-y-auto"
+            style={{ width: 480, background: "var(--midnight-deep)", borderLeft: "0.5px solid rgba(0,255,195,0.2)", padding: 28 }}
+          >
+            <div className="flex items-start justify-between mb-6">
+              <div>
+                <p className="font-mono text-[10px] tracking-widest mb-1" style={{ color: typeColor[selected.type] ?? "var(--fg-tertiary)" }}>{selected.type.toUpperCase()}</p>
+                <h3 className="text-base font-medium" style={{ color: "var(--fg-primary)" }}>{selected.title}</h3>
+                <p className="text-xs mt-1" style={{ color: "var(--fg-tertiary)" }}>{selected.metadata?.user_email ?? "—"} · {new Date(selected.created_at).toLocaleString()}</p>
+              </div>
+              <button onClick={() => setSelected(null)} className="lex-btn lex-btn--ghost text-xs">✕</button>
+            </div>
+
+            <div className="rounded p-4 mb-6" style={{ background: "rgba(17,17,20,0.8)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
+              <p className="text-sm whitespace-pre-wrap" style={{ color: "var(--fg-secondary)", lineHeight: 1.7 }}>{selected.body}</p>
+            </div>
+
+            {selected.rating && (
+              <p className="text-xs mb-4" style={{ color: "var(--verdict-amber)" }}>Rating: {"★".repeat(selected.rating)}{"☆".repeat(5 - selected.rating)}</p>
+            )}
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <p className="font-mono text-[10px] tracking-wider mb-1.5" style={{ color: "var(--fg-tertiary)" }}>STATUS</p>
+                <select
+                  value={selected.status}
+                  onChange={e => updateItem(selected.id, { status: e.target.value })}
+                  disabled={updating}
+                  className="w-full rounded px-3 py-2 text-sm lex-focus"
+                  style={{ background: "var(--bg-raised)", border: "0.5px solid rgba(224,224,224,0.09)", color: "var(--fg-primary)", outline: "none" }}
+                >
+                  {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div>
+                <p className="font-mono text-[10px] tracking-wider mb-1.5" style={{ color: "var(--fg-tertiary)" }}>PRIORITY</p>
+                <select
+                  value={selected.priority}
+                  onChange={e => updateItem(selected.id, { priority: e.target.value })}
+                  disabled={updating}
+                  className="w-full rounded px-3 py-2 text-sm lex-focus"
+                  style={{ background: "var(--bg-raised)", border: "0.5px solid rgba(224,224,224,0.09)", color: "var(--fg-primary)", outline: "none" }}
+                >
+                  {PRIORITY_OPTIONS.map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </div>
+            </div>
+
+            {selected.metadata?.url && (
+              <p className="text-[10px] mt-4 font-mono truncate" style={{ color: "var(--fg-quaternary)" }}>URL: {selected.metadata.url}</p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const ADMIN_ONLY_TABS: TabKey[] = ["apikeys", "prompt", "telemetry", "ares", "livefeed", "users", "teams", "auditlog", "feedback"];
 
 export default function AdminPage() {
   const { settings, updateSettings } = useSettings();
@@ -1517,135 +1574,17 @@ export default function AdminPage() {
     switch (tab) {
       case "firm":
         return (
-          <div>
-            <SectionHeading>FIRM LOGO</SectionHeading>
-            <div className="flex items-center gap-4 mb-4">
-              <div
-                className="w-16 h-16 rounded flex items-center justify-center flex-shrink-0 overflow-hidden"
-                style={{ background: "rgba(0,255,195,0.04)", border: "0.5px solid var(--border-hair)" }}
-              >
-                {settings.firmLogo
-                  ? <img src={settings.firmLogo} alt="Firm logo" className="w-full h-full object-contain" />
-                  : <span className="font-mono text-[9px] tracking-widest uppercase" style={{ color: "var(--fg-quaternary)" }}>Logo</span>
-                }
-              </div>
-              <div className="flex flex-col gap-2">
-                <label
-                  className="lex-btn lex-btn--secondary cursor-pointer text-xs"
-                  style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
-                >
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={e => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      const reader = new FileReader();
-                      reader.onload = () => set("firmLogo", reader.result as string);
-                      reader.readAsDataURL(file);
-                    }}
-                  />
-                  Upload logo
-                </label>
-                {settings.firmLogo && (
-                  <button className="lex-btn lex-btn--ghost text-xs" onClick={() => set("firmLogo", null)}>
-                    Remove
-                  </button>
-                )}
-              </div>
+          <div className="flex flex-col items-center justify-center py-16 gap-4 text-center">
+            <Building2 size={32} style={{ color: "var(--verdict-neon)", opacity: 0.6 }} />
+            <div>
+              <p className="font-mono text-[11px] tracking-widest mb-2" style={{ color: "var(--fg-tertiary)" }}>MOVED</p>
+              <p className="text-sm mb-4" style={{ color: "var(--fg-secondary)" }}>
+                Firm Profile has moved to <strong style={{ color: "var(--fg-primary)" }}>Settings → Firm Profile</strong>.
+              </p>
+              <a href="/settings?tab=firm" className="lex-btn lex-btn--primary text-xs">
+                Go to Firm Profile
+              </a>
             </div>
-
-            <SectionHeading>FIRM INFORMATION</SectionHeading>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
-              <Field label="FIRM NAME">
-                <input className={inputCls} style={inputStyle} value={settings.firmName} onChange={e => set("firmName", e.target.value)} placeholder="Acme Law Group" />
-              </Field>
-              <Field label="FIRM EMAIL">
-                <input className={inputCls} style={inputStyle} value={settings.firmEmail} onChange={e => set("firmEmail", e.target.value)} placeholder="info@lawfirm.com" />
-              </Field>
-              <Field label="PHONE">
-                <input className={inputCls} style={inputStyle} value={settings.firmPhone} onChange={e => set("firmPhone", e.target.value)} placeholder="(555) 000-0000" />
-              </Field>
-              <Field label="WEBSITE">
-                <input className={inputCls} style={inputStyle} value={settings.firmWebsite} onChange={e => set("firmWebsite", e.target.value)} placeholder="https://lawfirm.com" />
-              </Field>
-            </div>
-            <Field label="STREET ADDRESS">
-              <input className={inputCls} style={inputStyle} value={settings.firmAddress} onChange={e => set("firmAddress", e.target.value)} placeholder="123 Main St, Suite 400" />
-            </Field>
-            <div className="grid grid-cols-3 gap-x-4">
-              <Field label="CITY">
-                <input className={inputCls} style={inputStyle} value={settings.firmCity} onChange={e => set("firmCity", e.target.value)} />
-              </Field>
-              <Field label="STATE">
-                <input className={inputCls} style={inputStyle} value={settings.firmState} onChange={e => set("firmState", e.target.value)} placeholder="CA" />
-              </Field>
-              <Field label="ZIP">
-                <input className={inputCls} style={inputStyle} value={settings.firmZip} onChange={e => set("firmZip", e.target.value)} />
-              </Field>
-            </div>
-
-            <SectionHeading>BAR & CREDENTIALS</SectionHeading>
-            <div className="grid grid-cols-2 gap-x-4">
-              <Field label="BAR NUMBER" tooltip="Your state bar admission number">
-                <input className={inputCls} style={inputStyle} value={settings.barNumber} onChange={e => set("barNumber", e.target.value)} />
-              </Field>
-              <Field label="BAR JURISDICTION">
-                <input className={inputCls} style={inputStyle} value={settings.barJurisdiction} onChange={e => set("barJurisdiction", e.target.value)} placeholder="State Bar of California" />
-              </Field>
-            </div>
-
-            <Field label="PRACTICE AREAS" tooltip="Select all areas your firm practices">
-              <div className="flex flex-wrap gap-2 mt-1">
-                {PRACTICE_AREAS.map(area => {
-                  const selected = (settings.practiceAreas ?? []).includes(area);
-                  return (
-                    <button
-                      key={area}
-                      onClick={() => {
-                        const next = selected
-                          ? settings.practiceAreas.filter(a => a !== area)
-                          : [...settings.practiceAreas, area];
-                        set("practiceAreas", next);
-                      }}
-                      className="px-3 py-1.5 rounded text-xs font-mono tracking-wide cursor-pointer transition-all duration-150"
-                      style={{
-                        background: selected ? "rgba(0,255,195,0.06)" : "var(--bg-raised)",
-                        border: `0.5px solid ${selected ? "rgba(0,255,195,0.28)" : "var(--border-hair)"}`,
-                        color: selected ? "var(--verdict-neon)" : "var(--fg-tertiary)",
-                      }}
-                    >
-                      {area}
-                    </button>
-                  );
-                })}
-              </div>
-            </Field>
-
-            <Field label="LETTERHEAD TEXT" tooltip="Appears on generated documents">
-              <textarea
-                className={inputCls}
-                style={{ ...inputStyle, resize: "none", minHeight: 80 }}
-                value={settings.letterheadText}
-                onChange={e => set("letterheadText", e.target.value)}
-                placeholder="e.g., Attorneys at Law · Serving Since 1998"
-              />
-            </Field>
-
-            <SectionHeading>BILLING</SectionHeading>
-            <Field label="DEFAULT HOURLY RATE ($)" tooltip="Used to calculate invoice totals in the Billing tab">
-              <input
-                className={inputCls}
-                style={inputStyle}
-                type="number"
-                min="0"
-                step="5"
-                value={settings.hourlyRate ?? 350}
-                onChange={e => set("hourlyRate", parseFloat(e.target.value) || 0)}
-                placeholder="350"
-              />
-            </Field>
           </div>
         );
 
@@ -1867,7 +1806,20 @@ export default function AdminPage() {
         return <BillingTab />;
 
       case "teams":
-        return <TeamsTab />;
+        return (
+          <div className="flex flex-col items-center justify-center py-16 gap-4 text-center">
+            <UsersRound size={32} style={{ color: "var(--verdict-neon)", opacity: 0.6 }} />
+            <div>
+              <p className="font-mono text-[11px] tracking-widest mb-2" style={{ color: "var(--fg-tertiary)" }}>MOVED</p>
+              <p className="text-sm mb-4" style={{ color: "var(--fg-secondary)" }}>
+                Teams management has moved to <strong style={{ color: "var(--fg-primary)" }}>Settings → Teams</strong>.
+              </p>
+              <a href="/settings?tab=teams" className="lex-btn lex-btn--primary text-xs">
+                Go to Teams
+              </a>
+            </div>
+          </div>
+        );
 
       case "users":
         return <UserManagementTab />;
@@ -1886,6 +1838,9 @@ export default function AdminPage() {
 
       case "livefeed":
         return <LiveFeedTab />;
+
+      case "feedback":
+        return <FeedbackAdminTab />;
     }
   };
 

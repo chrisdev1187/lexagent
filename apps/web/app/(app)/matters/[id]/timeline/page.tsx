@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { CalendarDays, Plus, Trash2 } from "lucide-react";
+import { ExportButton } from "@/components/shared/ExportButton";
 import { useParams } from "next/navigation";
 import { useMatters } from "@/providers/matters-provider";
 import { PanelShell } from "@/components/panels/PanelShell";
@@ -70,6 +71,14 @@ export default function TimelinePage() {
       icon={CalendarDays}
       title="Case timeline"
       description="Visual chronology of case events and milestones"
+      actions={
+        <ExportButton
+          content={sorted.map(e => `**${e.date}** — ${e.eventType.toUpperCase()}: ${e.title}${e.description ? `\n${e.description}` : ""}`).join("\n\n")}
+          filename={`timeline-${matter?.title ?? id}`}
+          format="markdown"
+          label="Export"
+        />
+      }
     >
       {/* Add form */}
       <div className="lex-card mb-8">

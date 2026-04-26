@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Target, RefreshCw, Zap, AlertTriangle, Copy, Check } from "lucide-react";
+import { ExportButton } from "@/components/shared/ExportButton";
 import { useParams } from "next/navigation";
 import { useMatters } from "@/providers/matters-provider";
 import { useSettings } from "@/providers/settings-provider";
@@ -119,6 +120,7 @@ Use Bluebook citation format. Flag any circuit splits.`;
         actions={
           strategy ? (
             <div className="flex items-center gap-2">
+              <ExportButton content={strategy ?? ""} filename={`strategy-${matter?.title ?? id}`} format="markdown" label="Export" />
               <button
                 onClick={copyStrategy}
                 className="lex-btn lex-btn--secondary"

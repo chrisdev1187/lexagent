@@ -10,8 +10,10 @@ import { DEFAULT_SYSTEM } from "@/lib/settings";
 import { useToast } from "@/hooks/useToast";
 import { LexTooltip } from "@/components/shared/LexTooltip";
 import {
-  CreditCard, ExternalLink, User, Palette, Cpu, ShieldCheck, FileText, Key,
+  CreditCard, ExternalLink, User, Palette, Cpu, ShieldCheck, FileText, Key, Building2, UsersRound,
 } from "lucide-react";
+import { FirmProfileTab } from "@/components/settings/FirmProfileTab";
+import { TeamsTab } from "@/components/settings/TeamsTab";
 
 /* ── Types ─────────────────────────────────────────────────────────────── */
 interface UserRole { plan_id: string; byok_active: boolean; byok_key?: string | null; }
@@ -28,11 +30,13 @@ const PLAN_COLOR: Record<string, string> = {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
-type Tab = "profile" | "billing" | "api-key" | "ui" | "model" | "shield" | "prompt";
+type Tab = "profile" | "billing" | "api-key" | "ui" | "model" | "shield" | "prompt" | "firm" | "teams";
 
 const TABS: { id: Tab; icon: React.ElementType; label: string }[] = [
   { id: "profile",  icon: User,        label: "Profile & Usage"     },
   { id: "billing",  icon: CreditCard,  label: "Billing & Plan"      },
+  { id: "firm",     icon: Building2,   label: "Firm Profile"        },
+  { id: "teams",    icon: UsersRound,  label: "Teams"               },
   { id: "api-key",  icon: Key,         label: "API Key (BYOK)"      },
   { id: "ui",       icon: Palette,     label: "UI Preferences"      },
   { id: "model",    icon: Cpu,         label: "Model & AI"          },
@@ -490,7 +494,7 @@ function PromptTab({ settings, set }: { settings: any; set: (k: string, v: unkno
   );
 }
 
-const ADMIN_ONLY_TABS: Tab[] = ["api-key", "prompt"];
+const ADMIN_ONLY_TABS: Tab[] = ["api-key", "prompt", "teams"];
 
 /* ── Inner component ────────────────────────────────────────────────────── */
 function SettingsInner() {
@@ -555,6 +559,8 @@ function SettingsInner() {
     switch (activeTab) {
       case "profile": return <ProfileTab user={user} role={role} plan={plan} monthly={monthly} events={events} loading={loading} />;
       case "billing": return <BillingTab role={role} plan={plan} loading={loading} />;
+      case "firm":    return <FirmProfileTab isAdmin={isAdmin} />;
+      case "teams":   return <TeamsTab />;
       case "api-key": return <ApiKeyTab user={user} loading={loading} />;
       case "ui":      return <UiTab settings={settings} set={set} />;
       case "model":   return <ModelTab settings={settings} set={set} />;

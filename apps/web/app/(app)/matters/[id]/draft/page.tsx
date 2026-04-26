@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FileEdit, Zap, Copy, Check, Loader2, Download } from "lucide-react";
+import { ExportButton } from "@/components/shared/ExportButton";
+import { buildLetterheadHtml } from "@/components/shared/Letterhead";
 import { useParams } from "next/navigation";
 import { useMatters } from "@/providers/matters-provider";
 import { useSettings } from "@/providers/settings-provider";
@@ -10,6 +12,12 @@ import { withLexMemory } from "@/lib/lex-memory";
 import { UpgradeCTA } from "@/components/shared/UpgradeCTA";
 import { PanelShell } from "@/components/panels/PanelShell";
 import { Markdown } from "@/components/shared/Markdown";
+
+interface DraftVersion {
+  content: string;
+  docType: string;
+  timestamp: number;
+}
 
 const DOC_TYPES = [
   "Motion to Dismiss",
@@ -36,6 +44,15 @@ export default function DraftPage() {
 
   const [docType, setDocType] = useState(DOC_TYPES[0]);
   const [instructions, setInstructions] = useState("");
+
+  useEffect(() => {
+    if (!matter) return;
+    const versions = (matter.draftVersions as DraftVersion[] | undefined) ?? [];
+    if (versions.length > 0 && !draft) {
+      setDraft(versions[0].content);
+      setDocType(versions[0].docType);
+    }
+  }, [matter?.id]);
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(false);
   const [streamingText, setStreamingText] = useState("");
@@ -97,6 +114,9 @@ DRAFTING REQUIREMENTS:
       const data = await res.json() as { content?: Array<{ type: string; text: string }> };
       const text = data.content?.[0]?.text ?? "No response.";
       setDraft(text);
+      const prevVersions = (matter.draftVersions as DraftVersion[] | undefined) ?? [];
+      const newVersion: DraftVersion = { content: text, docType, timestamp: Date.now() };
+      updateMatter({ ...matter, draftVersions: [newVersion, ...prevVersions].slice(0, 5) });
     } catch (e) {
       if (e instanceof FreeTierExhaustedError) { setFreeTierMsg(e.message); }
       else if (e instanceof QuotaExceededError) { setShowUpgrade(true); }
@@ -111,20 +131,12 @@ DRAFTING REQUIREMENTS:
     if (!draft) return;
     const win = window.open("", "_blank");
     if (!win) return;
-    const firmHeader = settings.firmName
-      ? `<div style="text-align:center;margin-bottom:24pt;border-bottom:1px solid #000;padding-bottom:12pt">
-          <div style="font-size:14pt;font-weight:bold">${settings.firmName}</div>
-          ${settings.firmAddress ? `<div>${settings.firmAddress}${settings.firmCity ? `, ${settings.firmCity}` : ""}${settings.firmState ? `, ${settings.firmState}` : ""}${settings.firmZip ? ` ${settings.firmZip}` : ""}</div>` : ""}
-          ${settings.firmPhone ? `<div>Tel: ${settings.firmPhone}</div>` : ""}
-          ${settings.firmEmail ? `<div>${settings.firmEmail}</div>` : ""}
-        </div>`
-      : "";
     const escaped = draft.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${docType}</title><style>
-      body { font-family: "Times New Roman", serif; font-size: 12pt; line-height: 2; margin: 0; color: #000; }
-      @page { margin: 1in; }
-      pre { white-space: pre-wrap; word-wrap: break-word; font-family: inherit; font-size: inherit; }
-    </style></head><body>${firmHeader}<pre>${escaped}</pre></body></html>`);
+      body{font-family:"Times New Roman",serif;font-size:12pt;line-height:2;margin:0;color:#000}
+      @page{margin:1in}
+      pre{white-space:pre-wrap;word-wrap:break-word;font-family:inherit;font-size:inherit}
+    </style></head><body>${buildLetterheadHtml(settings)}<pre>${escaped}</pre></body></html>`);
     win.document.close();
     setTimeout(() => { win.focus(); win.print(); }, 300);
   };
@@ -170,6 +182,25 @@ DRAFTING REQUIREMENTS:
       >
         {/* Controls */}
         <div className="lex-card mb-6 space-y-4">
+          {((matter?.draftVersions as DraftVersion[] | undefined) ?? []).length > 0 && (
+            <div>
+              <label className="lex-micro mb-1.5 block">Previous versions</label>
+              <select
+                onChange={e => {
+                  const versions = (matter?.draftVersions as DraftVersion[] | undefined) ?? [];
+                  const v = versions[Number(e.target.value)];
+                  if (v) { setDraft(v.content); setDocType(v.docType); }
+                }}
+                style={{ ...selectStyle, width: "100%" }}
+              >
+                {((matter?.draftVersions as DraftVersion[] | undefined) ?? []).map((v, i) => (
+                  <option key={v.timestamp} value={i}>
+                    {v.docType} — {new Date(v.timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <div>
             <label className="lex-micro mb-1.5 block">Document type</label>
             <select
@@ -252,6 +283,7 @@ DRAFTING REQUIREMENTS:
             <div className="flex items-center justify-between mb-3">
               <p className="lex-micro">{docType}</p>
               <div className="flex items-center gap-2">
+                <ExportButton content={draft} filename={`${docType}-${matter?.title ?? id}`} format="markdown" label="Export MD" />
                 <button onClick={exportPDF} className="lex-btn lex-btn--secondary">
                   <Download size={12} />
                   Export PDF

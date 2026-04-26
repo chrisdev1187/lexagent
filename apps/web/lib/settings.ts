@@ -28,6 +28,9 @@ export interface AppSettings {
   practiceAreas: string[];
   letterheadText: string;
 
+  // Letterhead
+  letterheadLayout: "left" | "center" | "text";
+
   // Billing
   hourlyRate: number;
 
@@ -223,6 +226,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   barJurisdiction: "",
   practiceAreas: [],
   letterheadText: "",
+  letterheadLayout: "left",
 
   // Billing defaults
   hourlyRate: 350,

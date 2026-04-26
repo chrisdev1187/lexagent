@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { Users, Search, ExternalLink, Loader2, Zap, Target, BookOpen } from "lucide-react";
+import { ExportButton } from "@/components/shared/ExportButton";
+import { buildLetterheadHtml } from "@/components/shared/Letterhead";
 import { useParams } from "next/navigation";
 import { useMatters } from "@/providers/matters-provider";
 import { useSettings } from "@/providers/settings-provider";
@@ -397,9 +399,12 @@ Be direct and actionable. This is for attorney preparation only.`;
           {/* AI synthesis */}
           {(judgeAnalysis || streamingText) && (
             <div>
-              <div className="flex items-center gap-2 mb-2">
-                <Target size={13} style={{ color: "var(--verdict-neon)" }} />
-                <span className="text-xs font-mono tracking-wide" style={{ color: "var(--verdict-neon)" }}>AI STRATEGIC BRIEF</span>
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2">
+                  <Target size={13} style={{ color: "var(--verdict-neon)" }} />
+                  <span className="text-xs font-mono tracking-wide" style={{ color: "var(--verdict-neon)" }}>AI STRATEGIC BRIEF</span>
+                </div>
+                <ExportButton content={judgeAnalysis ?? ""} filename={`judge-intel-${matter?.judgeName ?? id}`} format="pdf" label="Export" headerHtml={buildLetterheadHtml(settings)} />
               </div>
               <div
                 className="rounded p-4 overflow-auto"

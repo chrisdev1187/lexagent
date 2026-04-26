@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { Scale, AlertTriangle, CheckCircle, Zap, Loader2 } from "lucide-react";
+import { ExportButton } from "@/components/shared/ExportButton";
+import { buildLetterheadHtml } from "@/components/shared/Letterhead";
 import { useParams } from "next/navigation";
 import { useMatters } from "@/providers/matters-provider";
 import { useSettings } from "@/providers/settings-provider";
@@ -35,6 +37,12 @@ export default function ConflictPage() {
   const [streamingText, setStreamingText] = useState("");
   const [aiError, setAiError] = useState<string | null>(null);
   const [freeTierMsg, setFreeTierMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!matter) return;
+    const saved = matter.conflictAnalysis as string | undefined;
+    if (saved && !aiAnalysis) setAiAnalysis(saved);
+  }, [matter?.id]);
 
   // Automated conflict check on load
   useEffect(() => {
@@ -89,6 +97,7 @@ export default function ConflictPage() {
       const data = await res.json() as { content?: Array<{ type: string; text: string }> };
       const text = data.content?.[0]?.text ?? "No response.";
       setAiAnalysis(text);
+      updateMatter({ ...matter, conflictAnalysis: text });
     } catch (e) {
       if (e instanceof FreeTierExhaustedError) { setFreeTierMsg(e.message); }
       else if (e instanceof QuotaExceededError) { setAiError("AI quota exceeded — upgrade your plan."); }
@@ -184,14 +193,17 @@ export default function ConflictPage() {
       <div>
         <div className="flex items-center justify-between mb-3">
           <p className="text-sm font-semibold" style={{ color: "var(--fg-primary)" }}>AI Professional Responsibility Analysis</p>
-          <button
-            onClick={runAiCheck}
-            disabled={aiLoading}
-            className="lex-btn lex-btn--primary"
-          >
-            {aiLoading ? <Loader2 size={12} className="animate-spin" /> : <Zap size={12} />}
-            {aiLoading ? "Analyzing…" : "Run AI Check"}
-          </button>
+          <div className="flex items-center gap-2">
+            <ExportButton content={aiAnalysis} filename={`conflict-${matter?.title ?? id}`} format="pdf" label="Export" headerHtml={buildLetterheadHtml(settings)} />
+            <button
+              onClick={runAiCheck}
+              disabled={aiLoading}
+              className="lex-btn lex-btn--primary"
+            >
+              {aiLoading ? <Loader2 size={12} className="animate-spin" /> : <Zap size={12} />}
+              {aiLoading ? "Analyzing…" : "Run AI Check"}
+            </button>
+          </div>
         </div>
 
         {aiError && (

@@ -12,6 +12,8 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_APP_VERSION: pkg.version,
   },
 
+  productionBrowserSourceMaps: false,
+
   webpack(config) {
     config.resolve.alias.canvas = false;
     return config;

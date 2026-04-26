@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   Scale, LayoutDashboard, Settings, ChevronLeft,
   Plus, Circle, Folder, LogOut, User, Square, Play, Users,
-  UserCircle, CreditCard, Key, Building2,
+  UserCircle, CreditCard, Key, Building2, MessageSquare,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useSettings } from "@/providers/settings-provider";
@@ -387,6 +387,24 @@ export function Sidebar({ onNewMatter }: SidebarProps) {
             <UsagePill />
           </div>
         )}
+
+        {/* Feedback link */}
+        <LexTooltip content="Feedback & Bug Reports" side="right">
+          <Link
+            href="/feedback"
+            className="flex items-center gap-2.5 px-3 py-2.5 cursor-pointer transition-colors"
+            style={{
+              color: pathname === "/feedback" ? "var(--verdict-neon)" : "var(--fg-quaternary)",
+              textDecoration: "none",
+              borderTop: "0.5px solid rgba(224,224,224,0.06)",
+            }}
+            onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = "var(--fg-secondary)"}
+            onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = pathname === "/feedback" ? "var(--verdict-neon)" : "var(--fg-quaternary)"}
+          >
+            <MessageSquare size={13} className="flex-shrink-0" />
+            {!collapsed && <span className="font-mono text-[11px] tracking-[0.12em]">Feedback</span>}
+          </Link>
+        </LexTooltip>
 
         {/* User row / account menu */}
         <div ref={userMenuRef} className="relative">
