@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { MattersProvider } from "@/providers/matters-provider";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TopBar } from "@/components/layout/TopBar";
+import { MobileNav } from "@/components/layout/MobileNav";
 import { NewMatterModal } from "@/components/shared/NewMatterModal";
 import { VersionBadge } from "@/components/shared/VersionBadge";
 
@@ -51,13 +52,22 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
 
       {/* Main content */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        {/* Mobile top bar */}
-        <TopBar onNewMatter={() => setShowNewMatter(true)} />
+        {/* Mobile top bar — brand only */}
+        <TopBar />
 
-        <main className="flex-1 overflow-hidden flex flex-col">
-          {children}
+        <main
+          className="flex-1 overflow-hidden flex flex-col"
+          style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+        >
+          {/* Bottom offset for mobile nav bar */}
+          <div className="flex-1 overflow-hidden flex flex-col md:pb-0 pb-[60px]">
+            {children}
+          </div>
         </main>
       </div>
+
+      {/* Mobile bottom navigation */}
+      <MobileNav onNewMatter={() => setShowNewMatter(true)} />
 
       {showNewMatter && (
         <NewMatterModal onClose={() => setShowNewMatter(false)} />

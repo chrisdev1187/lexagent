@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useAuth, type AuthErrorCode } from "@/lib/auth";
 import { supabaseReachable } from "@/lib/supabase";
-import { WifiOff, Shield } from "lucide-react";
+import { WifiOff, Shield, Scale, Brain, Search, CheckCircle2 } from "lucide-react";
 
 const ERROR_COPY: Record<AuthErrorCode, string> = {
   invalid_credentials: "Email or password is incorrect. Double-check your details and try again.",
@@ -13,6 +13,13 @@ const ERROR_COPY: Record<AuthErrorCode, string> = {
   supabase_misconfigured: "Auth service is misconfigured. Contact support if this persists.",
   unknown: "Something went wrong. Please try again.",
 };
+
+const BRAND_FEATURES = [
+  { icon: Search, text: "10+ live legal databases" },
+  { icon: Shield, text: "Real-time citation verification" },
+  { icon: Brain, text: "LexMemory across all sessions" },
+  { icon: CheckCircle2, text: "16,000+ judge profiles" },
+];
 
 export default function LoginPage() {
   const { user, loading, signInWithEmail, signUpWithEmail, signInWithGoogle, resendConfirmation, resetPassword } = useAuth();
@@ -100,10 +107,10 @@ export default function LoginPage() {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center p-6 bg-blueprint"
+      className="min-h-screen flex"
       style={{ background: "var(--midnight-court)" }}
     >
-      {/* Ambient radial gradients */}
+      {/* Ambient gradients */}
       <div
         className="pointer-events-none fixed inset-0"
         style={{
@@ -113,296 +120,405 @@ export default function LoginPage() {
         }}
       />
 
-      <div className="w-full max-w-[400px] relative" style={{ animation: "trace-in 0.8s cubic-bezier(0.16,1,0.3,1) both" }}>
+      {/* Left brand panel — desktop only */}
+      <div
+        className="hidden md:flex flex-col justify-between p-10 relative overflow-hidden"
+        style={{
+          width: 420,
+          minWidth: 420,
+          background: "linear-gradient(160deg, rgba(0,255,195,0.04) 0%, rgba(106,0,255,0.05) 100%)",
+          borderRight: "0.5px solid rgba(224,224,224,0.07)",
+        }}
+      >
+        {/* Grid texture */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            backgroundImage:
+              "linear-gradient(to right, rgba(0,255,195,0.03) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,255,195,0.03) 1px, transparent 1px)",
+            backgroundSize: "48px 48px",
+          }}
+        />
 
-        {/* Offline banner */}
-        {reachable === false && (
-          <div
-            className="flex items-start gap-2.5 px-3.5 py-3 mb-4 text-xs rounded"
-            style={{
-              background: "rgba(255,184,0,0.06)",
-              border: "0.5px solid rgba(255,184,0,0.35)",
-              color: "var(--verdict-amber)",
-            }}
-          >
-            <WifiOff size={13} className="mt-0.5 shrink-0" />
-            <div className="flex-1 font-mono tracking-wide">
-              AUTH SERVICE UNREACHABLE — check connection.{" "}
-              <button
-                onClick={recheckReachability}
-                className="underline cursor-pointer"
-                style={{ background: "none", border: "none", color: "inherit", padding: 0 }}
-              >
-                RETRY
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Glass card */}
+        {/* Glow orb */}
         <div
           style={{
-            background: "rgba(20,20,26,0.72)",
-            backdropFilter: "blur(24px) saturate(160%)",
-            WebkitBackdropFilter: "blur(24px) saturate(160%)",
-            border: "0.5px solid rgba(224,224,224,0.10)",
-            borderRadius: 10,
-            padding: "2.5rem",
-            boxShadow:
-              "0 40px 80px rgba(0,0,0,0.8), 0 0 0 0.5px rgba(0,255,195,0.08), 0 0 60px rgba(0,255,195,0.04)",
+            position: "absolute",
+            bottom: -100,
+            left: -60,
+            width: 400,
+            height: 400,
+            background: "radial-gradient(ellipse, rgba(106,0,255,0.18) 0%, transparent 70%)",
+            pointerEvents: "none",
           }}
-        >
-          {/* Biometric scan orb */}
-          <div className="flex flex-col items-center mb-8">
+        />
+
+        {/* Top: Logo */}
+        <div className="relative">
+          <div className="flex items-center gap-2.5 mb-16">
             <div
-              className="relative flex items-center justify-center mb-5"
-              style={{ width: 72, height: 72 }}
+              className="w-8 h-8 rounded flex items-center justify-center"
+              style={{
+                background: "linear-gradient(135deg, rgba(0,255,195,0.14), rgba(106,0,255,0.14))",
+                border: "0.5px solid rgba(0,255,195,0.28)",
+                boxShadow: "0 0 16px rgba(0,255,195,0.15)",
+              }}
             >
-              {/* Outer ring */}
+              <Scale size={15} style={{ color: "var(--verdict-neon)" }} />
+            </div>
+            <span
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontSize: 16,
+                fontWeight: 600,
+                color: "var(--fg-primary)",
+                letterSpacing: "-0.01em",
+              }}
+            >
+              LexAgent
+            </span>
+          </div>
+
+          <h2
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontSize: 32,
+              fontWeight: 600,
+              letterSpacing: "-0.02em",
+              lineHeight: 1.1,
+              color: "var(--fg-primary)",
+              marginBottom: 12,
+            }}
+          >
+            Legal AI that works
+            <br />
+            <span style={{ color: "var(--verdict-neon)" }}>like a partner</span>
+          </h2>
+          <p
+            style={{
+              fontSize: 14,
+              lineHeight: 1.65,
+              color: "var(--fg-tertiary)",
+              marginBottom: 32,
+            }}
+          >
+            The only AI platform built for the full legal workflow — from research to ruling.
+          </p>
+
+          <ul className="space-y-3">
+            {BRAND_FEATURES.map(({ icon: Icon, text }) => (
+              <li key={text} className="flex items-center gap-3">
+                <div
+                  className="w-7 h-7 rounded flex items-center justify-center flex-shrink-0"
+                  style={{
+                    background: "rgba(0,255,195,0.07)",
+                    border: "0.5px solid rgba(0,255,195,0.18)",
+                  }}
+                >
+                  <Icon size={13} style={{ color: "var(--verdict-neon)" }} />
+                </div>
+                <span className="text-[13px]" style={{ color: "var(--fg-secondary)" }}>
+                  {text}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Bottom: badges */}
+        <div className="relative flex items-center gap-3">
+          <span className="lex-chip lex-chip--neon">TLS 1.3</span>
+          <span className="lex-chip lex-chip--neutral">SOC 2</span>
+          <span className="lex-chip lex-chip--neutral">Privilege-safe</span>
+        </div>
+      </div>
+
+      {/* Right auth panel */}
+      <div className="flex-1 flex items-center justify-center p-5 sm:p-8 relative">
+        <div className="w-full max-w-[400px]">
+
+          {/* Offline banner */}
+          {reachable === false && (
+            <div
+              className="flex items-start gap-2.5 px-3.5 py-3 mb-4 text-xs rounded"
+              style={{
+                background: "rgba(255,184,0,0.06)",
+                border: "0.5px solid rgba(255,184,0,0.35)",
+                color: "var(--verdict-amber)",
+              }}
+            >
+              <WifiOff size={13} className="mt-0.5 shrink-0" />
+              <div className="flex-1 font-mono tracking-wide">
+                AUTH SERVICE UNREACHABLE — check connection.{" "}
+                <button
+                  onClick={recheckReachability}
+                  className="underline cursor-pointer"
+                  style={{ background: "none", border: "none", color: "inherit", padding: 0 }}
+                >
+                  RETRY
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Glass card */}
+          <div
+            style={{
+              background: "rgba(20,20,26,0.72)",
+              backdropFilter: "blur(24px) saturate(160%)",
+              WebkitBackdropFilter: "blur(24px) saturate(160%)",
+              border: "0.5px solid rgba(224,224,224,0.10)",
+              borderRadius: 12,
+              padding: "2.5rem",
+              boxShadow:
+                "0 40px 80px rgba(0,0,0,0.8), 0 0 0 0.5px rgba(0,255,195,0.08), 0 0 60px rgba(0,255,195,0.04)",
+            }}
+          >
+            {/* Biometric scan orb */}
+            <div className="flex flex-col items-center mb-8">
               <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  borderRadius: "50%",
-                  border: "0.5px solid rgba(0,255,195,0.22)",
-                }}
-              />
-              {/* Inner ring */}
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 8,
-                  borderRadius: "50%",
-                  border: "0.5px solid rgba(0,255,195,0.14)",
-                  background: "rgba(0,255,195,0.04)",
-                }}
-              />
-              {/* Scanline */}
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 8,
-                  borderRadius: "50%",
-                  overflow: "hidden",
-                  opacity: scanPhase === "scanning" ? 1 : 0,
-                  transition: "opacity 0.3s",
-                }}
+                className="relative flex items-center justify-center mb-5"
+                style={{ width: 72, height: 72 }}
               >
                 <div
                   style={{
                     position: "absolute",
-                    left: 0,
-                    right: 0,
-                    height: 2,
-                    background: "linear-gradient(90deg, transparent, rgba(0,255,195,0.6), transparent)",
-                    animation: scanPhase === "scanning" ? "biometricScan 1.6s linear forwards" : "none",
+                    inset: 0,
+                    borderRadius: "50%",
+                    border: "0.5px solid rgba(0,255,195,0.22)",
                   }}
                 />
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 8,
+                    borderRadius: "50%",
+                    border: "0.5px solid rgba(0,255,195,0.14)",
+                    background: "rgba(0,255,195,0.04)",
+                  }}
+                />
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 8,
+                    borderRadius: "50%",
+                    overflow: "hidden",
+                    opacity: scanPhase === "scanning" ? 1 : 0,
+                    transition: "opacity 0.3s",
+                  }}
+                >
+                  <div
+                    style={{
+                      position: "absolute",
+                      left: 0,
+                      right: 0,
+                      height: 2,
+                      background: "linear-gradient(90deg, transparent, rgba(0,255,195,0.6), transparent)",
+                      animation: scanPhase === "scanning" ? "biometricScan 1.6s linear forwards" : "none",
+                    }}
+                  />
+                </div>
+                <Shield size={22} style={{ color: "var(--verdict-neon)", position: "relative", zIndex: 1 }} />
               </div>
-              {/* Shield icon */}
-              <Shield size={22} style={{ color: "var(--verdict-neon)", position: "relative", zIndex: 1 }} />
-            </div>
 
-            {/* Wordmark */}
-            <div
-              className="font-serif text-3xl font-semibold tracking-tight mb-1"
-              style={{ color: "var(--fg-primary)", letterSpacing: "-0.01em" }}
-            >
-              LEX PROTOCOL
-            </div>
-            <div
-              className="font-mono text-[10px] tracking-[0.22em] uppercase"
-              style={{ color: "var(--fg-quaternary)" }}
-            >
-              SECURE ACCESS · ARES v5
-            </div>
-
-            {/* TLS badge */}
-            <div className="flex items-center gap-3 mt-3">
-              <span className="lex-chip lex-chip--neon">TLS 1.3</span>
-              <span className="lex-chip lex-chip--neutral">SOC 2</span>
-            </div>
-          </div>
-
-          {/* Mode toggle */}
-          <div
-            className="grid grid-cols-2 gap-0.5 p-0.5 rounded mb-5"
-            style={{ background: "rgba(255,255,255,0.03)", border: "0.5px solid rgba(224,224,224,0.08)" }}
-          >
-            {(["signin", "signup"] as const).map((m) => (
-              <button
-                key={m}
-                onClick={() => { setMode(m); setErrorCode(null); setMessage(null); }}
-                className="py-2 rounded text-[10px] font-mono tracking-[0.14em] uppercase cursor-pointer transition-all duration-150"
-                style={{
-                  background: mode === m ? "rgba(0,255,195,0.08)" : "transparent",
-                  border: mode === m ? "0.5px solid rgba(0,255,195,0.25)" : "0.5px solid transparent",
-                  color: mode === m ? "var(--verdict-neon)" : "var(--fg-tertiary)",
-                }}
-              >
-                {m === "signin" ? "Sign In" : "Sign Up"}
-              </button>
-            ))}
-          </div>
-
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <div>
-              <label className="block font-mono text-[10px] tracking-[0.18em] uppercase mb-1.5" style={{ color: "var(--fg-tertiary)" }}>
-                Email
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="w-full rounded px-3.5 py-2.5 text-sm lex-focus transition-all"
-                style={{
-                  background: "rgba(255,255,255,0.03)",
-                  border: "0.5px solid rgba(224,224,224,0.10)",
-                  color: "var(--fg-primary)",
-                  outline: "none",
-                  fontFamily: "var(--font-sans)",
-                }}
-                placeholder="you@lawfirm.com"
-              />
-            </div>
-
-            <div>
-              <label className="block font-mono text-[10px] tracking-[0.18em] uppercase mb-1.5" style={{ color: "var(--fg-tertiary)" }}>
-                Password
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="w-full rounded px-3.5 py-2.5 text-sm lex-focus transition-all"
-                style={{
-                  background: "rgba(255,255,255,0.03)",
-                  border: "0.5px solid rgba(224,224,224,0.10)",
-                  color: "var(--fg-primary)",
-                  outline: "none",
-                  fontFamily: "var(--font-sans)",
-                }}
-                placeholder="••••••••"
-              />
-            </div>
-
-            {/* Error */}
-            {errorCode && (
               <div
-                className="rounded px-3.5 py-2.5 text-xs font-mono tracking-wide"
-                style={{
-                  background: "rgba(255,51,85,0.06)",
-                  border: "0.5px solid rgba(255,51,85,0.3)",
-                  color: "var(--verdict-crimson)",
-                }}
+                className="font-serif text-2xl font-semibold tracking-tight mb-1"
+                style={{ color: "var(--fg-primary)", letterSpacing: "-0.01em" }}
               >
-                <p>{ERROR_COPY[errorCode]}</p>
-                {errorCode === "email_not_confirmed" && (
-                  <button
-                    type="button"
-                    onClick={handleResend}
-                    disabled={resending || resendDone}
-                    className="mt-2 underline cursor-pointer text-xs"
-                    style={{ background: "none", border: "none", color: "inherit", padding: 0 }}
-                  >
-                    {resendDone ? "Confirmation sent ✓" : resending ? "Sending…" : "Resend confirmation"}
-                  </button>
-                )}
-                {errorCode === "invalid_credentials" && (
-                  <div className="mt-2 flex items-center gap-2">
-                    <p className="opacity-60">If you just signed up, confirm your email first.</p>
+                {mode === "signin" ? "Welcome back" : "Create account"}
+              </div>
+              <div
+                className="font-mono text-[10px] tracking-[0.22em] uppercase"
+                style={{ color: "var(--fg-quaternary)" }}
+              >
+                SECURE ACCESS · ARES v5
+              </div>
+            </div>
+
+            {/* Mode toggle */}
+            <div
+              className="grid grid-cols-2 gap-0.5 p-0.5 rounded mb-5"
+              style={{ background: "rgba(255,255,255,0.03)", border: "0.5px solid rgba(224,224,224,0.08)" }}
+            >
+              {(["signin", "signup"] as const).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => { setMode(m); setErrorCode(null); setMessage(null); }}
+                  className="py-2 rounded text-[10px] font-mono tracking-[0.14em] uppercase cursor-pointer transition-all duration-150"
+                  style={{
+                    background: mode === m ? "rgba(0,255,195,0.08)" : "transparent",
+                    border: mode === m ? "0.5px solid rgba(0,255,195,0.25)" : "0.5px solid transparent",
+                    color: mode === m ? "var(--verdict-neon)" : "var(--fg-tertiary)",
+                    minHeight: 36,
+                  }}
+                >
+                  {m === "signin" ? "Sign In" : "Sign Up"}
+                </button>
+              ))}
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+              <div>
+                <label className="block font-mono text-[10px] tracking-[0.18em] uppercase mb-1.5" style={{ color: "var(--fg-tertiary)" }}>
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="w-full rounded px-3.5 py-2.5 text-sm lex-focus transition-all"
+                  style={{
+                    background: "rgba(255,255,255,0.03)",
+                    border: "0.5px solid rgba(224,224,224,0.10)",
+                    color: "var(--fg-primary)",
+                    outline: "none",
+                    fontFamily: "var(--font-sans)",
+                    minHeight: 44,
+                  }}
+                  placeholder="you@lawfirm.com"
+                />
+              </div>
+
+              <div>
+                <label className="block font-mono text-[10px] tracking-[0.18em] uppercase mb-1.5" style={{ color: "var(--fg-tertiary)" }}>
+                  Password
+                </label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="w-full rounded px-3.5 py-2.5 text-sm lex-focus transition-all"
+                  style={{
+                    background: "rgba(255,255,255,0.03)",
+                    border: "0.5px solid rgba(224,224,224,0.10)",
+                    color: "var(--fg-primary)",
+                    outline: "none",
+                    fontFamily: "var(--font-sans)",
+                    minHeight: 44,
+                  }}
+                  placeholder="••••••••"
+                />
+              </div>
+
+              {/* Error */}
+              {errorCode && (
+                <div
+                  className="rounded px-3.5 py-2.5 text-xs font-mono tracking-wide"
+                  style={{
+                    background: "rgba(255,51,85,0.06)",
+                    border: "0.5px solid rgba(255,51,85,0.3)",
+                    color: "var(--verdict-crimson)",
+                  }}
+                >
+                  <p>{ERROR_COPY[errorCode]}</p>
+                  {errorCode === "email_not_confirmed" && (
                     <button
                       type="button"
-                      disabled={forgotLoading || forgotSent || !email}
-                      onClick={async () => {
-                        if (!email) return;
-                        setForgotLoading(true);
-                        await resetPassword(email);
-                        setForgotLoading(false);
-                        setForgotSent(true);
-                      }}
-                      className="underline cursor-pointer shrink-0"
+                      onClick={handleResend}
+                      disabled={resending || resendDone}
+                      className="mt-2 underline cursor-pointer text-xs"
                       style={{ background: "none", border: "none", color: "inherit", padding: 0 }}
                     >
-                      {forgotSent ? "Reset email sent ✓" : forgotLoading ? "Sending…" : "Forgot password?"}
+                      {resendDone ? "Confirmation sent ✓" : resending ? "Sending…" : "Resend confirmation"}
                     </button>
-                  </div>
-                )}
-              </div>
-            )}
+                  )}
+                  {errorCode === "invalid_credentials" && (
+                    <div className="mt-2 flex items-center gap-2">
+                      <p className="opacity-60">If you just signed up, confirm your email first.</p>
+                      <button
+                        type="button"
+                        disabled={forgotLoading || forgotSent || !email}
+                        onClick={async () => {
+                          if (!email) return;
+                          setForgotLoading(true);
+                          await resetPassword(email);
+                          setForgotLoading(false);
+                          setForgotSent(true);
+                        }}
+                        className="underline cursor-pointer shrink-0"
+                        style={{ background: "none", border: "none", color: "inherit", padding: 0 }}
+                      >
+                        {forgotSent ? "Reset email sent ✓" : forgotLoading ? "Sending…" : "Forgot password?"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
 
-            {/* Success */}
-            {message && (
-              <div
-                className="rounded px-3.5 py-2.5 text-xs font-mono tracking-wide"
-                style={{
-                  background: "rgba(0,255,195,0.06)",
-                  border: "0.5px solid rgba(0,255,195,0.25)",
-                  color: "var(--verdict-neon)",
-                }}
+              {/* Success */}
+              {message && (
+                <div
+                  className="rounded px-3.5 py-2.5 text-xs font-mono tracking-wide"
+                  style={{
+                    background: "rgba(0,255,195,0.06)",
+                    border: "0.5px solid rgba(0,255,195,0.25)",
+                    color: "var(--verdict-neon)",
+                  }}
+                >
+                  {message}
+                </div>
+              )}
+
+              {/* Submit */}
+              <button
+                type="submit"
+                disabled={submitting || reachable === false}
+                className="lex-btn lex-btn--primary w-full justify-center"
+                style={{ minHeight: 44 }}
               >
-                {message}
-              </div>
-            )}
+                {submitting ? "VERIFYING…" : mode === "signin" ? "SIGN IN" : "CREATE ACCOUNT"}
+              </button>
+            </form>
 
-            {/* Submit */}
+            {/* Divider */}
+            <div className="flex items-center gap-3 my-4">
+              <div className="flex-1" style={{ height: "0.5px", background: "rgba(224,224,224,0.08)" }} />
+              <span className="font-mono text-[9px] tracking-[0.2em] uppercase" style={{ color: "var(--fg-quaternary)" }}>OR</span>
+              <div className="flex-1" style={{ height: "0.5px", background: "rgba(224,224,224,0.08)" }} />
+            </div>
+
+            {/* Google */}
             <button
-              type="submit"
-              disabled={submitting || reachable === false}
-              className="lex-btn lex-btn--primary w-full justify-center"
+              onClick={async () => {
+                setErrorCode(null);
+                const { error } = await signInWithGoogle();
+                if (error) setErrorCode(error.code);
+              }}
+              className="w-full flex items-center justify-center gap-2.5 rounded py-2.5 text-sm cursor-pointer transition-all duration-150"
+              style={{
+                background: "rgba(255,255,255,0.03)",
+                border: "0.5px solid rgba(224,224,224,0.10)",
+                color: "var(--fg-secondary)",
+                fontFamily: "var(--font-sans)",
+                minHeight: 44,
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.borderColor = "rgba(224,224,224,0.20)")}
+              onMouseLeave={(e) => (e.currentTarget.style.borderColor = "rgba(224,224,224,0.10)")}
             >
-              {submitting ? "VERIFYING…" : mode === "signin" ? "SIGN IN" : "CREATE ACCOUNT"}
+              <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden>
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" />
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+              </svg>
+              Continue with Google
             </button>
-          </form>
 
-          {/* Divider */}
-          <div className="flex items-center gap-3 my-4">
-            <div className="flex-1" style={{ height: "0.5px", background: "rgba(224,224,224,0.08)" }} />
-            <span className="font-mono text-[9px] tracking-[0.2em] uppercase" style={{ color: "var(--fg-quaternary)" }}>OR</span>
-            <div className="flex-1" style={{ height: "0.5px", background: "rgba(224,224,224,0.08)" }} />
+            {/* Footer */}
+            <div className="mt-5 pt-4 text-center" style={{ borderTop: "0.5px solid rgba(224,224,224,0.06)" }}>
+              <span className="font-mono text-[9px] tracking-[0.16em] uppercase" style={{ color: "var(--fg-quaternary)" }}>
+                256-BIT ENCRYPTED · PRIVILEGE PROTECTED
+              </span>
+            </div>
           </div>
 
-          {/* Google */}
-          <button
-            onClick={async () => {
-              setErrorCode(null);
-              const { error } = await signInWithGoogle();
-              if (error) setErrorCode(error.code);
-            }}
-            className="w-full flex items-center justify-center gap-2.5 rounded py-2.5 text-sm cursor-pointer transition-all duration-150"
-            style={{
-              background: "rgba(255,255,255,0.03)",
-              border: "0.5px solid rgba(224,224,224,0.10)",
-              color: "var(--fg-secondary)",
-              fontFamily: "var(--font-sans)",
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.borderColor = "rgba(224,224,224,0.20)")}
-            onMouseLeave={(e) => (e.currentTarget.style.borderColor = "rgba(224,224,224,0.10)")}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden>
-              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" />
-              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-            </svg>
-            Continue with Google
-          </button>
-
-          {/* Footer */}
-          <div className="mt-5 pt-4 text-center" style={{ borderTop: "0.5px solid rgba(224,224,224,0.06)" }}>
-            <span className="font-mono text-[9px] tracking-[0.16em] uppercase" style={{ color: "var(--fg-quaternary)" }}>
-              256-BIT ENCRYPTED · PRIVILEGE PROTECTED · ATTORNEY-CLIENT SECURED
-            </span>
-          </div>
+          <p className="text-center mt-4 font-mono text-[9px] tracking-[0.18em] uppercase" style={{ color: "var(--fg-quaternary)" }}>
+            LAW FIRST · NEURAL SECOND
+          </p>
         </div>
-
-        {/* Bottom tagline */}
-        <p className="text-center mt-4 font-mono text-[9px] tracking-[0.18em] uppercase" style={{ color: "var(--fg-quaternary)" }}>
-          LAW FIRST · NEURAL SECOND
-        </p>
       </div>
     </div>
   );

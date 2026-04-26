@@ -22,13 +22,6 @@ const STATUS_DOT: Record<string, string> = {
   Urgent: "var(--verdict-crimson)",
 };
 
-const STATUS_KIND: Record<string, string> = {
-  Active: "neon",
-  Closed: "neutral",
-  Pending: "amber",
-  Urgent: "crimson",
-};
-
 interface SidebarProps {
   onNewMatter: () => void;
 }
@@ -133,22 +126,23 @@ export function Sidebar({ onNewMatter }: SidebarProps) {
     <aside
       className="flex flex-col h-full relative transition-all duration-200"
       style={{
-        width: collapsed ? 52 : 260,
-        minWidth: collapsed ? 52 : 260,
+        width: collapsed ? 52 : 280,
+        minWidth: collapsed ? 52 : 280,
         background: "var(--bg-panel, var(--midnight-deep))",
         borderRight: "0.5px solid var(--border-hair, rgba(224,224,224,0.08))",
       }}
     >
       {/* Logo */}
       <div
-        className="flex items-center gap-2.5 px-3"
-        style={{ height: 56, borderBottom: "0.5px solid rgba(224,224,224,0.08)", flexShrink: 0 }}
+        className="flex items-center gap-3 px-3 flex-shrink-0"
+        style={{ height: 56, borderBottom: "0.5px solid rgba(224,224,224,0.08)" }}
       >
         <div
           className="flex-shrink-0 w-8 h-8 rounded flex items-center justify-center overflow-hidden"
           style={{
-            background: "rgba(0,255,195,0.06)",
-            border: "0.5px solid rgba(0,255,195,0.25)",
+            background: "linear-gradient(135deg, rgba(0,255,195,0.14) 0%, rgba(106,0,255,0.14) 100%)",
+            border: "0.5px solid rgba(0,255,195,0.28)",
+            boxShadow: "0 0 12px rgba(0,255,195,0.15)",
           }}
         >
           {settings.firmLogo
@@ -159,72 +153,113 @@ export function Sidebar({ onNewMatter }: SidebarProps) {
         {!collapsed && (
           <div className="overflow-hidden">
             <div
-              className="font-serif font-semibold text-sm leading-none tracking-tight"
+              className="font-serif font-semibold text-sm leading-tight tracking-tight"
               style={{ color: "var(--fg-primary)" }}
             >
               {settings.firmName || "LEX PROTOCOL"}
+            </div>
+            <div
+              className="font-mono text-[9px] tracking-[0.18em] uppercase"
+              style={{ color: "var(--fg-quaternary)" }}
+            >
+              Legal AI
             </div>
           </div>
         )}
       </div>
 
       {/* Nav */}
-      <nav className="px-2 pt-3 space-y-px">
-        {navItems.map(({ href, icon: Icon, label }) => {
-          const active = pathname === href || (href !== "/dashboard" && pathname?.startsWith(href));
-          return (
-            <LexTooltip key={href} content={label} side="right">
-              <Link
-                href={href}
-                className="flex items-center gap-2.5 rounded cursor-pointer transition-all duration-150"
-                style={{
-                  background: active ? "rgba(0,255,195,0.06)" : "transparent",
-                  borderLeft: active ? "2px solid var(--verdict-neon)" : "2px solid transparent",
-                  padding: "8px 10px",
-                  paddingLeft: active ? 10 : 12,
-                  color: active ? "var(--verdict-neon)" : "var(--fg-tertiary)",
-                  borderRadius: 4,
-                  fontSize: 13,
-                  fontFamily: "var(--font-sans)",
-                }}
-              >
-                <Icon size={15} className="flex-shrink-0" />
-                {!collapsed && (
-                  <span>{label}</span>
-                )}
-              </Link>
-            </LexTooltip>
-          );
-        })}
+      <nav className="px-2 pt-4 flex-shrink-0">
+        {!collapsed && (
+          <div
+            className="px-2.5 pb-1.5 font-mono text-[9px] tracking-[0.22em] uppercase"
+            style={{ color: "var(--fg-quaternary)" }}
+          >
+            Navigation
+          </div>
+        )}
+        <div className="space-y-px">
+          {navItems.map(({ href, icon: Icon, label }) => {
+            const active = pathname === href || (href !== "/dashboard" && pathname?.startsWith(href));
+            return (
+              <LexTooltip key={href} content={label} side="right">
+                <Link
+                  href={href}
+                  className="flex items-center gap-2.5 rounded cursor-pointer transition-all duration-150"
+                  style={{
+                    background: active ? "rgba(0,255,195,0.07)" : "transparent",
+                    borderLeft: active ? "2px solid var(--verdict-neon)" : "2px solid transparent",
+                    padding: "8px 10px",
+                    paddingLeft: active ? 10 : 12,
+                    color: active ? "var(--verdict-neon)" : "var(--fg-tertiary)",
+                    borderRadius: 6,
+                    fontSize: 13,
+                    fontFamily: "var(--font-sans)",
+                    textDecoration: "none",
+                  }}
+                  onMouseEnter={e => {
+                    if (!active) (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.03)";
+                  }}
+                  onMouseLeave={e => {
+                    if (!active) (e.currentTarget as HTMLElement).style.background = "transparent";
+                  }}
+                >
+                  <Icon size={15} className="flex-shrink-0" />
+                  {!collapsed && <span>{label}</span>}
+                </Link>
+              </LexTooltip>
+            );
+          })}
+        </div>
       </nav>
 
       {/* New Matter */}
-      {!collapsed && (
-        <div className="px-2 pt-3">
+      <div className="px-2 pt-3 flex-shrink-0">
+        {collapsed ? (
+          <LexTooltip content="New Matter" side="right">
+            <button
+              onClick={onNewMatter}
+              className="w-full flex items-center justify-center rounded py-2 cursor-pointer transition-all duration-150"
+              style={{
+                background: "rgba(0,255,195,0.05)",
+                border: "0.5px dashed rgba(0,255,195,0.28)",
+                color: "var(--verdict-neon)",
+                minHeight: 36,
+              }}
+            >
+              <Plus size={14} />
+            </button>
+          </LexTooltip>
+        ) : (
           <button
             onClick={onNewMatter}
-            className="w-full flex items-center gap-2 rounded px-2.5 py-2 text-[10px] font-mono tracking-[0.14em] uppercase cursor-pointer transition-all duration-150"
-
+            className="w-full flex items-center gap-2 rounded px-3 py-2.5 text-[10px] font-mono tracking-[0.14em] uppercase cursor-pointer transition-all duration-150"
             style={{
-              background: "rgba(0,255,195,0.04)",
+              background: "rgba(0,255,195,0.05)",
               border: "0.5px dashed rgba(0,255,195,0.28)",
               color: "var(--verdict-neon)",
+            }}
+            onMouseEnter={e => {
+              (e.currentTarget as HTMLElement).style.background = "rgba(0,255,195,0.09)";
+            }}
+            onMouseLeave={e => {
+              (e.currentTarget as HTMLElement).style.background = "rgba(0,255,195,0.05)";
             }}
           >
             <Plus size={12} />
             New Matter
           </button>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Matters list */}
       <div
-        className="flex-1 overflow-y-auto px-2 pt-3 space-y-px"
+        className="flex-1 overflow-y-auto px-2 pt-3"
         style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(224,224,224,0.06) transparent" }}
       >
         {!collapsed && matters.length > 0 && (
           <div className="px-2.5 pb-2 flex items-center justify-between">
-            <span className="font-mono text-[9px] tracking-[0.2em] uppercase" style={{ color: "var(--fg-quaternary)" }}>
+            <span className="font-mono text-[9px] tracking-[0.22em] uppercase" style={{ color: "var(--fg-quaternary)" }}>
               Matters
             </span>
             <span
@@ -239,64 +274,85 @@ export function Sidebar({ onNewMatter }: SidebarProps) {
             </span>
           </div>
         )}
-        {matters.map((m: Matter) => {
-          const active = activeMatterId === m.id;
-          const dotColor = STATUS_DOT[m.status] ?? "var(--fg-tertiary)";
-          return (
-            <LexTooltip key={m.id} content={`${m.title} — ${m.status}`} side="right">
-              <Link
-                href={`/matters/${m.id}/overview`}
-                className="flex items-center gap-2 rounded px-2.5 py-2 cursor-pointer transition-all duration-150 group"
-                style={{
-                  background: active ? "rgba(0,255,195,0.05)" : "transparent",
-                  borderLeft: active ? "2px solid var(--verdict-neon)" : "2px solid transparent",
-                  paddingLeft: active ? 10 : 12,
-                }}
-              >
-                <Circle
-                  size={5}
-                  className="flex-shrink-0"
-                  fill={dotColor}
-                  style={{ color: dotColor, flexShrink: 0 }}
-                />
-                {!collapsed && (
-                  <div className="flex flex-col min-w-0">
-                    <span
-                      className="truncate"
-                      style={{
-                        color: active ? "var(--fg-primary)" : "var(--fg-secondary)",
-                        fontFamily: "var(--font-serif)",
-                        fontStyle: "italic",
-                        fontSize: 13,
-                      }}
-                    >
-                      {m.title}
-                    </span>
-                    <span
-                      className="font-mono text-[9px] tracking-[0.14em] uppercase truncate"
-                      style={{ color: "var(--fg-quaternary)" }}
-                    >
-                      {m.status}
-                    </span>
-                  </div>
-                )}
-              </Link>
-            </LexTooltip>
-          );
-        })}
+        <div className="space-y-px">
+          {matters.map((m: Matter) => {
+            const active = activeMatterId === m.id;
+            const dotColor = STATUS_DOT[m.status] ?? "var(--fg-tertiary)";
+            return (
+              <LexTooltip key={m.id} content={`${m.title} — ${m.status}`} side="right">
+                <Link
+                  href={`/matters/${m.id}/overview`}
+                  className="flex items-center gap-2.5 rounded px-2.5 py-2.5 cursor-pointer transition-all duration-150 group"
+                  style={{
+                    background: active ? "rgba(0,255,195,0.06)" : "transparent",
+                    borderLeft: active ? "2px solid var(--verdict-neon)" : "2px solid transparent",
+                    paddingLeft: active ? 10 : 12,
+                    textDecoration: "none",
+                    borderRadius: 6,
+                  }}
+                  onMouseEnter={e => {
+                    if (!active) (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.025)";
+                  }}
+                  onMouseLeave={e => {
+                    if (!active) (e.currentTarget as HTMLElement).style.background = "transparent";
+                  }}
+                >
+                  <Circle
+                    size={5}
+                    className="flex-shrink-0"
+                    fill={dotColor}
+                    style={{ color: dotColor, flexShrink: 0 }}
+                  />
+                  {!collapsed && (
+                    <div className="flex flex-col min-w-0">
+                      <span
+                        className="truncate"
+                        style={{
+                          color: active ? "var(--fg-primary)" : "var(--fg-secondary)",
+                          fontFamily: "var(--font-serif)",
+                          fontStyle: "italic",
+                          fontSize: 13,
+                          lineHeight: 1.3,
+                        }}
+                      >
+                        {m.title}
+                      </span>
+                      {m.client && (
+                        <span
+                          className="font-mono text-[9px] tracking-[0.1em] truncate"
+                          style={{ color: "var(--fg-quaternary)" }}
+                        >
+                          {m.client}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </Link>
+              </LexTooltip>
+            );
+          })}
+        </div>
 
         {!collapsed && matters.length === 0 && (
-          <div className="px-2.5 py-6 text-center">
-            <Folder size={20} className="mx-auto mb-2" style={{ color: "var(--fg-quaternary)" }} />
-            <p className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "var(--fg-quaternary)" }}>
-              No matters
+          <div className="px-2.5 py-8 text-center">
+            <div
+              className="w-10 h-10 rounded flex items-center justify-center mx-auto mb-3"
+              style={{
+                background: "rgba(224,224,224,0.04)",
+                border: "0.5px solid rgba(224,224,224,0.08)",
+              }}
+            >
+              <Folder size={16} style={{ color: "var(--fg-quaternary)" }} />
+            </div>
+            <p className="font-mono text-[10px] tracking-[0.16em] uppercase" style={{ color: "var(--fg-quaternary)" }}>
+              No matters yet
             </p>
           </div>
         )}
       </div>
 
       {/* Bottom */}
-      <div style={{ borderTop: "0.5px solid rgba(224,224,224,0.08)" }}>
+      <div style={{ borderTop: "0.5px solid rgba(224,224,224,0.08)", flexShrink: 0 }}>
         {/* Timer + usage */}
         {!collapsed && (
           <div className="flex items-center justify-between px-3.5 py-2.5">
@@ -335,7 +391,7 @@ export function Sidebar({ onNewMatter }: SidebarProps) {
         <div ref={userMenuRef} className="relative">
           <button
             onClick={() => setUserMenuOpen(v => !v)}
-            className="w-full flex items-center gap-2 px-3 py-2.5 cursor-pointer transition-colors"
+            className="w-full flex items-center gap-2.5 px-3 py-2.5 cursor-pointer transition-colors"
             style={{
               background: userMenuOpen ? "rgba(0,255,195,0.05)" : "transparent",
               border: "none",
@@ -346,15 +402,15 @@ export function Sidebar({ onNewMatter }: SidebarProps) {
             <div
               className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
               style={{
-                background: "linear-gradient(135deg, rgba(0,255,195,0.15), rgba(106,0,255,0.15))",
-                border: "0.5px solid rgba(0,255,195,0.2)",
+                background: "linear-gradient(135deg, rgba(0,255,195,0.18), rgba(106,0,255,0.18))",
+                border: "0.5px solid rgba(0,255,195,0.25)",
               }}
             >
               <User size={12} style={{ color: "var(--verdict-neon)" }} />
             </div>
             {!collapsed && (
               <span
-                className="text-[12px] truncate flex-1 font-mono text-left"
+                className="text-[11px] truncate flex-1 font-mono text-left"
                 style={{ color: "var(--fg-tertiary)" }}
               >
                 {user?.email?.split("@")[0] ?? "User"}
@@ -365,7 +421,7 @@ export function Sidebar({ onNewMatter }: SidebarProps) {
           {userMenuOpen && (
             <div
               role="menu"
-              className="absolute bottom-full mb-1 z-30 min-w-[180px] rounded overflow-hidden"
+              className="absolute z-30 min-w-[180px] rounded overflow-hidden"
               style={{
                 left: collapsed ? "calc(100% + 6px)" : 12,
                 right: collapsed ? "auto" : 12,
@@ -373,12 +429,12 @@ export function Sidebar({ onNewMatter }: SidebarProps) {
                 top: collapsed ? 0 : "auto",
                 background: "var(--midnight-deep)",
                 border: "0.5px solid rgba(0,255,195,0.22)",
-                boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+                boxShadow: "0 8px 32px rgba(0,0,0,0.5), 0 0 0 0.5px rgba(0,255,195,0.08)",
               }}
             >
               {!collapsed && user?.email && (
                 <div
-                  className="px-3 py-2 font-mono text-[10px] truncate"
+                  className="px-3 py-2.5 font-mono text-[10px] truncate"
                   style={{
                     color: "var(--fg-quaternary)",
                     borderBottom: "0.5px solid rgba(224,224,224,0.06)",
@@ -396,12 +452,14 @@ export function Sidebar({ onNewMatter }: SidebarProps) {
                   key={href}
                   href={href}
                   onClick={() => setUserMenuOpen(false)}
-                  className="flex items-center gap-2 px-3 py-2 text-[12px] transition-colors"
+                  className="flex items-center gap-2 px-3 py-2.5 text-[12px] transition-colors"
                   style={{
                     color: "var(--fg-secondary)",
                     textDecoration: "none",
                   }}
                   role="menuitem"
+                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.03)"}
+                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}
                 >
                   <Icon size={12} style={{ color: "var(--verdict-neon)", flexShrink: 0 }} />
                   <span className="truncate">{label}</span>
@@ -409,7 +467,7 @@ export function Sidebar({ onNewMatter }: SidebarProps) {
               ))}
               <button
                 onClick={() => { setUserMenuOpen(false); signOut(); }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-[12px] cursor-pointer transition-colors"
+                className="w-full flex items-center gap-2 px-3 py-2.5 text-[12px] cursor-pointer transition-colors"
                 style={{
                   background: "none",
                   border: "none",

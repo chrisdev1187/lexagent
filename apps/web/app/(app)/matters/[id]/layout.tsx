@@ -25,7 +25,7 @@ function TabBar() {
 
   return (
     <div
-      className="tab-scroll flex items-center gap-px px-4 overflow-x-auto"
+      className="tab-scroll flex items-center gap-px px-3 overflow-x-auto flex-shrink-0"
       style={{
         background: "var(--midnight-deep)",
         borderBottom: "0.5px solid rgba(224,224,224,0.08)",
@@ -41,18 +41,27 @@ function TabBar() {
           <LexTooltip key={tab.id} content={tab.tooltip} side="bottom">
             <Link
               href={href}
-              className="flex items-center gap-1.5 px-3.5 py-2.5 text-[12px] font-sans tracking-[0.04em] uppercase whitespace-nowrap cursor-pointer transition-all duration-150 relative"
+              className="flex items-center gap-1.5 px-3 text-[11px] font-mono tracking-[0.06em] uppercase whitespace-nowrap cursor-pointer transition-all duration-150 relative flex-shrink-0"
               style={{
                 color: active ? "var(--verdict-neon)" : "var(--fg-tertiary)",
                 background: active ? "rgba(0,255,195,0.05)" : "transparent",
+                minHeight: 44,
+                textDecoration: "none",
+                borderRadius: 4,
+              }}
+              onMouseEnter={e => {
+                if (!active) (e.currentTarget as HTMLElement).style.color = "var(--fg-secondary)";
+              }}
+              onMouseLeave={e => {
+                if (!active) (e.currentTarget as HTMLElement).style.color = "var(--fg-tertiary)";
               }}
             >
-              <Icon size={12} />
+              <Icon size={12} className="flex-shrink-0" />
               <span className="hidden sm:inline">{tab.label}</span>
               {active && (
                 <span
                   className="absolute bottom-0 left-0 right-0"
-                  style={{ height: "1.5px", background: "var(--verdict-neon)" }}
+                  style={{ height: "1.5px", background: "var(--verdict-neon)", borderRadius: "1px 1px 0 0" }}
                 />
               )}
             </Link>

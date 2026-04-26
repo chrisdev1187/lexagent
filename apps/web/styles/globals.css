@@ -464,6 +464,18 @@ html, body, #__next {
   85%  { opacity: 1; }
   100% { transform: translateY(100%); opacity: 0; }
 }
+@keyframes slideInLeft {
+  from { transform: translateX(-100%); opacity: 0; }
+  to   { transform: translateX(0);     opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
 
 .fade-up      { animation: fadeUp 0.35s var(--ease-terminal) both; }
 .fade-in      { animation: fadeIn 0.2s ease both; }
