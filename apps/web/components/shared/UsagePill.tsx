@@ -6,49 +6,40 @@ import { supabase } from "@/lib/supabase";
 import { useBudgetStatus } from "@/hooks/useBudgetStatus";
 import Link from "next/link";
 
-interface UsageData {
-  spent: number;
-  budget: number;
+interface CreditStatus {
+  used: number;
+  limit: number;
+  remaining: number;
+  pct_used: number;
+  plan_id: string;
 }
 
 export function UsagePill() {
   const { user, isAdmin } = useAuth();
-  const [data, setData] = useState<UsageData | null>(null);
-  // seq bumps on every AI call completion — triggers a near-live Supabase refetch.
+  const [data, setData] = useState<CreditStatus | null>(null);
   const { seq } = useBudgetStatus();
 
   useEffect(() => {
     if (!user) return;
-    const now = new Date();
-    Promise.all([
-      supabase
-        .from("usage_monthly")
-        .select("total_usd_cost")
-        .eq("user_id", user.id)
-        .eq("year", now.getFullYear())
-        .eq("month", now.getMonth() + 1)
-        .single(),
-      supabase
-        .from("user_roles")
-        .select("plans(usd_budget)")
-        .eq("user_id", user.id)
-        .single(),
-    ]).then(([monthRes, roleRes]) => {
-      const spent = Number(monthRes.data?.total_usd_cost ?? 0);
-      const budget = Number((roleRes.data?.plans as any)?.usd_budget ?? 8);
-      setData({ spent, budget });
-    });
+    supabase
+      .rpc("get_credit_status", { p_user_id: user.id })
+      .then(({ data: d }) => {
+        if (d) setData(d as CreditStatus);
+      });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, seq]);
 
   if (!user || !data) return null;
 
-  const pct = data.budget > 0 ? Math.min((data.spent / data.budget) * 100, 100) : 0;
+  // Free-plan users: limit=0, hide pill (free_tier_usage handles them)
+  if (data.limit === 0) return null;
+
+  const pct = data.pct_used;
   const color = pct >= 100 ? "var(--verdict-crimson)" : pct >= 80 ? "var(--verdict-amber)" : "var(--verdict-neon)";
   const borderColor = pct >= 100 ? "rgba(255,51,85,0.3)" : pct >= 80 ? "rgba(255,184,0,0.3)" : "rgba(0,255,195,0.25)";
   const label = isAdmin
-    ? `$${data.spent.toFixed(2)} / $${data.budget}`
-    : `${Math.round(pct)}% used`;
+    ? `${data.remaining} / ${data.limit} credits`
+    : `${data.remaining} credits`;
 
   return (
     <Link
@@ -59,7 +50,7 @@ export function UsagePill() {
         color,
         border: `0.5px solid ${borderColor}`,
       }}
-      title={isAdmin ? "Admin — org-wide quota & usage" : "Your monthly AI usage"}
+      title={`${data.used} credits used of ${data.limit} this month`}
     >
       <span
         className="w-1.5 h-1.5 rounded-full"

@@ -7,7 +7,8 @@ import { buildLetterheadHtml } from "@/components/shared/Letterhead";
 import { useParams } from "next/navigation";
 import { useMatters } from "@/providers/matters-provider";
 import { useSettings } from "@/providers/settings-provider";
-import { COURTLISTENER_BASE, getApiHeaders, anthropicFetch, QuotaExceededError, FreeTierExhaustedError } from "@/lib/api";
+import { COURTLISTENER_BASE, getApiHeaders, anthropicFetch, QuotaExceededError, FreeTierExhaustedError, CreditExhaustedError } from "@/lib/api";
+import { UpgradeCTA } from "@/components/shared/UpgradeCTA";
 import { withLexMemory } from "@/lib/lex-memory";
 import { supabase } from "@/lib/supabase";
 import { PanelShell } from "@/components/panels/PanelShell";
@@ -70,6 +71,7 @@ export default function JudgePage() {
   const [searched, setSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [freeTierMsg, setFreeTierMsg] = useState<string | null>(null);
+  const [creditErr, setCreditErr] = useState<{ remaining: number; creditCost: number } | null>(null);
 
   const judgeAnalysis = matter?.judgeAnalysis as string | undefined;
 
@@ -190,6 +192,7 @@ Be direct and actionable. This is for attorney preparation only.`;
       await updateMatter({ ...matter, judgeAnalysis: text });
     } catch (e) {
       if (e instanceof FreeTierExhaustedError) { setFreeTierMsg(e.message); }
+      else if (e instanceof CreditExhaustedError) { setCreditErr({ remaining: e.remaining, creditCost: e.creditCost }); }
       else if (e instanceof QuotaExceededError) { setError("AI quota exceeded — upgrade your plan."); }
       else { setError((e as Error).message); }
     } finally {
@@ -207,6 +210,14 @@ Be direct and actionable. This is for attorney preparation only.`;
 
   return (
     <>
+      {creditErr && (
+        <UpgradeCTA
+          reason="Monthly credits exhausted. Upgrade to continue researching judges."
+          creditsRemaining={creditErr.remaining}
+          creditCost={creditErr.creditCost}
+          onClose={() => setCreditErr(null)}
+        />
+      )}
       {freeTierMsg && (
         <div className="rounded px-4 py-3 mb-4 flex items-start justify-between gap-3" style={{ background: "rgba(0,255,195,0.05)", border: "0.5px solid rgba(0,255,195,0.22)" }}>
           <div>

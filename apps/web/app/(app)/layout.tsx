@@ -9,6 +9,7 @@ import { TopBar } from "@/components/layout/TopBar";
 import { MobileNav } from "@/components/layout/MobileNav";
 import { NewMatterModal } from "@/components/shared/NewMatterModal";
 import { VersionBadge } from "@/components/shared/VersionBadge";
+import { DisclaimerBanner } from "@/components/shared/DisclaimerBanner";
 
 function AppShellInner({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -74,6 +75,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
       )}
 
       <VersionBadge />
+      <DisclaimerBanner />
     </div>
   );
 }

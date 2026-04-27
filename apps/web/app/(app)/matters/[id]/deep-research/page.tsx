@@ -8,7 +8,8 @@ import { useMatters } from "@/providers/matters-provider";
 import { useSettings } from "@/providers/settings-provider";
 import { useAuth } from "@/lib/auth";
 import { PanelShell } from "@/components/panels/PanelShell";
-import { CONGRESS_BASE, ECFR_BASE, EDGAR_BASE, QuotaExceededError, FreeTierExhaustedError } from "@/lib/api";
+import { CONGRESS_BASE, ECFR_BASE, EDGAR_BASE, QuotaExceededError, FreeTierExhaustedError, CreditExhaustedError } from "@/lib/api";
+import { UpgradeCTA } from "@/components/shared/UpgradeCTA";
 import { withLexMemory } from "@/lib/lex-memory";
 import { Markdown } from "@/components/shared/Markdown";
 import { searchOpinions, CLOpinion } from "@/lib/courtlistener";
@@ -80,6 +81,7 @@ export default function DeepResearchPage() {
   const [streamingText, setStreamingText] = useState("");
   const [synthesis, setSynthesis] = useState("");
   const [synthError, setSynthError] = useState<string | null>(null);
+  const [creditErr, setCreditErr] = useState<{ remaining: number; creditCost: number } | null>(null);
 
   useEffect(() => {
     if (!matter) return;
@@ -257,6 +259,7 @@ Be precise, cite sources by number, and flag any circuit splits or conflicting a
       updateMatter({ ...matter, deepResearchSynthesis: text });
     } catch (e) {
       if (e instanceof FreeTierExhaustedError) { setSynthError(e.message); }
+      else if (e instanceof CreditExhaustedError) { setCreditErr({ remaining: e.remaining, creditCost: e.creditCost }); }
       else if (e instanceof QuotaExceededError) { setSynthError("AI quota exceeded — upgrade your plan."); }
       else { setSynthError((e as Error).message); }
     } finally {
@@ -275,6 +278,15 @@ Be precise, cite sources by number, and flag any circuit splits or conflicting a
   const TAB_LABELS: Record<Tab, string> = { congress: "Congress Bills", ecfr: "eCFR Regs", opinions: "Case Opinions", edgar: "SEC EDGAR" };
 
   return (
+    <>
+      {creditErr && (
+        <UpgradeCTA
+          reason="Monthly credits exhausted. Upgrade to continue synthesizing research."
+          creditsRemaining={creditErr.remaining}
+          creditCost={creditErr.creditCost}
+          onClose={() => setCreditErr(null)}
+        />
+      )}
     <PanelShell
       icon={ScanSearch}
       title="Deep Research"
@@ -588,5 +600,6 @@ Be precise, cite sources by number, and flag any circuit splits or conflicting a
         </div>
       )}
     </PanelShell>
+    </>
   );
 }

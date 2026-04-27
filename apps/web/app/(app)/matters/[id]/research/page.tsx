@@ -6,7 +6,7 @@ import { ExportButton } from "@/components/shared/ExportButton";
 import { useParams } from "next/navigation";
 import { useMatters } from "@/providers/matters-provider";
 import { useSettings } from "@/providers/settings-provider";
-import { anthropicFetch, QuotaExceededError, FreeTierExhaustedError } from "@/lib/api";
+import { anthropicFetch, QuotaExceededError, FreeTierExhaustedError, CreditExhaustedError } from "@/lib/api";
 import { withLexMemory } from "@/lib/lex-memory";
 import { searchOpinions, CLOpinion } from "@/lib/courtlistener";
 import { UpgradeCTA } from "@/components/shared/UpgradeCTA";
@@ -40,6 +40,7 @@ export default function ResearchPage() {
   const [streamingText, setStreamingText] = useState("");
   const [loadingPhase, setLoadingPhase] = useState(0);
   const [showUpgrade, setShowUpgrade] = useState(false);
+  const [creditErr, setCreditErr] = useState<{ remaining: number; creditCost: number } | null>(null);
   const [freeTierMsg, setFreeTierMsg] = useState<string | null>(null);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const [expandedSources, setExpandedSources] = useState<Set<number>>(new Set());
@@ -121,6 +122,8 @@ export default function ResearchPage() {
     } catch (e) {
       if (e instanceof FreeTierExhaustedError) {
         setFreeTierMsg(e.message);
+      } else if (e instanceof CreditExhaustedError) {
+        setCreditErr({ remaining: e.remaining, creditCost: e.creditCost });
       } else if (e instanceof QuotaExceededError) {
         setShowUpgrade(true);
       } else {
@@ -144,10 +147,12 @@ export default function ResearchPage() {
 
   return (
     <>
-      {showUpgrade && (
+      {(showUpgrade || creditErr) && (
         <UpgradeCTA
-          reason="You've used your monthly AI quota. Upgrade to continue researching."
-          onClose={() => setShowUpgrade(false)}
+          reason={creditErr ? creditErr.remaining === 0 ? "Monthly credits exhausted. Upgrade your plan to continue researching." : "Monthly credit allowance exhausted." : "You've used your monthly AI quota. Upgrade to continue researching."}
+          creditsRemaining={creditErr?.remaining}
+          creditCost={creditErr?.creditCost}
+          onClose={() => { setShowUpgrade(false); setCreditErr(null); }}
         />
       )}
       {freeTierMsg && (

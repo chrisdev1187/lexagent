@@ -1,4 +1,4 @@
-import { setBudgetState, BudgetStatus } from "@/lib/budget-store";
+import { setBudgetState, getBudgetState, BudgetStatus } from "@/lib/budget-store";
 import { log } from "@/lib/logger";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
@@ -34,6 +34,17 @@ export class FreeTierExhaustedError extends Error {
     this.name     = "FreeTierExhaustedError";
     this.tool     = tool;
     this.matterId = matterId;
+  }
+}
+
+export class CreditExhaustedError extends Error {
+  remaining: number;
+  creditCost: number;
+  constructor(remaining: number, creditCost: number) {
+    super(`Monthly credit allowance exhausted. Upgrade your plan to continue.`);
+    this.name       = "CreditExhaustedError";
+    this.remaining  = remaining;
+    this.creditCost = creditCost;
   }
 }
 
@@ -146,6 +157,12 @@ export async function anthropicFetch(
     setBudgetState({ status: rawStatus, spent, budget });
   }
 
+  // Credit economy: bump seq so UsagePill re-fetches after each AI call
+  if (res.headers.has("X-Credits-Remaining")) {
+    const cur = getBudgetState();
+    setBudgetState({ status: cur.status, spent: cur.spent, budget: cur.budget });
+  }
+
   if (!res.ok) {
     const rawBody = await res.clone().text().catch(() => "");
     let errMsg = `HTTP ${res.status}`;
@@ -164,6 +181,11 @@ export async function anthropicFetch(
         let tool = "", matterId = "";
         try { const j = JSON.parse(rawBody) as any; tool = j.tool ?? ""; matterId = j.matter_id ?? ""; } catch { /**/ }
         throw new FreeTierExhaustedError(tool, matterId);
+      }
+      if (errCode === "credit_exhausted") {
+        let remaining = 0, creditCost = 0;
+        try { const j = JSON.parse(rawBody) as any; remaining = j.remaining ?? 0; creditCost = j.credit_cost ?? 0; } catch { /**/ }
+        throw new CreditExhaustedError(remaining, creditCost);
       }
       throw new QuotaExceededError();
     }

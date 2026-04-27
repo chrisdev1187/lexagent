@@ -6,7 +6,7 @@ import { ExportButton } from "@/components/shared/ExportButton";
 import { useParams } from "next/navigation";
 import { useMatters } from "@/providers/matters-provider";
 import { useSettings } from "@/providers/settings-provider";
-import { anthropicFetch, QuotaExceededError, FreeTierExhaustedError } from "@/lib/api";
+import { anthropicFetch, QuotaExceededError, FreeTierExhaustedError, CreditExhaustedError } from "@/lib/api";
 import { withLexMemory } from "@/lib/lex-memory";
 import { UpgradeCTA } from "@/components/shared/UpgradeCTA";
 import { PanelShell } from "@/components/panels/PanelShell";
@@ -25,6 +25,7 @@ export default function StrategyPage() {
   const [streamingText, setStreamingText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [showUpgrade, setShowUpgrade] = useState(false);
+  const [creditErr, setCreditErr] = useState<{ remaining: number; creditCost: number } | null>(null);
   const [freeTierMsg, setFreeTierMsg] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -88,6 +89,7 @@ Use Bluebook citation format. Flag any circuit splits.`;
       }
     } catch (e) {
       if (e instanceof FreeTierExhaustedError) { setFreeTierMsg(e.message); }
+      else if (e instanceof CreditExhaustedError) { setCreditErr({ remaining: e.remaining, creditCost: e.creditCost }); }
       else if (e instanceof QuotaExceededError) { setShowUpgrade(true); }
       else { setError((e as Error).message); }
     } finally {
@@ -98,10 +100,12 @@ Use Bluebook citation format. Flag any circuit splits.`;
 
   return (
     <>
-      {showUpgrade && (
+      {(showUpgrade || creditErr) && (
         <UpgradeCTA
-          reason="You've used your monthly AI quota. Upgrade to continue generating strategies."
-          onClose={() => setShowUpgrade(false)}
+          reason={creditErr ? "Monthly credits exhausted. Upgrade to continue generating strategies." : "You've used your monthly AI quota. Upgrade to continue."}
+          creditsRemaining={creditErr?.remaining}
+          creditCost={creditErr?.creditCost}
+          onClose={() => { setShowUpgrade(false); setCreditErr(null); }}
         />
       )}
       {freeTierMsg && (

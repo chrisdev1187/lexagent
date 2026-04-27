@@ -4,6 +4,7 @@ import { requireAuth } from "../middleware/auth.js";
 import { rateLimit } from "../middleware/ratelimit.js";
 import { checkQuota, logUsage } from "../middleware/quota.js";
 import { checkFreeTier } from "../middleware/free_tier.js";
+import { checkCredits } from "../middleware/credits.js";
 import { supabase } from "../lib/supabase.js";
 
 const anthropicRpm = Number(process.env.ANTHROPIC_RPM ?? 60);
@@ -396,6 +397,7 @@ anthropicRouter.post(
   requireAuth,
   checkQuota,
   checkFreeTier,
+  checkCredits,
   rateLimit("anthropic", anthropicRpm),
   async (c) => {
     const parsed = BodySchema.safeParse(await c.req.json());

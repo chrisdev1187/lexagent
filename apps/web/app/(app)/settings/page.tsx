@@ -100,43 +100,60 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: () => void 
 }
 
 /* ── Profile tab ───────────────────────────────────────────────────────── */
+interface CreditStatus { used: number; limit: number; remaining: number; pct_used: number; plan_id: string; period_end: string; }
+
 function ProfileTab({
-  user, role, plan, monthly, events, loading,
+  user, role, events, loading,
 }: {
   user: { email?: string };
   role: UserRole | null;
-  plan: Plan | null;
-  monthly: UsageMonthly | null;
   events: UsageEvent[];
   loading: boolean;
 }) {
-  const usdSpent = monthly?.total_usd_cost ?? 0;
-  const usdBudget = plan?.usd_budget ?? 8;
-  const pct = Math.min((usdSpent / usdBudget) * 100, 100);
+  const [credits, setCredits] = useState<CreditStatus | null>(null);
+  const { user: authUser } = useAuth();
+
+  useEffect(() => {
+    if (!authUser) return;
+    supabase.rpc("get_credit_status", { p_user_id: authUser.id }).then(({ data }) => {
+      if (data) setCredits(data as CreditStatus);
+    });
+  }, [authUser]);
+
+  const pct = credits ? Math.min(credits.pct_used, 100) : 0;
   const barColor = pct >= 100 ? "var(--verdict-crimson)" : pct >= 80 ? "var(--verdict-amber)" : "var(--verdict-neon)";
+  const isFree = !credits || credits.limit === 0;
 
   return (
     <div className="space-y-6">
       <div className="rounded-lg p-6" style={{ background: "rgba(17,17,20,0.8)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
-        <SectionHeading>AI USAGE</SectionHeading>
-        {!loading ? (
-          <div>
-            <div className="flex justify-between font-mono text-[10px] tracking-[0.1em] mb-2" style={{ color: "var(--fg-quaternary)" }}>
-              <span>THIS MONTH</span>
-              <span style={{ color: "var(--fg-secondary)" }}>${usdSpent.toFixed(4)} <span style={{ color: "var(--fg-quaternary)" }}>/ ${usdBudget}</span></span>
+        <SectionHeading>CREDIT USAGE</SectionHeading>
+        {!loading && credits !== null ? (
+          isFree ? (
+            <p className="font-mono text-[10px] tracking-[0.1em]" style={{ color: "var(--fg-quaternary)" }}>
+              FREE PLAN — per-feature limits apply. Upgrade for a monthly credit pool.
+            </p>
+          ) : (
+            <div>
+              <div className="flex justify-between font-mono text-[10px] tracking-[0.1em] mb-2" style={{ color: "var(--fg-quaternary)" }}>
+                <span>THIS MONTH</span>
+                <span style={{ color: "var(--fg-secondary)" }}>
+                  {credits.used} <span style={{ color: "var(--fg-quaternary)" }}>/ {credits.limit} credits</span>
+                </span>
+              </div>
+              <div className="h-1.5 rounded-full" style={{ background: "rgba(224,224,224,0.06)" }}>
+                <div className="h-1.5 rounded-full transition-all" style={{ width: `${pct}%`, background: barColor, boxShadow: `0 0 8px ${barColor}` }} />
+              </div>
+              {pct >= 80 && (
+                <p className="font-mono text-[10px] tracking-[0.1em] mt-2" style={{ color: barColor }}>
+                  {pct >= 100 ? "CREDITS EXHAUSTED — upgrade to continue." : "APPROACHING MONTHLY LIMIT."}
+                </p>
+              )}
+              <div className="mt-3 font-mono text-[10px] tracking-[0.1em]" style={{ color: "var(--fg-quaternary)" }}>
+                {credits.remaining} CREDITS REMAINING · RESETS {new Date(credits.period_end).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+              </div>
             </div>
-            <div className="h-1.5 rounded-full" style={{ background: "rgba(224,224,224,0.06)" }}>
-              <div className="h-1.5 rounded-full transition-all" style={{ width: `${pct}%`, background: barColor, boxShadow: `0 0 8px ${barColor}` }} />
-            </div>
-            {pct >= 80 && (
-              <p className="font-mono text-[10px] tracking-[0.1em] mt-2" style={{ color: barColor }}>
-                {pct >= 100 ? "BUDGET EXHAUSTED — upgrade to continue." : "APPROACHING MONTHLY LIMIT."}
-              </p>
-            )}
-            <div className="mt-3 font-mono text-[10px] tracking-[0.1em]" style={{ color: "var(--fg-quaternary)" }}>
-              {(monthly?.total_requests ?? 0).toLocaleString()} AI REQUESTS THIS MONTH
-            </div>
-          </div>
+          )
         ) : (
           <div className="h-6 rounded" style={{ background: "rgba(255,255,255,0.04)", animation: "glowPulse 1.5s ease infinite" }} />
         )}
@@ -208,8 +225,8 @@ function BillingTab({ role, plan, loading }: { role: UserRole | null; plan: Plan
             {plan?.name ?? role?.plan_id ?? "Starter"}
           </p>
           <div className="text-right">
-            <p className="font-mono text-[9px] tracking-[0.14em] uppercase mb-0.5" style={{ color: "var(--fg-quaternary)" }}>Monthly AI budget</p>
-            <p className="font-serif text-2xl" style={{ color: "var(--fg-primary)", letterSpacing: "-0.02em" }}>${plan?.usd_budget ?? 8}</p>
+            <p className="font-mono text-[9px] tracking-[0.14em] uppercase mb-0.5" style={{ color: "var(--fg-quaternary)" }}>Monthly credits</p>
+            <p className="font-serif text-2xl" style={{ color: "var(--fg-primary)", letterSpacing: "-0.02em" }}>{(plan as any)?.credits_monthly ?? "—"}</p>
           </div>
         </div>
         {role?.byok_active && (
@@ -557,7 +574,7 @@ function SettingsInner() {
 
   const renderContent = () => {
     switch (activeTab) {
-      case "profile": return <ProfileTab user={user} role={role} plan={plan} monthly={monthly} events={events} loading={loading} />;
+      case "profile": return <ProfileTab user={user} role={role} events={events} loading={loading} />;
       case "billing": return <BillingTab role={role} plan={plan} loading={loading} />;
       case "firm":    return <FirmProfileTab isAdmin={isAdmin} />;
       case "teams":   return <TeamsTab />;

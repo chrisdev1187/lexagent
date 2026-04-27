@@ -1,21 +1,26 @@
 "use client";
 
 import { X, Zap } from "lucide-react";
+import { CREDIT_TO_USD } from "@/lib/credits";
 
 interface UpgradeCTAProps {
   reason: string;
   onClose: () => void;
+  /** Credits remaining at time of block (paid plan exhaustion) */
+  creditsRemaining?: number;
+  /** Cost of the action that was blocked */
+  creditCost?: number;
 }
 
-export function UpgradeCTA({ reason, onClose }: UpgradeCTAProps) {
+export function UpgradeCTA({ reason, onClose, creditsRemaining, creditCost }: UpgradeCTAProps) {
+  const showCreditInfo = creditsRemaining !== undefined && creditCost !== undefined;
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(6px)" }}
     >
-      <div
-        className="lex-card lex-card--glass relative w-full max-w-sm"
-      >
+      <div className="lex-card lex-card--glass relative w-full max-w-sm">
         <button
           onClick={onClose}
           className="absolute top-3 right-3 lex-btn lex-btn--icon lex-btn--ghost"
@@ -34,14 +39,30 @@ export function UpgradeCTA({ reason, onClose }: UpgradeCTAProps) {
           className="font-serif font-semibold text-base mb-1.5 tracking-tight"
           style={{ color: "var(--fg-primary)" }}
         >
-          Upgrade your plan
+          Monthly credits exhausted
         </h2>
         <p
-          className="text-sm mb-5 leading-relaxed"
+          className="text-sm mb-3 leading-relaxed"
           style={{ color: "var(--fg-secondary)" }}
         >
           {reason}
         </p>
+
+        {showCreditInfo && (
+          <div
+            className="rounded px-3 py-2 mb-4 font-mono text-[11px] space-y-0.5"
+            style={{ background: "rgba(255,255,255,0.03)", border: "0.5px solid rgba(255,255,255,0.08)" }}
+          >
+            <div className="flex justify-between" style={{ color: "var(--fg-tertiary)" }}>
+              <span>Credits remaining</span>
+              <span style={{ color: "var(--verdict-crimson)" }}>{creditsRemaining}</span>
+            </div>
+            <div className="flex justify-between" style={{ color: "var(--fg-tertiary)" }}>
+              <span>Action cost</span>
+              <span>{creditCost} credits (${(creditCost! * CREDIT_TO_USD).toFixed(2)} value)</span>
+            </div>
+          </div>
+        )}
 
         <div className="flex gap-2">
           <a
@@ -51,10 +72,7 @@ export function UpgradeCTA({ reason, onClose }: UpgradeCTAProps) {
             <Zap size={12} />
             UPGRADE NOW
           </a>
-          <button
-            onClick={onClose}
-            className="lex-btn lex-btn--secondary"
-          >
+          <button onClick={onClose} className="lex-btn lex-btn--secondary">
             LATER
           </button>
         </div>
