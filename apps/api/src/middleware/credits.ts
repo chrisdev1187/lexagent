@@ -108,10 +108,14 @@ export async function logCreditAction(
   const cost = CREDIT_COSTS[action] ?? 0;
   if (cost === 0) return;
 
-  await supabase.rpc("deduct_credits", {
-    p_user_id:   userId,
-    p_action:    action,
-    p_cost:      cost,
-    p_matter_id: matterId,
-  }).catch((e: Error) => console.warn("[credits] logCreditAction failed:", e.message));
+  try {
+    await supabase.rpc("deduct_credits", {
+      p_user_id:   userId,
+      p_action:    action,
+      p_cost:      cost,
+      p_matter_id: matterId,
+    });
+  } catch (e) {
+    console.warn("[credits] logCreditAction failed:", (e as Error).message);
+  }
 }

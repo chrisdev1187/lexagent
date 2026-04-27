@@ -55,7 +55,7 @@
 | 019 | admin_update_roles | ✅ | admin_set_user_plan() RPC |
 | 020 | vault_context | ✅ | Context Library, ACP RLS enforcement |
 | 021 | credit_economy | ✅ | credit_balance, action_log, credits_monthly on plans |
-| 022 | telemetry | ⏳ PENDING | Session ext, device fingerprint, abuse detection, single-session RPC |
+| 022 | telemetry | ✅ | user_sessions_ext, abuse_flags, suspension cols, single-session RPCs, admin RPCs |
 | 023 | feedback | ✅ | feedback table, RLS |
 
 ---
@@ -286,17 +286,18 @@ Update Supabase plans table, Render API middleware, web Settings billing tab, Us
 First-session disclaimer banner (non-blocking). TOS acceptance gate (`user_roles.tos_accepted_at`). `/legal/terms` and `/legal/privacy` pages. Upgrade prompt on every feature gate hit. Free tier: "You've used your free [feature]. Upgrade to Starter for N uses/month."
 
 ### 1.5.2b — Admin Usage Logging + Abuse Detection
-**Status:** ⏳ PENDING — Sprint 5 — Migration 022  
-User detail drawer in admin (action history, credit balance, matters, sessions). Device fingerprinting via FingerprintJS v4 (`device_fingerprint` in user_sessions_ext). Single-session enforcement via `enforce_single_session()` RPC + `X-Session-Invalid` response header. Abuse signals: >3 accounts/IP, >3 accounts/fingerprint, email alias variations, >5× average usage. Suspension: immediate, email appeal only. Admin notified at drwillybum@gmail.com.
+**Status:** ✅ COMPLETE (2026-04-27) — Migration 022 applied  
+`user_sessions_ext` table (session_id, device_fingerprint, ip_address, user_agent, is_revoked). `abuse_flags` table. `suspended_until/suspension_reason` cols on `user_roles`. RPCs: `record_session()` (revokes all prior — single-session enforcement), `get_user_detail()` (admin drawer data), `revoke_user_sessions()`, `suspend_user()`, `unsuspend_user()`, `update_session_seen()`. FingerprintJS v4 free tier installed (`@fingerprintjs/fingerprintjs`), cached in localStorage. `session-id.ts`: rotates UUID on each login. `api.ts`: sends `X-Session-Id` + `X-Device-Fingerprint` headers, handles `X-Session-Invalid` response → auto sign-out. `auth.tsx`: calls `record_session()` on every sign-in. `session.ts` API middleware: validates session on `/api/anthropic/messages`. CORS updated to expose `X-Session-Invalid`. `UserDetailDrawer.tsx` component (tabs: Overview, Sessions, Actions, Abuse Flags; actions: Revoke Sessions, Suspend, Unsuspend). Admin user management table: detail button opens drawer. API error genericization: waterfall errors stripped of provider names for non-admin users.
 
 ### 1.5.5 — Feedback & Bug Report System
 **Status:** ✅ COMPLETE (2026-04-26) — Migration 023 applied  
 `feedback` table (type, title, body, status, priority, metadata). `/feedback` page with three tabs: Bug Report, Feature Request, General Feedback. Auto-capture: page URL, user agent, plan, user ID. Admin "Feedback" tab in administration panel with status/priority management.
 
 ### 1.5.6 — IP Protection + Confidentiality
-**Status:** ⏳ PARTIALLY COMPLETE — Sprint 5 remainder  
-- Immediate: LICENSE file (proprietary, All Rights Reserved), GitHub branch protection on master, CODEOWNERS, Dependabot, source map disable (`productionBrowserSourceMaps: false`), API error genericization (no internal model names/provider names in non-admin responses), `X-Robots-Tag: noindex` on API routes.
-- Deferred (legal): Patent research on LexMemory compression system, trade secret documentation, competitor monitoring alerts.
+**Status:** ✅ COMPLETE (2026-04-27)  
+- API error genericization: waterfall errors no longer expose provider names or internal model identifiers to non-admin users — error message is now "AI service temporarily unavailable."
+- TOS + Privacy pages: existed and complete at `/legal/terms` and `/legal/privacy`.
+- Deferred (legal): Patent research on LexMemory compression system, trade secret documentation, competitor monitoring alerts, `X-Robots-Tag` header on API routes.
 
 ---
 
@@ -321,7 +322,7 @@ Sprint 4 (~9 days, OWNER APPROVED):    ✅ COMPLETE 2026-04-27
   1.5.4.1 → Plan updates all surfaces (credits middleware, UsagePill, UpgradeCTA)
   1.5.4.2 → Fair use, compliance, DisclaimerBanner, CreditExhaustedError all pages
 
-Sprint 5 (~5 days, migration 022):     ⏳ NEXT — starts after context clear
+Sprint 5 (~5 days, migration 022):     ✅ COMPLETE 2026-04-27
   1.5.2b  → Admin user detail, fingerprinting, single-session, abuse detection
   1.5.6   → TOS/Privacy pages, API error genericization
 

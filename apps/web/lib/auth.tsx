@@ -9,8 +9,10 @@ import {
 } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
-import { setAuthToken } from "./api";
+import { setAuthToken, registerSessionSignOut } from "./api";
 import { log } from "./logger";
+import { rotateSessionId, clearSessionId } from "./session-id";
+import { getCachedFingerprint } from "@/hooks/useFingerprint";
 
 export type AuthErrorCode =
   | "invalid_credentials"
@@ -87,6 +89,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [userRole, setUserRole] = useState<"member" | "admin" | "owner">("member");
 
+  async function recordSession() {
+    try {
+      const sessionId = rotateSessionId();
+      const fingerprint = getCachedFingerprint();
+      const ua = typeof navigator !== "undefined" ? navigator.userAgent : null;
+      await supabase.rpc("record_session", {
+        p_session_id:         sessionId,
+        p_device_fingerprint: fingerprint,
+        p_ip_address:         null,
+        p_user_agent:         ua,
+      });
+    } catch (err) {
+      log.warn("auth", "record_session failed (non-fatal)", { err: String(err) });
+    }
+  }
+
   const fetchRole = async (uid: string | undefined) => {
     if (!uid) { setIsAdmin(false); setUserRole("member"); return; }
     // Use SECURITY DEFINER RPC — bypasses RLS, guaranteed to read the real role
@@ -98,6 +116,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    registerSessionSignOut(() => {
+      log.info("auth", "signOut triggered by session invalidation");
+      supabase.auth.signOut().catch(() => {});
+      clearSessionId();
+    });
+
     supabase.auth.getSession().then(({ data, error }) => {
       log.info("auth", "getSession", { hasSession: !!data.session, userId: data.session?.user?.id, error: error?.message });
       setSession(data.session);
@@ -128,6 +152,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         log.error("auth", "signInWithEmail failed", { message: error.message, code: (error as {code?: string}).code, status: (error as {status?: number}).status });
       } else {
         log.info("auth", "signInWithEmail OK", { hasSession: !!data.session, userId: data.session?.user?.id, expiresAt: data.session?.expires_at });
+        void recordSession();
       }
       return { error: error ? classifyError(error) : null };
     } catch (err) {
@@ -182,6 +207,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    clearSessionId();
     await supabase.auth.signOut();
   };
 

@@ -1,5 +1,10 @@
 import { setBudgetState, getBudgetState, BudgetStatus } from "@/lib/budget-store";
 import { log } from "@/lib/logger";
+import { getSessionId } from "@/lib/session-id";
+import { getCachedFingerprint } from "@/hooks/useFingerprint";
+
+let _sessionSignOutCallback: (() => void) | null = null;
+export function registerSessionSignOut(cb: () => void) { _sessionSignOutCallback = cb; }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
@@ -125,9 +130,13 @@ export async function anthropicFetch(
   const hasToken = !!_authToken;
   log.info("anthropic", `→ POST ${ANTHROPIC_ENDPOINT}`, { model, hasToken, hasApiUrl: !!API_URL, streaming: !!onChunk });
 
+  const sessionId = getSessionId();
+  const fingerprint = getCachedFingerprint();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(API_URL ? authHeaders() : {}),
+    ...(API_URL && sessionId !== "unknown" ? { "X-Session-Id": sessionId } : {}),
+    ...(API_URL && fingerprint ? { "X-Device-Fingerprint": fingerprint } : {}),
     ...extraHeaders,
   };
 
@@ -155,6 +164,12 @@ export async function anthropicFetch(
 
   if ((budget > 0 || rawStatus !== "ok") && Number.isFinite(spent) && Number.isFinite(budget)) {
     setBudgetState({ status: rawStatus, spent, budget });
+  }
+
+  // Single-session enforcement: if the server revoked this session, force sign-out
+  if (res.headers.get("X-Session-Invalid") === "true") {
+    log.warn("api", "session revoked by server — signing out");
+    _sessionSignOutCallback?.();
   }
 
   // Credit economy: bump seq so UsagePill re-fetches after each AI call

@@ -26,6 +26,7 @@ import { regionRouter } from "./routes/region.js";
 import { healthDeepRouter } from "./routes/healthdeep.js";
 import { debugRouter } from "./routes/debug.js";
 import { telemetry } from "./middleware/telemetry.js";
+import { validateSession } from "./middleware/session.js";
 
 const allowedOrigins = (process.env.ALLOWED_ORIGINS ?? "http://localhost:3000")
   .split(",")
@@ -44,7 +45,8 @@ app.use(
       return null;
     },
     allowMethods: ["GET", "POST", "OPTIONS"],
-    allowHeaders: ["Content-Type", "Authorization"],
+    allowHeaders: ["Content-Type", "Authorization", "X-Session-Id", "X-Device-Fingerprint"],
+    exposeHeaders: ["X-Session-Invalid", "X-Budget-USD-Spent", "X-Budget-USD-Budget", "X-Budget-Status", "X-Credits-Remaining", "X-Tier", "X-Provider"],
     maxAge: 600,
   })
 );

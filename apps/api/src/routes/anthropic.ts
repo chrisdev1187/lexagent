@@ -5,6 +5,7 @@ import { rateLimit } from "../middleware/ratelimit.js";
 import { checkQuota, logUsage } from "../middleware/quota.js";
 import { checkFreeTier } from "../middleware/free_tier.js";
 import { checkCredits } from "../middleware/credits.js";
+import { validateSession } from "../middleware/session.js";
 import { supabase } from "../lib/supabase.js";
 
 const anthropicRpm = Number(process.env.ANTHROPIC_RPM ?? 60);
@@ -395,6 +396,7 @@ export const anthropicRouter = new Hono();
 anthropicRouter.post(
   "/messages",
   requireAuth,
+  validateSession,
   checkQuota,
   checkFreeTier,
   checkCredits,
@@ -485,7 +487,7 @@ anthropicRouter.post(
           },
           byok
         ).catch((e) => console.warn("[quota] logUsage failed (waterfall):", e));
-        return c.json({
+        const responseBody: Record<string, unknown> = {
           id: `msg_${Date.now()}`,
           type: "message",
           role: "assistant",
@@ -497,12 +499,16 @@ anthropicRouter.post(
             input_tokens: result.inputTokens,
             output_tokens: result.outputTokens,
           },
-          _provider: result.provider,
-          _tier: role === "admin" ? "admin-waterfall" : "free-waterfall",
-        });
+        };
+        if (role === "admin") {
+          responseBody._provider = result.provider;
+          responseBody._tier = "admin-waterfall";
+        }
+        return c.json(responseBody);
       } catch (err) {
+        console.error(JSON.stringify({ tag: "waterfall", event: "all_exhausted", userId, err: String(err) }));
         return c.json(
-          { type: "error", error: { type: "provider_error", message: String(err) } },
+          { type: "error", error: { type: "service_unavailable", message: "AI service temporarily unavailable. Please try again." } },
           502
         );
       }

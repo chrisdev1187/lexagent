@@ -4,8 +4,9 @@ import { useState, useEffect, useCallback } from "react";
 import {
   Building2, Palette, Key, Cpu, ShieldCheck, FileText, Activity, ChevronRight, Users,
   CreditCard, UsersRound, Plus, Trash2, ClipboardList, Lock, BarChart3, KeyRound, UserPlus, X,
-  RefreshCw, Brain, Radio, Zap, ExternalLink, MessageSquare,
+  RefreshCw, Brain, Radio, Zap, ExternalLink, MessageSquare, Search,
 } from "lucide-react";
+import { UserDetailDrawer } from "@/components/admin/UserDetailDrawer";
 import { getApiHeaders } from "@/lib/api";
 import { useSettings } from "@/providers/settings-provider";
 import { useAuth } from "@/lib/auth";
@@ -222,6 +223,9 @@ function UserManagementTab() {
   const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
+  // User detail drawer
+  const [detailUser, setDetailUser] = useState<AdminUser | null>(null);
+
   const now = new Date();
 
   async function load() {
@@ -334,6 +338,13 @@ function UserManagementTab() {
 
   return (
     <div>
+      {/* User Detail Drawer */}
+      <UserDetailDrawer
+        user={detailUser}
+        onClose={() => setDetailUser(null)}
+        onRefreshList={load}
+      />
+
       {/* Set Password Modal */}
       {pwTarget && (
         <div style={modalBase} onClick={() => setPwTarget(null)}>
@@ -492,6 +503,13 @@ function UserManagementTab() {
                     </td>
                     <td className="px-3 py-2.5">
                       <div className="flex items-center gap-1.5">
+                        <button
+                          className="lex-btn lex-btn--icon"
+                          title="User detail & sessions"
+                          onClick={() => setDetailUser(u)}
+                        >
+                          <Search size={13} />
+                        </button>
                         <button
                           className="lex-btn lex-btn--icon"
                           title="Set password"
