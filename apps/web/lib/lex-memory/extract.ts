@@ -1,5 +1,6 @@
 import { LexMemoryDelta, Level3Authority, Level3Strategy, Level3OpenQuestion, Level2Episode, Level1Raw, TabId, CourtTier, AuthorityKind, Confidence } from "./types";
 import { cavemanCompress } from "./compress";
+import { isAresShadow, type AresShadow, type AresShadowCite } from "@/lib/ares/shadow-schema";
 
 // ── Regex patterns ────────────────────────────────────────────────────────
 
@@ -31,32 +32,9 @@ const OPEN_QUESTION_PHRASES = [
 // Matches a fenced ```json ... ``` block (last one wins). Schema validated after parse.
 const SHADOW_BLOCK_RE = /```json\s*([\s\S]*?)\s*```/g;
 
-export interface AresShadowCite {
-  raw: string;
-  type?: "case" | "statute" | "reg" | "rule" | "secondary";
-  binding?: boolean;
-  confidence?: number;
-  verified_via?: "model" | "cite_verify" | "cite_lookup";
-  subsequent_history?: "ok" | "distinguished" | "overruled" | "unknown";
-}
-
-export interface AresShadow {
-  schema: "ares.shadow.v1";
-  prompt_version?: string;
-  mode?: "LITE" | "STANDARD" | "DEEP";
-  posture?: string;
-  jurisdiction?: { court?: string; circuit?: string | null; state?: string | null };
-  issues?: Array<{ id: string; question: string; controlling_standard?: string; source?: string }>;
-  holdings?: Array<{ issue: string; rule: string; outcome_for_client?: string }>;
-  cites?: AresShadowCite[];
-  circuit_splits?: Array<{ topic: string; sides: Array<{ circuits: string[]; position: string }> }>;
-  counterarguments?: Array<{ oc_position: string; our_response: string; addressed?: boolean }>;
-  flags?: string[];
-  confidence?: { overall?: number; citation_integrity?: number; counterargument_coverage?: number };
-  bottom_line?: string;
-  tool_requests?: Array<{ name: string; args: Record<string, unknown> }>;
-  ethics_review?: { triggered: boolean; rule?: string | null; outcome?: string | null };
-}
+// AresShadow types live in lib/ares/shadow-schema (canonical, strict).
+// Re-exported so callers importing from this module continue to work unchanged.
+export type { AresShadow, AresShadowCite };
 
 export function parseAresShadow(text: string): AresShadow | null {
   SHADOW_BLOCK_RE.lastIndex = 0;
@@ -68,10 +46,7 @@ export function parseAresShadow(text: string): AresShadow | null {
   if (!last) return null;
   try {
     const obj = JSON.parse(last);
-    if (obj && typeof obj === "object" && obj.schema === "ares.shadow.v1") {
-      return obj as AresShadow;
-    }
-    return null;
+    return isAresShadow(obj) ? obj : null;
   } catch {
     return null;
   }

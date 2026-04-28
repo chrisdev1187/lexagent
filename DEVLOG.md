@@ -467,19 +467,54 @@ Sprint 7 (v1.6 wave B, infra):         CODE COMPLETE 2026-04-28 (wiring deferred
 Waterfall reordered 2026-04-28: Mistral promoted #7 → #1 with mistral-large-latest
   on the main tier (was mistral-small-only). Llama-3.3-70B fleet retained as failover.
 
-Sprint 8 (v1.7 system-wide audit):     PLANNED
+Sprint 8 (v1.7 system-wide audit):     IN PROGRESS 2026-04-28
   Apply the v5/v6 ARES upgrade methodology to the rest of the platform —
     1. Summarize what we have (current state)
     2. Research better systems / repos / webapps / solutions
     3. "Steal what is best" — adapt and integrate
     4. Ship behind feature flags with regression eval
   Surfaces in scope:
-    1.7.1 → Users & onboarding (signup, fingerprinting, SSO, RBAC)
-    1.7.2 → Admin (UserDetailDrawer, telemetry, abuse, feedback triage)
-    1.7.3 → Settings (UI prefs, model selection, BYOK, ethics toggles)
-    1.7.4 → Plan + Credit economy (billing client + admin billing dashboard)
-    1.7.5 → Matters (matter list, matter dashboard, attorney views, sharing)
-    1.7.6 → Data enrichment + web-scraping agents (the "superpower" layer)
+    1.7.1 → Users & onboarding ✅ INVENTORY DONE 2026-04-28 (13 gaps logged in context.md)
+    1.7.2 → Admin (UserDetailDrawer, telemetry, abuse, feedback triage) — QUEUED
+    1.7.3 → Settings (UI prefs, model selection, BYOK, ethics toggles)   — QUEUED
+    1.7.4 → Plan + Credit economy (billing client + admin billing dashboard) — QUEUED
+    1.7.5 → Matters (matter list, matter dashboard, attorney views, sharing) — QUEUED
+    1.7.6 → Data enrichment + web-scraping agents ("superpower" layer)        — QUEUED
+
+  v1.7.1 Pass A (security + dedup, 4 surgical fixes, 2026-04-28):
+    A1 ✅ apps/api/src/middleware/auth.ts — fail closed (503) on Supabase outage
+        instead of fail-open-to-anon. Previously masked outages and let
+        unauthenticated traffic into authenticated routes.
+    A2 ✅ apps/web/lib/auth.tsx — anti-enumeration on signUp. Collapses both
+        explicit "already registered" errors and silent identities=[] aliases
+        into success-shape so the UI shows the same "check your inbox" copy.
+    A3 ✅ apps/web/lib/lex-memory/extract.ts — duplicate AresShadow / AresShadowCite
+        types deleted; now re-exports the canonical types from lib/ares/shadow-schema.
+        parseAresShadow uses isAresShadow() type guard. Eliminates the type cast
+        previously needed in eval/runner.ts.
+    A4 ✅ apps/web/lib/auth.tsx — resetPassword reads NEXT_PUBLIC_SITE_URL with
+        window.location.origin fallback. Fixes Vercel preview redirects.
+    Type-check: web ✅ clean · api ✅ clean.
+
+  v1.7.1 Pass B (deferred, needs migration 025):
+    B1 → record_session: move from browser RPC to API route reading x-forwarded-for
+         (current p_ip_address: null kills the IP-cluster abuse signal)
+    B2 → Email-alias detection RPC (normalize +alias, dot-trick, disposable domains)
+    B3 → ">5× avg daily usage" abuse signal as scheduled job
+
+  v1.7.1 Pass C (deferred, UX-visible):
+    C1 → User-facing "where am I signed in" panel under Settings
+    C2 → Suspension page + appeal flow
+    C3 → Magic link · TOTP · CAPTCHA on signup
+
+  v1.7.1 Pass D (deferred, architecture):
+    D1 → Resolve /admin vs /administration duplicate route (Sidebar links the latter)
+    D2 → Rate limiter to multi-instance store (Redis on Render addon) when scale demands
+
+  Caveman mode activated 2026-04-28:
+    1K/prompt max · Grep before Read · no full Reads >100 LOC · no agent spawns ·
+    diffs not files. context.md (in repo root) is now SSOT for codebase orientation;
+    update at end of every sprint commit. Memory pointer in MEMORY.md.
 
 Sprint 9 (v1.7 — data enrichment agents): PLANNED
   Apply the same audit/upgrade methodology, then ship a tier of automated

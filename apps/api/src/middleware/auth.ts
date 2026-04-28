@@ -22,31 +22,25 @@ export const requireAuth = createMiddleware(async (c, next) => {
   const { data, error } = await supabase.auth.getUser(token);
 
   if (error) {
-    // Distinguish config/network failures from genuine bad-token errors.
-    // A real bad token returns status 401 from the Supabase Auth API.
-    // Network/config errors return status 0, 500, or an undefined status.
-    const isTokenRejected = (error as any).status === 401;
+    // Bad token: status 401. Infra failure: status 0/500/undefined.
+    const supabaseStatus = (error as { status?: number }).status;
+    const isTokenRejected = supabaseStatus === 401;
 
     console.error(JSON.stringify({
       tag:             "auth",
       event:           "token_validation_failed",
       error:           error.message,
-      supabaseStatus:  (error as any).status ?? null,
+      supabaseStatus:  supabaseStatus ?? null,
       isTokenRejected,
       ts:              new Date().toISOString(),
     }));
 
     if (!isTokenRejected) {
-      // Supabase unreachable or misconfigured — allow as anon rather than hard-blocking.
-      console.warn(JSON.stringify({
-        tag:    "auth",
-        event:  "fallback_to_anon",
-        reason: "supabase_config_error",
-      }));
-      c.set("userId", "anon");
-      return next();
+      // Fail closed on infra failure. Previously fell through to anon, which
+      // masked Supabase outages and let unauthenticated traffic into
+      // authenticated routes.
+      return c.json({ error: "Auth service unavailable" }, 503);
     }
-
     return c.json({ error: "Invalid or expired token" }, 401);
   }
 

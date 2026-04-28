@@ -165,6 +165,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     log.info("auth", "signUpWithEmail attempt", { email });
     try {
       const { data, error } = await supabase.auth.signUp({ email, password });
+
+      // Anti-enumeration: collapse "email already exists" into success-shape.
+      // Supabase signals this two ways — explicit error message, or success
+      // with data.user.identities=[]. Both leak existence; the UI now shows
+      // the same "check your inbox" copy in either case.
+      const aliasOfExisting   = !error && data?.user?.identities?.length === 0;
+      const alreadyRegistered = !!error && /already.{0,20}registered|user.{0,5}already.{0,5}exists/i.test(error.message);
+      if (alreadyRegistered || aliasOfExisting) {
+        log.info("auth", "signUpWithEmail email-exists (suppressed for anti-enumeration)");
+        return { error: null };
+      }
+
       if (error) log.error("auth", "signUpWithEmail failed", { message: error.message });
       else log.info("auth", "signUpWithEmail OK", { userId: data.user?.id, confirmed: data.user?.confirmed_at });
       return { error: error ? classifyError(error) : null };
@@ -197,8 +209,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const resetPassword = async (email: string) => {
     try {
+      // Vercel previews need an explicit base URL — env wins, origin is fallback.
+      const baseUrl =
+        process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
+        (typeof window !== "undefined" ? window.location.origin : "");
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: typeof window !== "undefined" ? `${window.location.origin}/reset-password` : "",
+        redirectTo: `${baseUrl}/reset-password`,
       });
       return { error: error ? classifyError(error) : null };
     } catch (err) {
