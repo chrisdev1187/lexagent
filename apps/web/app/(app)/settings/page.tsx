@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { useSettings } from "@/providers/settings-provider";
 import { supabase } from "@/lib/supabase";
 import { getApiHeaders } from "@/lib/api";
-import { DEFAULT_SYSTEM } from "@/lib/settings";
+import { DEFAULT_SYSTEM, ARES_PROMPT_VERSION } from "@/lib/settings";
 import { useToast } from "@/hooks/useToast";
 import { LexTooltip } from "@/components/shared/LexTooltip";
 import {
@@ -486,20 +486,25 @@ function PromptTab({ settings, set }: { settings: any; set: (k: string, v: unkno
   const tokEstimate = Math.round(charCount / 4);
   return (
     <div>
-      <SectionHeading>SYSTEM PROMPT — ARES v3.0</SectionHeading>
+      <SectionHeading>SYSTEM PROMPT — ARES v{ARES_PROMPT_VERSION}</SectionHeading>
       <div className="flex items-center justify-between mb-3">
-        <span className="font-mono text-[10px] tracking-[0.1em]" style={{ color: "var(--fg-quaternary)" }}>
-          {charCount.toLocaleString()} chars · ~{tokEstimate.toLocaleString()} tokens
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-[10px] tracking-[0.1em] px-2 py-0.5 rounded" style={{ color: "var(--verdict-neon)", border: "1px solid var(--verdict-neon)", opacity: 0.85 }}>
+            v{ARES_PROMPT_VERSION}
+          </span>
+          <span className="font-mono text-[10px] tracking-[0.1em]" style={{ color: "var(--fg-quaternary)" }}>
+            {charCount.toLocaleString()} chars · ~{tokEstimate.toLocaleString()} tokens
+          </span>
+        </div>
         <button
           onClick={() => set("systemPrompt", DEFAULT_SYSTEM)}
           className="lex-btn lex-btn--secondary"
           style={{ fontSize: "0.7rem", padding: "4px 10px" }}
         >
-          Reset to ARES v3.0
+          Reset to ARES v{ARES_PROMPT_VERSION}
         </button>
       </div>
-      <Field label="ACTIVE SYSTEM PROMPT" tooltip="Read-only view of the ARES v3.0 system prompt. Use 'Reset to ARES v3.0' to restore defaults.">
+      <Field label="ACTIVE SYSTEM PROMPT" tooltip={`Read-only view of the ARES v${ARES_PROMPT_VERSION} system prompt. Use 'Reset to ARES v${ARES_PROMPT_VERSION}' to restore defaults.`}>
         <textarea
           readOnly
           className="lex-textarea"

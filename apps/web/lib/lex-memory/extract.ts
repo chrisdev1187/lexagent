@@ -1,4 +1,4 @@
-import { LexMemoryDelta, Level3Authority, Level3Strategy, Level3OpenQuestion, Level2Episode, Level1Raw, TabId, CourtTier } from "./types";
+import { LexMemoryDelta, Level3Authority, Level3Strategy, Level3OpenQuestion, Level2Episode, Level1Raw, TabId, CourtTier, AuthorityKind, Confidence } from "./types";
 import { cavemanCompress } from "./compress";
 
 // ── Regex patterns ────────────────────────────────────────────────────────
@@ -27,6 +27,56 @@ const OPEN_QUESTION_PHRASES = [
   /\b(may|might)\s+need\s+to\b/i,
 ];
 
+// ── ARES v5 shadow JSON ──────────────────────────────────────────────────
+// Matches a fenced ```json ... ``` block (last one wins). Schema validated after parse.
+const SHADOW_BLOCK_RE = /```json\s*([\s\S]*?)\s*```/g;
+
+export interface AresShadowCite {
+  raw: string;
+  type?: "case" | "statute" | "reg" | "rule" | "secondary";
+  binding?: boolean;
+  confidence?: number;
+  verified_via?: "model" | "cite_verify" | "cite_lookup";
+  subsequent_history?: "ok" | "distinguished" | "overruled" | "unknown";
+}
+
+export interface AresShadow {
+  schema: "ares.shadow.v1";
+  prompt_version?: string;
+  mode?: "LITE" | "STANDARD" | "DEEP";
+  posture?: string;
+  jurisdiction?: { court?: string; circuit?: string | null; state?: string | null };
+  issues?: Array<{ id: string; question: string; controlling_standard?: string; source?: string }>;
+  holdings?: Array<{ issue: string; rule: string; outcome_for_client?: string }>;
+  cites?: AresShadowCite[];
+  circuit_splits?: Array<{ topic: string; sides: Array<{ circuits: string[]; position: string }> }>;
+  counterarguments?: Array<{ oc_position: string; our_response: string; addressed?: boolean }>;
+  flags?: string[];
+  confidence?: { overall?: number; citation_integrity?: number; counterargument_coverage?: number };
+  bottom_line?: string;
+  tool_requests?: Array<{ name: string; args: Record<string, unknown> }>;
+  ethics_review?: { triggered: boolean; rule?: string | null; outcome?: string | null };
+}
+
+export function parseAresShadow(text: string): AresShadow | null {
+  SHADOW_BLOCK_RE.lastIndex = 0;
+  let last: string | null = null;
+  let m: RegExpExecArray | null;
+  while ((m = SHADOW_BLOCK_RE.exec(text)) !== null) {
+    last = m[1];
+  }
+  if (!last) return null;
+  try {
+    const obj = JSON.parse(last);
+    if (obj && typeof obj === "object" && obj.schema === "ares.shadow.v1") {
+      return obj as AresShadow;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 function inferCourtTier(courtStr: string): CourtTier {
   const c = courtStr.toLowerCase();
   if (c.includes("supreme court") && (c.includes("u.s") || !c.includes("state"))) return "scotus";
@@ -34,6 +84,24 @@ function inferCourtTier(courtStr: string): CourtTier {
   if (c.includes("d.") || c.includes("dist.") || c.includes("district")) return "district";
   if (c.includes("supreme")) return "state-high";
   return "unknown";
+}
+
+function shadowAuthorityKind(t: AresShadowCite["type"]): AuthorityKind {
+  switch (t) {
+    case "statute": return "statute";
+    case "reg": return "regulation";
+    case "rule": return "rule";
+    case "case":
+    case "secondary":
+    default: return "case";
+  }
+}
+
+function shadowConfidenceBucket(p: number | undefined): Confidence {
+  if (typeof p !== "number") return 2;
+  if (p >= 0.85) return 3;
+  if (p >= 0.6) return 2;
+  return 1;
 }
 
 function slugify(s: string): string {
@@ -78,13 +146,124 @@ export function extractDelta(responseText: string, tab: TabId): LexMemoryDelta {
   const nodes: LexMemoryDelta["nodes"] = [];
   const seenIds = new Set<string>();
 
-  // Extract case citations → Level3Authority
+  const shadow = parseAresShadow(responseText);
+
+  // ── Path A: shadow-driven (ARES v5+) ─────────────────────────────────────
+  if (shadow) {
+    // Cites → Level3Authority. Higher fidelity than regex (carries confidence + subsequent_history).
+    for (const c of shadow.cites ?? []) {
+      if (!c?.raw) continue;
+      const citation = c.raw.trim();
+      const id = stableId("auth", citation);
+      if (seenIds.has(id)) continue;
+      seenIds.add(id);
+      const verified = c.verified_via === "cite_verify" || c.verified_via === "cite_lookup";
+      nodes.push({
+        kind: "authority",
+        id,
+        citation,
+        shortCite: citation.substring(0, 40),
+        authorityKind: shadowAuthorityKind(c.type),
+        courtTier: c.type === "case" ? inferCourtTier(citation) : "unknown",
+        proposition: undefined,
+        verified,
+        confirmedBy: [tab],
+        lastRefAt: now,
+        confidence: shadowConfidenceBucket(c.confidence),
+      } satisfies Level3Authority);
+    }
+
+    // Counterarguments addressed → Level3Strategy (one entry per addressed rebuttal).
+    for (const ca of shadow.counterarguments ?? []) {
+      if (!ca?.our_response) continue;
+      const detail = `${ca.oc_position} → ${ca.our_response}`.substring(0, 200);
+      const id = stableId("strat", detail);
+      if (seenIds.has(id)) continue;
+      seenIds.add(id);
+      nodes.push({
+        kind: "strategy",
+        id,
+        label: slugify(`oc_rebuttal_${ca.oc_position.substring(0, 30)}`),
+        detail,
+        confirmedBy: [tab],
+        lastRefAt: now,
+        confidence: ca.addressed ? 2 : 1,
+      } satisfies Level3Strategy);
+    }
+
+    // Holdings as strategic stance (one per holding favorable to client).
+    for (const h of shadow.holdings ?? []) {
+      if (!h?.rule) continue;
+      const detail = `${h.rule} (${h.outcome_for_client ?? "unsettled"})`.substring(0, 200);
+      const id = stableId("strat", `holding_${h.issue}_${detail}`);
+      if (seenIds.has(id)) continue;
+      seenIds.add(id);
+      nodes.push({
+        kind: "strategy",
+        id,
+        label: slugify(`holding_${h.issue}_${h.outcome_for_client ?? "x"}`),
+        detail,
+        confirmedBy: [tab],
+        lastRefAt: now,
+        confidence: 2,
+      } satisfies Level3Strategy);
+    }
+
+    // Issues + open flags → Level3OpenQuestion. Blocking on VERIFY / CIRCUIT_SPLIT / UNSETTLED.
+    const blockingFlags = new Set(["VERIFY", "CIRCUIT SPLIT", "UNSETTLED"]);
+    for (const flag of shadow.flags ?? []) {
+      const blocking = blockingFlags.has(flag);
+      const id = stableId("open", `${flag}_${tab}`);
+      if (seenIds.has(id)) continue;
+      seenIds.add(id);
+      nodes.push({
+        kind: "open",
+        id,
+        question: `[${flag}] flagged in ${tab}`,
+        blocking,
+        raisedBy: tab,
+        raisedAt: now,
+      } satisfies Level3OpenQuestion);
+    }
+
+    for (const cs of shadow.circuit_splits ?? []) {
+      if (!cs?.topic) continue;
+      const id = stableId("open", `csplit_${cs.topic}`);
+      if (seenIds.has(id)) continue;
+      seenIds.add(id);
+      nodes.push({
+        kind: "open",
+        id,
+        question: `Circuit split: ${cs.topic}`.substring(0, 100),
+        blocking: true,
+        raisedBy: tab,
+        raisedAt: now,
+      } satisfies Level3OpenQuestion);
+    }
+
+    for (const iq of shadow.issues ?? []) {
+      if (!iq?.question) continue;
+      const id = stableId("open", `issue_${iq.id}_${iq.question}`);
+      if (seenIds.has(id)) continue;
+      seenIds.add(id);
+      nodes.push({
+        kind: "open",
+        id,
+        question: iq.question.substring(0, 100),
+        blocking: false,
+        raisedBy: tab,
+        raisedAt: now,
+      } satisfies Level3OpenQuestion);
+    }
+  }
+
+  // ── Path B: regex backstop (always runs, dedupes against shadow) ─────────
+  // Keeps v3 responses fully extractable AND catches anything ARES omits from the shadow.
   let match: RegExpExecArray | null;
   CASE_CITATION_RE.lastIndex = 0;
   while ((match = CASE_CITATION_RE.exec(responseText)) !== null) {
-    const [fullMatch, caseName, reporter, courtYear] = match;
+    const [, caseName, reporter, courtYear] = match;
     const citation = `${caseName.trim()}, ${reporter.trim()} (${courtYear.trim()})`;
-    const shortCite = caseName.trim().substring(0, 40);
     const id = stableId("auth", citation);
     if (seenIds.has(id)) continue;
     seenIds.add(id);
@@ -93,7 +272,7 @@ export function extractDelta(responseText: string, tab: TabId): LexMemoryDelta {
       kind: "authority",
       id,
       citation,
-      shortCite,
+      shortCite: caseName.trim().substring(0, 40),
       authorityKind: "case",
       courtTier: tier,
       verified: false,
@@ -103,7 +282,6 @@ export function extractDelta(responseText: string, tab: TabId): LexMemoryDelta {
     } satisfies Level3Authority);
   }
 
-  // Extract statute citations → Level3Authority
   STATUTE_CITATION_RE.lastIndex = 0;
   while ((match = STATUTE_CITATION_RE.exec(responseText)) !== null) {
     const citation = match[0].trim();
@@ -124,65 +302,78 @@ export function extractDelta(responseText: string, tab: TabId): LexMemoryDelta {
     } satisfies Level3Authority);
   }
 
-  // Extract strategic signals → Level3Strategy
-  for (const re of STRATEGY_PHRASES) {
-    const stratMatch = re.exec(responseText);
-    if (!stratMatch) continue;
-    // Grab the sentence containing the match
-    const start = Math.max(0, stratMatch.index - 80);
-    const end = Math.min(responseText.length, stratMatch.index + 120);
-    const sentence = responseText.slice(start, end).replace(/\n+/g, " ").trim();
-    const id = stableId("strat", sentence);
-    if (seenIds.has(id)) continue;
-    seenIds.add(id);
-    nodes.push({
-      kind: "strategy",
-      id,
-      label: slugify(sentence.substring(0, 40)),
-      detail: sentence.substring(0, 120),
-      confirmedBy: [tab],
-      lastRefAt: now,
-      confidence: 1,
-    } satisfies Level3Strategy);
-    break; // one strategic node per response to avoid noise
+  // Only run regex strategy/open extraction if shadow didn't already populate them.
+  // Avoids duplicating noisier regex hits when high-quality shadow signals exist.
+  const shadowHadStrategy = !!shadow && ((shadow.counterarguments?.length ?? 0) + (shadow.holdings?.length ?? 0) > 0);
+  if (!shadowHadStrategy) {
+    for (const re of STRATEGY_PHRASES) {
+      const stratMatch = re.exec(responseText);
+      if (!stratMatch) continue;
+      const start = Math.max(0, stratMatch.index - 80);
+      const end = Math.min(responseText.length, stratMatch.index + 120);
+      const sentence = responseText.slice(start, end).replace(/\n+/g, " ").trim();
+      const id = stableId("strat", sentence);
+      if (seenIds.has(id)) continue;
+      seenIds.add(id);
+      nodes.push({
+        kind: "strategy",
+        id,
+        label: slugify(sentence.substring(0, 40)),
+        detail: sentence.substring(0, 120),
+        confirmedBy: [tab],
+        lastRefAt: now,
+        confidence: 1,
+      } satisfies Level3Strategy);
+      break;
+    }
   }
 
-  // Extract open questions → Level3OpenQuestion
-  for (const re of OPEN_QUESTION_PHRASES) {
-    const openMatch = re.exec(responseText);
-    if (!openMatch) continue;
-    const start = Math.max(0, openMatch.index);
-    const end = Math.min(responseText.length, openMatch.index + 100);
-    const question = responseText.slice(start, end).replace(/\n+/g, " ").trim().substring(0, 100);
-    const blocking = /\[VERIFY|circuit\s+split/i.test(question);
-    const id = stableId("open", question);
-    if (seenIds.has(id)) continue;
-    seenIds.add(id);
-    nodes.push({
-      kind: "open",
-      id,
-      question,
-      blocking,
-      raisedBy: tab,
-      raisedAt: now,
-    } satisfies Level3OpenQuestion);
-    break;
+  const shadowHadOpen = !!shadow && ((shadow.flags?.length ?? 0) + (shadow.circuit_splits?.length ?? 0) + (shadow.issues?.length ?? 0) > 0);
+  if (!shadowHadOpen) {
+    for (const re of OPEN_QUESTION_PHRASES) {
+      const openMatch = re.exec(responseText);
+      if (!openMatch) continue;
+      const start = Math.max(0, openMatch.index);
+      const end = Math.min(responseText.length, openMatch.index + 100);
+      const question = responseText.slice(start, end).replace(/\n+/g, " ").trim().substring(0, 100);
+      const blocking = /\[VERIFY|circuit\s+split/i.test(question);
+      const id = stableId("open", question);
+      if (seenIds.has(id)) continue;
+      seenIds.add(id);
+      nodes.push({
+        kind: "open",
+        id,
+        question,
+        blocking,
+        raisedBy: tab,
+        raisedAt: now,
+      } satisfies Level3OpenQuestion);
+      break;
+    }
   }
 
-  // Build L2 episode summary (caveman-compressed)
-  const firstParagraph = responseText.slice(0, 400).replace(/#+\s*/g, "").replace(/\*+/g, "").trim();
-  const summary = cavemanCompress(firstParagraph).substring(0, 400);
+  // L2 episode summary — prefer ARES bottom_line when available; else caveman compress the prose.
+  const proseForSummary = shadow?.bottom_line
+    ? shadow.bottom_line.substring(0, 400)
+    : cavemanCompress(
+        responseText
+          // Strip the shadow JSON block before summarizing to avoid summary = JSON.
+          .replace(SHADOW_BLOCK_RE, "")
+          .slice(0, 400)
+          .replace(/#+\s*/g, "")
+          .replace(/\*+/g, "")
+          .trim()
+      ).substring(0, 400);
 
   const episode: Level2Episode = {
     id: `ep_${tab}_${now}`,
     tab,
     date: new Date(now).toISOString().substring(0, 10),
-    summary,
+    summary: proseForSummary,
     derivedNodeIds: nodes.map(n => n.id),
     createdAt: now,
   };
 
-  // Store raw (truncated to 2000 chars)
   const raw: Level1Raw = {
     id: `raw_${tab}_${now}`,
     tab,

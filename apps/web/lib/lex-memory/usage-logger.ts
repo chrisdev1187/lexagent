@@ -7,12 +7,16 @@ export interface AiUsageEntry {
   outputTok: number;
   memInjected: number;
   model: string;
+  promptVersion?: string | null;        // ARES_PROMPT_VERSION the call ran under
+  mode?: string | null;                 // shadow JSON "mode" — LITE | STANDARD | DEEP
+  toolCalls?: unknown[] | null;         // shadow JSON "tool_requests"
+  criticScore?: number | null;          // v6 evaluator-optimizer rubric score
 }
 
 export async function logAiUsage(entry: AiUsageEntry): Promise<void> {
   const { data: { session } } = await supabase.auth.getSession();
   const userId = session?.user?.id;
-  if (!userId) return; // not logged in, skip
+  if (!userId) return;
 
   await supabase.from("ai_usage").insert({
     user_id: userId,
@@ -22,5 +26,9 @@ export async function logAiUsage(entry: AiUsageEntry): Promise<void> {
     output_tok: entry.outputTok,
     mem_injected: entry.memInjected,
     model: entry.model,
+    prompt_version: entry.promptVersion ?? null,
+    mode: entry.mode ?? null,
+    tool_calls: entry.toolCalls ?? null,
+    critic_score: entry.criticScore ?? null,
   });
 }

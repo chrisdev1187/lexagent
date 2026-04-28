@@ -11,7 +11,7 @@ import { getApiHeaders } from "@/lib/api";
 import { useSettings } from "@/providers/settings-provider";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
-import { DEFAULT_SYSTEM } from "@/lib/settings";
+import { DEFAULT_SYSTEM, ARES_PROMPT_VERSION } from "@/lib/settings";
 import { LexTooltip } from "@/components/shared/LexTooltip";
 import { useQuota } from "@/hooks/useQuota";
 import { storagePercent, aiPercent, matterPercent } from "@/lib/quota";
@@ -1801,8 +1801,8 @@ export default function AdminPage() {
       case "prompt":
         return (
           <div>
-            <SectionHeading>SYSTEM PROMPT</SectionHeading>
-            <Field label="ARES SYSTEM PROMPT" tooltip="This prompt defines ARES's behavior — modify with care">
+            <SectionHeading>SYSTEM PROMPT — ARES v{ARES_PROMPT_VERSION}</SectionHeading>
+            <Field label={`ARES SYSTEM PROMPT (v${ARES_PROMPT_VERSION})`} tooltip="This prompt defines ARES's behavior — modify with care">
               <textarea
                 className={inputCls}
                 style={{ ...inputStyle, resize: "vertical", minHeight: 320, fontFamily: "var(--font-mono)", fontSize: "0.75rem", lineHeight: 1.7 }}
@@ -1815,7 +1815,7 @@ export default function AdminPage() {
               className="text-xs underline cursor-pointer"
               style={{ color: "var(--fg-tertiary)" }}
             >
-              Reset to default
+              Reset to ARES v{ARES_PROMPT_VERSION}
             </button>
           </div>
         );

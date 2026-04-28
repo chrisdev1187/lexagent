@@ -1,9 +1,10 @@
 import { Matter } from "@/providers/matters-provider";
 import { anthropicFetch, AnthropicFetchOptions } from "@/lib/api";
+import { ARES_PROMPT_VERSION } from "@/lib/settings";
 import { LexMemory, TabId } from "./types";
 import { bootstrapMemory } from "./bootstrap";
 import { buildContext } from "./build-context";
-import { extractDelta } from "./extract";
+import { extractDelta, parseAresShadow } from "./extract";
 import { mergeMemory } from "./merge";
 import { BUDGET_DEFAULT } from "./tokens";
 import { logAiUsage } from "./usage-logger";
@@ -79,6 +80,7 @@ export function withLexMemory(
         if (!clone.ok) return;
         const json = await clone.json() as unknown;
         const text = extractText(json);
+        const shadow = text ? parseAresShadow(text) : null;
         if (text) {
           const delta = extractDelta(text, opts.tab);
           // Functional update: re-reads fresh matter from state, avoids clobbering
@@ -98,6 +100,10 @@ export function withLexMemory(
           outputTok: usage?.output_tokens ?? 0,
           memInjected,
           model: (body["model"] as string) ?? "unknown",
+          promptVersion: shadow?.prompt_version?.replace(/^ARES-/, "") ?? ARES_PROMPT_VERSION,
+          mode: shadow?.mode ?? null,
+          toolCalls: shadow?.tool_requests ?? null,
+          criticScore: null,
         }).catch(() => {});
       } catch (e) {
         console.warn("[lex-memory] extraction failed:", (e as Error).message);
