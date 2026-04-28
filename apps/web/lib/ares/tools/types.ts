@@ -27,6 +27,10 @@ export interface ToolDefinition<I = unknown, O = unknown> {
 export interface CiteVerifyInput {
   raw: string;
   jurisdiction?: string;
+  // Optional surrounding prose from the drafter's document (≤ 2k chars).
+  // Enables subsequent-history detection from local context (1.6.3 — eyecite
+  // JS port substitute). If omitted, only CL cited-by is consulted.
+  context?: string;
 }
 
 export interface CiteVerifyOutput {

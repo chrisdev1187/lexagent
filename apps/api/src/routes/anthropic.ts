@@ -53,6 +53,17 @@ interface Provider {
 
 const PROVIDERS: Provider[] = [
   {
+    // Mistral promoted to position #1 with the large model on the main tier.
+    // For "haiku"-class small-model requests (critic loop, posture/ethics/plan
+    // tools, eval rubric grader), we still drop to mistral-small for cost +
+    // speed. mistral-large-latest is Mistral's flagship and uses the alias
+    // so we auto-pick up new releases without code changes.
+    name: "mistral",
+    key: process.env.MISTRAL_API_KEY,
+    url: "https://api.mistral.ai/v1/chat/completions",
+    model: (m) => m.includes("haiku") ? "mistral-small-latest" : "mistral-large-latest",
+  },
+  {
     name: "groq",
     key: process.env.GROQ_API_KEY,
     url: "https://api.groq.com/openai/v1/chat/completions",
@@ -91,12 +102,6 @@ const PROVIDERS: Provider[] = [
     key: process.env.XAI_API_KEY,
     url: "https://api.x.ai/v1/chat/completions",
     model: () => "grok-3-mini",
-  },
-  {
-    name: "mistral",
-    key: process.env.MISTRAL_API_KEY,
-    url: "https://api.mistral.ai/v1/chat/completions",
-    model: () => "mistral-small-latest",
   },
   {
     // Gemini via OpenAI-compatible endpoint (no format translation needed)

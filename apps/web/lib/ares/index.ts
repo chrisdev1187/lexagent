@@ -62,8 +62,14 @@ export type {
 } from "./tools/types";
 
 export { citeVerify, parseCite } from "./tools/cite-verify";
+export { detectSubsequentHistory } from "./tools/subsequent-history";
+export type { HistoryInput, HistoryResult } from "./tools/subsequent-history";
 export { citeLookup } from "./tools/cite-lookup";
 export { postureDetect } from "./tools/posture-detect";
 export { ethicsCheck } from "./tools/ethics-check";
 export { planCheck } from "./tools/plan-check";
 export { critic, criticJson, ARES_CRITIC_MODEL } from "./critic-llm";
+export { aresCritic, PROHIBITED_PATTERNS } from "./critic";
+export type { CriticInput, CriticOutput, CriticScore } from "./critic";
+export { aresDebate } from "./debate";
+export type { DebateInput, DebateOutput, DebateRound, DebateRole, DebateOutcome } from "./debate";

@@ -77,7 +77,15 @@
 | `apps/web/lib/ares/tools/ethics-check.ts` | Constitutional-AI Model Rules walkthrough on the waterfall |
 | `apps/web/lib/ares/tools/plan-check.ts` | Plan-then-Execute validator on the waterfall |
 | `apps/web/lib/ares/critic-llm.ts` | Small-model wrapper that maps "haiku" requests through `anthropicFetch` to the 9-LLM waterfall (free) |
+| `apps/web/lib/ares/critic.ts` | **(2026-04-28)** Evaluator-Optimizer rubric scorer + 1-revision optimizer; `aresCritic()` → `{score, revised_draft, persisted_score}` |
+| `apps/web/lib/ares/debate.ts` | **(2026-04-28)** 3-call orchestrator for MSJ/appeal posture: movant + respondent + judge synthesizer |
+| `apps/web/lib/ares/tools/subsequent-history.ts` | **(2026-04-28)** Practical eyecite substitute: local-context phrase scan + CL cited-by snippet scan; conservative thresholding |
 | `apps/web/lib/ares/shadow-schema.ts` | `ares.shadow.v1` JSON schema types + `validateShadow()` |
+| `apps/web/lib/eval/types.ts` | **(2026-04-28)** EvalQuestion, EvalRun, EvalMetrics, EvalAggregate, EvalComparison schemas |
+| `apps/web/lib/eval/metrics.ts` | **(2026-04-28)** computeMetrics, aggregate, compareGates — pure functions over runs |
+| `apps/web/lib/eval/runner.ts` | **(2026-04-28)** Concurrency-bounded gold-set runner with injectable model fetcher |
+| `apps/web/lib/eval/gold-set.ts` | **(2026-04-28)** 16-question seed (4 postures × 4 jurisdictions) |
+| `apps/web/app/api/ares-eval/route.ts` | **(2026-04-28)** Admin-only POST endpoint to run the eval against the configured prompt |
 | `apps/web/lib/supabase.ts` | Supabase browser client |
 | `apps/web/lib/db.ts` | `loadMatters`, `upsertMatter` |
 | `apps/web/lib/auth.tsx` | AuthProvider, useAuth, isAdmin, userRole |
@@ -115,17 +123,19 @@
 **Paid tier:** Anthropic Claude via platform `ANTHROPIC_API_KEY` (Render env).  
 **BYOK:** User's own Anthropic key bypasses waterfall entirely.
 
-| # | Provider | Free Model | Paid Model |
-|---|----------|-----------|-----------|
-| 1 | Groq | llama-3.1-8b-instant | llama-3.3-70b-versatile |
-| 2 | Cerebras | llama3.1-8b | llama-3.3-70b |
-| 3 | SambaNova | (same) | Meta-Llama-3.3-70B-Instruct |
-| 4 | OpenRouter | meta-llama/llama-3.3-70b-instruct:free | (same) |
-| 5 | NVIDIA | (same) | meta/llama-3.3-70b-instruct |
-| 6 | xAI | grok-3-mini | grok-3-mini |
-| 7 | Mistral | mistral-small-latest | mistral-small-latest |
+| # | Provider | Small/Critic Model | Main Model |
+|---|----------|--------------------|-----------|
+| 1 | **Mistral** | mistral-small-latest | **mistral-large-latest** |
+| 2 | Groq | llama-3.1-8b-instant | llama-3.3-70b-versatile |
+| 3 | Cerebras | llama3.1-8b | llama-3.3-70b |
+| 4 | SambaNova | (same) | Meta-Llama-3.3-70B-Instruct |
+| 5 | OpenRouter | meta-llama/llama-3.3-70b-instruct:free | (same) |
+| 6 | NVIDIA | (same) | meta/llama-3.3-70b-instruct |
+| 7 | xAI | grok-3-mini | grok-3-mini |
 | 8 | Gemini | gemini-2.0-flash | gemini-2.0-flash |
 | 9 | Gemini-2 | gemini-2.0-flash | gemini-2.0-flash |
+
+**2026-04-28 reordering:** Mistral promoted to position 1 with `mistral-large-latest` on the main tier (was position 7, small-only). Critic / haiku-class requests still drop to `mistral-small-latest` for speed. Reasoning: Mistral-Large beats the Llama-3.3-70B fleet on legal reasoning benchmarks and stays free under Mistral's free-tier RPM. Llama providers retained as failover.
 
 ---
 
@@ -358,33 +368,44 @@ Comprehensive prompt + agent-architecture upgrade. Ships in three tiers: **v5** 
 - **Outstanding wave B:** `draft_skeleton_load` (template registry), `retrieval_query` (CAP FAISS + CL hybrid), `critic.ts` (multi-pass evaluator-optimizer loop), `debate.ts` (3-call orchestrator), `matter-graph.ts`, `adversarial-doc.ts`. eyecite JS port still required for true `subsequent_history` in `cite_verify` (currently `unknown`).
 
 ### 1.6.2 — Eval Harness MVP
-**Status:** PENDING  
-- LegalBench-RAG-mini local runner (6,858 query/span pairs from zeroentropy-ai/legalbenchrag).
-- LexAgent-internal 200-question gold set covering 5 postures × 4 jurisdictions.
-- Run v3 vs v5 baseline; lock in: hallucinated cites per 100 (target ≤ 2), counterargument coverage (≥ 70%), Brier on verbalized confidence (≤ 0.20), BOTTOM LINE present (100%), median latency ≤ 1.1·v3.
+**Status:** ✅ MVP COMPLETE (2026-04-28) — gold-set expansion 16→200 deferred to content sprint.
+- `apps/web/lib/eval/types.ts` — schemas for `EvalQuestion`, `EvalRun`, `EvalMetrics`, `EvalAggregate`, `EvalComparison`. Per-question gold-set fields: `expected_outcome`, `expected_counterarg_count`, `required_authorities`, `prohibited_authorities`.
+- `apps/web/lib/eval/metrics.ts` — pure functions: `computeMetrics()`, `aggregate()`, `compareGates()`. Cite-hallucination heuristic uses Bluebook reporter / year structural sanity (eyecite-class verification deferred to 1.6.3 path). Counterargument coverage prefers shadow JSON, falls back to header sweep. Brier term computed against `expected_outcome`. Latency p50/p95.
+- `apps/web/lib/eval/runner.ts` — concurrency-bounded gold-set runner, configurable fetcher, per-question abort/timeout. Default concurrency 2 (waterfall safe).
+- `apps/web/lib/eval/gold-set.ts` — 16-question seed: 4 postures (pleadings, discovery, msj, appeal) × 4 jurisdictions (federal, ca, ny, tx). Plausible facts, no real client matters, conservative `required_authorities` (empty) until verified.
+- `apps/web/app/api/ares-eval/route.ts` — admin-only POST endpoint. Runs current `DEFAULT_SYSTEM` (or caller-supplied `systemPrompt`) against gold set, forwards admin Bearer token to Render API, returns aggregate + per-question metrics + trimmed run details.
+- Ship gates wired: `hallucinated_per_100 ≤ 2`, `counterarg_coverage ≥ 0.7`, `bottom_line_present_rate = 1`, `brier ≤ 0.2`, `latency_p50 ≤ 1.1×baseline` via `compareGates()`.
+- TypeScript + production build green.
+- **Outstanding:** expand seed gold set to 200 (5 postures × 4 jurisdictions × 10), wire admin UI tab to POST /api/ares-eval and render comparison table, integrate LegalBench-RAG-mini external runner.
 
 ### 1.6.3 — v6 Tool Registry + Citation Grounding Loop
-**Status:** PARTIAL (cite_verify, cite_lookup, posture_detect, ethics_check, plan_check ✅; rest pending)
+**Status:** PARTIAL — cite_verify (with subsequent-history), cite_lookup, posture_detect, ethics_check, plan_check, critic, debate ✅; draft_skeleton + retrieval_query + matter_graph + adversarial-doc PENDING.
 New tree under `apps/web/lib/ares/`:
 - `tools/registry.ts` — 7 named tools, dispatcher. ✅
-- `tools/cite-verify.ts` — Bluebook parser + CourtListener Citation-Lookup. ✅ (eyecite JS port for true subsequent-history pending)
+- `tools/cite-verify.ts` — Bluebook parser + CourtListener Citation-Lookup + subsequent-history. ✅ (2026-04-28: now consults `subsequent-history.ts`; caps confidence on `overruled` to 0.25 and `distinguished` to 0.75; flips `ok=false` when `overruled`. Accepts optional `context` field for local-context phrase scan.)
+- `tools/subsequent-history.ts` — **NEW (2026-04-28)** practical eyecite JS substitute. Two-layer detection: (a) local-context phrase scan for Bluebook signal phrases (`overruled by`, `abrogated by`, `rev'd`, `distinguished`, `questioned in`, `criticized in`, `vacated`, `superseded by statute`); (b) CourtListener cited-by snippet scan via `/search/?q="<cite>"&type=o&order_by=dateFiled` with target-mention boost. Conservative thresholding (Plan Risk #4): `overruled` only on explicit signal; `distinguished` advisory; `ok` requires no negative hits AND ≥1 positive citation across ≥2 results. Combiner picks the more severe of local + CL. Returns `{ status, evidence, source }`.
 - `tools/cite-lookup.ts` — CL search wrapper for name-only cites. ✅
 - `tools/ethics-check.ts` — Constitutional-AI critic over Model Rules, on the waterfall small-model tier. ✅
 - `tools/posture-detect.ts` — small-model classifier on the waterfall. ✅
 - `tools/plan-check.ts` — small-model critic on Plan-then-Execute output, on the waterfall. ✅
 - `tools/draft-skeleton.ts` — template registry + jurisdiction overlay. PENDING
 - `tools/retrieval-query.ts` — CAP FAISS + CL hybrid (Research page only). PENDING
-- `critic.ts` — Evaluator-Optimizer loop, rubric scorer (multi-pass). PENDING
-- `debate.ts` — 3-call orchestrator: movant + respondent + judge synthesizer (MSJ/appeal posture). PENDING
+- `critic.ts` — **✅ (2026-04-28)** Evaluator-Optimizer rubric scorer + 1-revision optimizer. Rubric (4 axes): cite_integrity, counterargument_coverage, bottom_line_present, prohibited_phrases. Hard-fail prohibited list (`as an AI language model`, `I cannot provide legal advice`, etc.) flips `passed=false` regardless of score. Weighted overall = 0.5·cite + 0.3·counter + 0.2·BL. PASS threshold 0.7. LITE mode skipped entirely (Risk #1). Optimizer pass on hard fail with capped 12k-char input → re-scored. `persisted_score` field for `ai_usage.critic_score`. Hard cap: 1 revision, never loops.
+- `debate.ts` — **✅ (2026-04-28)** 3-call orchestrator (movant + respondent + judge synthesizer). Triggered only on `posture in {msj, appeal}`; other postures return `skipped:true`. Sequential by design (respondent reads movant; judge reads both). Each round on the waterfall via `criticJson()`. Judge returns `predicted_outcome ∈ {movant, respondent, split, uncertain}` + confidence + reasoning + key_points. Graceful degradation: failed rounds return placeholder argument; failed judge falls back to prose `critic()` then to `uncertain` low-confidence default.
 - `shadow-schema.ts` — Zod schema + Outlines integration. ✅ (validateShadow + isAresShadow)
 - `matter-graph.ts` — typed entity graph extension to LexMemory. PENDING
 - `adversarial-doc.ts` — opposing-brief analysis mode. PENDING
 
+**Outstanding wiring (deferred from 2026-04-28 build):**
+- `with-lex-memory.ts` does not yet call `aresCritic()` — `criticScore` still hardcoded `null` in the usage-logger payload.
+- Strategy / Deep-Research feature pages do not yet detect MSJ/appeal posture and invoke `aresDebate()`.
+- `citeVerify()` callers do not yet pass the surrounding draft text as `context` — local-history layer is currently dormant in production. CL cited-by layer functions independently.
+
 ### 1.6.4 — DSPy + LegalBench-RAG CI Gate
-**Status:** PENDING  
-- `apps/web/app/api/ares-eval/route.ts` — DSPy GEPA loop endpoint, runs nightly.
-- `.github/workflows/ares-eval.yml` — CI gate: every PR touching `lib/settings.ts` or `lib/ares/*` must pass the 200-question subset.
-- Hold out 30% of internal gold set from training to avoid GEPA over-optimization.
+**Status:** PARTIAL — base eval endpoint exists (1.6.2); DSPy GEPA + CI workflow pending.
+- `apps/web/app/api/ares-eval/route.ts` ✅ — admin-only POST endpoint, runs the gold set against the configured prompt. Foundation for the nightly DSPy loop.
+- `.github/workflows/ares-eval.yml` PENDING — CI gate on PRs touching `lib/settings.ts` or `lib/ares/*`.
+- DSPy GEPA optimization loop PENDING — must hold out 30% of internal gold set from training to avoid over-optimization.
 
 ### 1.6.x — Moonshots (Exploratory)
 **Status:** DEFERRED (post-v6)  
@@ -432,14 +453,19 @@ Sprint 6 (v1.6 wave A, no DB):         IN PROGRESS 2026-04-27
   1.6.1   → Shadow JSON consumer in extract.ts + ai_usage column migration
   1.6.2   → Eval harness MVP (LegalBench-RAG-mini + 200-question gold set)
 
-Sprint 7 (v1.6 wave B, infra):         IN PROGRESS 2026-04-28
+Sprint 7 (v1.6 wave B, infra):         CODE COMPLETE 2026-04-28 (wiring deferred)
   1.6.1.1 → v6 Tool registry scaffold ✅
   1.6.1.2 → Wave B critic tools on the 9-LLM waterfall (posture/ethics/plan) ✅
-  1.6.3   → cite_verify (eyecite JS port for true subsequent_history) PENDING
-  1.6.3   → critic.ts (multi-pass evaluator-optimizer) PENDING
-  1.6.3   → debate.ts (3-call orchestrator for MSJ/appeal posture) PENDING
+  1.6.2   → Eval harness MVP (types/metrics/runner/seed/endpoint) ✅
+  1.6.3   → cite_verify (subsequent-history layer: local + CL cited-by) ✅
+  1.6.3   → critic.ts (Evaluator-Optimizer, 1-revision cap, LITE-skip) ✅
+  1.6.3   → debate.ts (movant/respondent/judge, MSJ/appeal posture) ✅
   1.6.3   → draft_skeleton, retrieval_query, matter-graph, adversarial-doc PENDING
-  1.6.4   → DSPy GEPA + LegalBench CI gate PENDING
+  1.6.4   → DSPy GEPA + CI workflow PENDING (base /api/ares-eval endpoint ✅)
+  WIRING  → with-lex-memory→aresCritic, pages→aresDebate, citeVerify→context PENDING
+
+Waterfall reordered 2026-04-28: Mistral promoted #7 → #1 with mistral-large-latest
+  on the main tier (was mistral-small-only). Llama-3.3-70B fleet retained as failover.
 
 Sprint 8 (v1.7 system-wide audit):     PLANNED
   Apply the v5/v6 ARES upgrade methodology to the rest of the platform —

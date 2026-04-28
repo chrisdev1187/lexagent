@@ -2,15 +2,16 @@
 // Verifies a Bluebook citation by parsing it, checking the reporter/year for
 // plausibility, then resolving against CourtListener Citation-Lookup API.
 //
-// Subsequent history is currently set to "unknown" — full KeyCite-substitute
-// requires an eyecite JS port (1.6.3 follow-on). This stub returns enough
-// signal for the v5 [VERIFY] / [GOOD LAW WARNING] flag pipeline to function.
+// Subsequent history (1.6.3): handled by ./subsequent-history.ts —
+// local-context phrase detection + CL cited-by snippet scan. Conservative:
+// only marks "overruled" on explicit signal; "distinguished" is advisory.
 //
 // Plan: ~/.claude/plans/jaunty-dazzling-horizon.md
 
 import { citationLookup } from "@/lib/courtlistener";
 import type { CiteVerifyInput, CiteVerifyOutput } from "./types";
-import type { CiteType } from "../shadow-schema";
+import type { CiteType, SubsequentHistory } from "../shadow-schema";
+import { detectSubsequentHistory } from "./subsequent-history";
 
 const REPORTERS = [
   { abbr: "U.S.",      court: "scotus" },
@@ -90,13 +91,22 @@ export async function citeVerify(input: CiteVerifyInput): Promise<CiteVerifyOutp
   // Statute / reg / rule citations are not resolved through CL Citation-Lookup
   // (which is opinion-only). Validate by structural plausibility.
   if (parsed.type !== "case") {
+    // Statutes can still be "superseded" — scan local context only.
+    let statHistory: SubsequentHistory = "unknown";
+    if (input.context && (parsed.type === "statute" || parsed.type === "reg")) {
+      const h = await detectSubsequentHistory({
+        raw: input.raw,
+        context: input.context,
+      });
+      statHistory = h.status;
+    }
     return {
       ok: parsed.type === "statute" || parsed.type === "reg" || parsed.type === "rule",
       normalized: input.raw.trim(),
       type: parsed.type,
       reporter_match: parsed.type !== "secondary",
       year_plausible: yearPlausible(parsed.year),
-      subsequent_history: "unknown",
+      subsequent_history: statHistory,
       confidence: parsed.type === "secondary" ? 0.4 : 0.8,
     };
   }
@@ -126,17 +136,38 @@ export async function citeVerify(input: CiteVerifyInput): Promise<CiteVerifyOutp
   const reporterMatch = reporterMatchesCourt(parsed.reporter, parsed.court);
   const yearOk = yearPlausible(parsed.year);
 
+  // Subsequent-history check (1.6.3). Runs only when the structural cite is
+  // plausible — no point asking about treatment of a malformed citation.
+  let subsequent: SubsequentHistory = "unknown";
+  if (yearOk && (verified || reporterMatch)) {
+    try {
+      const h = await detectSubsequentHistory({
+        raw: input.raw,
+        reporterCite,
+        caseName: parsed.caseName,
+        context: input.context,
+      });
+      subsequent = h.status;
+    } catch {
+      subsequent = "unknown";
+    }
+  }
+
   // Confidence blend: verification dominates, structural checks fill in.
+  // "overruled" caps confidence — even if CL verified the cite, the cite is
+  // no longer good law and should not be relied upon as written.
   const structural = (reporterMatch ? 0.4 : 0) + (yearOk ? 0.3 : 0) + (parsed.pincite ? 0.1 : 0);
-  const confidence = verified ? Math.min(0.99, 0.7 + structural) : Math.min(0.7, structural + 0.1);
+  let confidence = verified ? Math.min(0.99, 0.7 + structural) : Math.min(0.7, structural + 0.1);
+  if (subsequent === "overruled") confidence = Math.min(confidence, 0.25);
+  else if (subsequent === "distinguished") confidence = Math.min(confidence, 0.75);
 
   return {
-    ok: verified && reporterMatch && yearOk,
+    ok: verified && reporterMatch && yearOk && subsequent !== "overruled",
     normalized,
     type: "case",
     reporter_match: reporterMatch,
     year_plausible: yearOk,
-    subsequent_history: "unknown", // 1.6.3 follow-on: derive via eyecite + CL opinion-cluster lookups
+    subsequent_history: subsequent,
     confidence,
     source_url: sourceUrl,
   };
