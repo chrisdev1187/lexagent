@@ -496,20 +496,39 @@ Sprint 8 (v1.7 system-wide audit):     IN PROGRESS 2026-04-28
         window.location.origin fallback. Fixes Vercel preview redirects.
     Type-check: web ✅ clean · api ✅ clean.
 
-  v1.7.1 Pass B (deferred, needs migration 025):
-    B1 → record_session: move from browser RPC to API route reading x-forwarded-for
-         (current p_ip_address: null kills the IP-cluster abuse signal)
-    B2 → Email-alias detection RPC (normalize +alias, dot-trick, disposable domains)
-    B3 → ">5× avg daily usage" abuse signal as scheduled job
+  v1.7.1 Pass B (2026-04-28):
+    B1 ✅ record_session IP gap already CLOSED — migration 025 moved call to
+         /api/record-session Next.js route which reads x-forwarded-for. IP-cluster
+         signal is live.
+    B2 → Email-alias detection RPC (normalize +alias, dot-trick, disposable domains) — DEFERRED
+    B3 ✅ Migration 026: ">5× avg daily usage" abuse trigger on ai_usage INSERT.
+         Fires check_heavy_usage() — inserts heavy_usage flag if today > 5× 30d avg
+         AND avg ≥ 3 req/day (noise floor). supabase/migrations/026_abuse_heavy_usage.sql
 
-  v1.7.1 Pass C (deferred, UX-visible):
-    C1 → User-facing "where am I signed in" panel under Settings
-    C2 → Suspension page + appeal flow
-    C3 → Magic link · TOTP · CAPTCHA on signup
+  v1.7.1 Pass C (2026-04-28):
+    C1 ✅ "Security" tab in Settings (apps/web/app/(app)/settings/page.tsx):
+         Lists active user_sessions_ext rows with device/IP/last-seen + Revoke button.
+         Calls revoke_user_sessions() RPC. Current session badge shown; can't self-revoke.
+    C2 ✅ API suspension enforcement (apps/api/src/middleware/auth.ts):
+         After JWT validation, queries user_roles.suspended_until. If active suspension
+         returns 403 { error, reason, suspended_until }. Frontend (api.ts) throws
+         AccountSuspendedError — callers can show human-readable message instead of
+         generic "Auth error".
+    C3 → Magic link · TOTP · CAPTCHA on signup — DEFERRED (Supabase auth changes)
 
   v1.7.1 Pass D (deferred, architecture):
     D1 → Resolve /admin vs /administration duplicate route (Sidebar links the latter)
     D2 → Rate limiter to multi-instance store (Redis on Render addon) when scale demands
+
+  v1.7 Attorney Workflow Audit (2026-04-28):
+    Research: mapped 7-stage attorney workflow (intake→filing→billing); 45% time lost
+    to admin, 12 hrs/week non-billable. LexAgent strong at stages 3–5 (research/draft/
+    cite-check), blind spot at stages 1 (intake), 6 (court filing), 7 (billing admin).
+    Gap matrix in plan file: glimmering-sniffing-rivest.md.
+    OSS repos to steal from: eyecite, Docassemble, Juriscraper, RECAP, CourtListener
+    docket alerts.
+    v1.8 roadmap: guided intake flow · eyecite full-doc scan · research memo export ·
+    deadline calculator.
 
   Caveman mode activated 2026-04-28:
     1K/prompt max · Grep before Read · no full Reads >100 LOC · no agent spawns ·

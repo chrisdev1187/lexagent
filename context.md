@@ -75,32 +75,42 @@ context.md (this)
 ### Client storage keys
 - lex_session_id · lex_fp
 
-## State (v1.6.0 pushed 2026-04-28)
+## State (v1.7.1 pushed 2026-04-28)
 - ✅ ARES v5 prompt-only
 - ✅ ARES v6: critic + debate + eval harness + subsequent-history
 - ✅ Mistral-large-latest at waterfall #1
-- ⏳ Wiring: with-lex-memory→aresCritic · pages→aresDebate (msj/appeal) · citeVerify(context) · admin→/api/ares-eval button
-- ⏳ Smoke test new waterfall order
-- ⏳ Run eval for v5 baseline
+- ✅ v1.7.1 security pass complete (see gaps below)
+- ✅ Migration 026: heavy_usage abuse trigger
+- ✅ Settings → Security tab (active sessions + revoke)
+- ✅ API auth: suspension enforcement → 403 + AccountSuspendedError
+- ⏳ Wiring: with-lex-memory→aresCritic · pages→aresDebate (msj/appeal) · citeVerify(context)
+- ⏳ Smoke test waterfall order · Run eval for v5 baseline
+- ⏳ Apply migration 026 to prod Supabase
 
 ## v1.7 audit roadmap
-- 1.7.1 Users & onboarding — **inventory done** (gaps below)
-- 1.7.2 Admin · 1.7.3 Settings · 1.7.4 Billing · 1.7.5 Matters · 1.7.6 Enrichment
+- 1.7.1 Users & onboarding — ✅ DONE (7/13 gaps fixed; 6 deferred)
+- 1.7.2 Admin · 1.7.3 Settings · 1.7.4 Billing · 1.7.5 Matters · 1.7.6 Enrichment — QUEUED
 
-## v1.7.1 gaps (13)
-1. record_session called from browser with p_ip_address: null → IP-cluster signal dead
-2. No SAML/OIDC SSO (only Google)
-3. No magic link · no TOTP/2FA · no CAPTCHA
-4. Email-alias detection unimplemented
-5. ">5× avg daily" abuse signal unimplemented
-6. requireAuth fails open to anon on Supabase config error
-7. Rate limiter in-process; multi-instance unsafe
-8. No user-facing "where am I signed in" panel
-9. No invite-acceptance UX for team seats
-10. No suspension UX (generic 401)
-11. signUp leaks "user already exists" (enumeration)
-12. No "trusted device" flow
-13. resetPassword redirectTo = origin → Vercel preview brittle
+## v1.7.1 gap status
+1. ✅ record_session IP — FIXED (migration 025, API route reads x-forwarded-for)
+2. ❌ No SAML/OIDC SSO — DEFERRED
+3. ❌ No magic link · 2FA · CAPTCHA — DEFERRED
+4. ❌ Email-alias detection — DEFERRED
+5. ✅ ">5× avg daily" abuse signal — FIXED (migration 026)
+6. ✅ requireAuth fails open — FIXED (auth.ts → 503)
+7. ❌ Rate limiter multi-instance — DEFERRED (needs Redis)
+8. ✅ No user sessions panel — FIXED (Settings → Security tab)
+9. ❌ No invite-acceptance UX — DEFERRED
+10. ✅ No suspension UX — FIXED (API returns 403 + AccountSuspendedError)
+11. ✅ signUp enumeration — FIXED (auth.tsx anti-enumeration)
+12. ❌ Trusted device flow — DEFERRED
+13. ✅ resetPassword redirectTo — FIXED (NEXT_PUBLIC_SITE_URL)
+
+## v1.8 roadmap (attorney workflow gaps — next sprint)
+1. Guided intake flow (intake form → conflict check → engagement letter)
+2. eyecite full-doc citation scan (upload brief → all citations verified)
+3. Research memo export (research tab → downloadable memo)
+4. Jurisdiction deadline calculator (event + jurisdiction → computed deadlines)
 
 ## Hard rules
 - No budget — all AI via lib/ares/critic-llm.ts → 9-LLM waterfall, never direct Haiku/Opus

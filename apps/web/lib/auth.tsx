@@ -89,16 +89,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [userRole, setUserRole] = useState<"member" | "admin" | "owner">("member");
 
-  async function recordSession() {
+  async function recordSession(userId?: string) {
     try {
       const sessionId = rotateSessionId();
       const fingerprint = getCachedFingerprint();
       const ua = typeof navigator !== "undefined" ? navigator.userAgent : null;
-      await supabase.rpc("record_session", {
-        p_session_id:         sessionId,
-        p_device_fingerprint: fingerprint,
-        p_ip_address:         null,
-        p_user_agent:         ua,
+      await fetch("/api/record-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          session_id:         sessionId,
+          device_fingerprint: fingerprint,
+          user_agent:         ua,
+          user_id:            userId ?? null,
+        }),
       });
     } catch (err) {
       log.warn("auth", "record_session failed (non-fatal)", { err: String(err) });
@@ -138,6 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(newSession?.user ?? null);
         setAuthToken(newSession?.access_token ?? null);
         fetchRole(newSession?.user?.id);
+        if (event === "SIGNED_IN") void recordSession(newSession?.user?.id);
       }
     );
 
@@ -152,7 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         log.error("auth", "signInWithEmail failed", { message: error.message, code: (error as {code?: string}).code, status: (error as {status?: number}).status });
       } else {
         log.info("auth", "signInWithEmail OK", { hasSession: !!data.session, userId: data.session?.user?.id, expiresAt: data.session?.expires_at });
-        void recordSession();
+        void recordSession(data.session?.user?.id);
       }
       return { error: error ? classifyError(error) : null };
     } catch (err) {

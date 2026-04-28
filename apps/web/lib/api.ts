@@ -53,6 +53,17 @@ export class CreditExhaustedError extends Error {
   }
 }
 
+export class AccountSuspendedError extends Error {
+  reason: string;
+  suspendedUntil: string | null;
+  constructor(reason: string, suspendedUntil: string | null) {
+    super(`Your account has been suspended. ${reason}`);
+    this.name          = "AccountSuspendedError";
+    this.reason        = reason;
+    this.suspendedUntil = suspendedUntil;
+  }
+}
+
 export interface AnthropicFetchOptions {
   onChunk?: (text: string) => void;
   signal?: AbortSignal;
@@ -190,6 +201,12 @@ export async function anthropicFetch(
         : (j.error as any)?.message ?? (j.message as string) ?? errMsg;
     } catch { /* body not JSON */ }
     log.error("anthropic", `← ${res.status} ${res.statusText}`, { status: res.status, body: rawBody.slice(0, 300), provider, tier, model });
+
+    if (res.status === 403) {
+      let reason = "Contact support for details.", suspendedUntil: string | null = null;
+      try { const j = JSON.parse(rawBody) as any; reason = j.reason ?? reason; suspendedUntil = j.suspended_until ?? null; } catch { /**/ }
+      throw new AccountSuspendedError(reason, suspendedUntil);
+    }
 
     if (res.status === 429) {
       if (errCode === "free_tier_exhausted") {

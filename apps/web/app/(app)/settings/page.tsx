@@ -10,7 +10,7 @@ import { DEFAULT_SYSTEM, ARES_PROMPT_VERSION } from "@/lib/settings";
 import { useToast } from "@/hooks/useToast";
 import { LexTooltip } from "@/components/shared/LexTooltip";
 import {
-  CreditCard, ExternalLink, User, Palette, Cpu, ShieldCheck, FileText, Key, Building2, UsersRound,
+  CreditCard, ExternalLink, User, Palette, Cpu, ShieldCheck, FileText, Key, Building2, UsersRound, Lock,
 } from "lucide-react";
 import { FirmProfileTab } from "@/components/settings/FirmProfileTab";
 import { TeamsTab } from "@/components/settings/TeamsTab";
@@ -30,7 +30,7 @@ const PLAN_COLOR: Record<string, string> = {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
-type Tab = "profile" | "billing" | "api-key" | "ui" | "model" | "shield" | "prompt" | "firm" | "teams";
+type Tab = "profile" | "billing" | "api-key" | "ui" | "model" | "shield" | "prompt" | "firm" | "teams" | "security";
 
 const TABS: { id: Tab; icon: React.ElementType; label: string }[] = [
   { id: "profile",  icon: User,        label: "Profile & Usage"     },
@@ -38,6 +38,7 @@ const TABS: { id: Tab; icon: React.ElementType; label: string }[] = [
   { id: "firm",     icon: Building2,   label: "Firm Profile"        },
   { id: "teams",    icon: UsersRound,  label: "Teams"               },
   { id: "api-key",  icon: Key,         label: "API Key (BYOK)"      },
+  { id: "security", icon: Lock,        label: "Security"            },
   { id: "ui",       icon: Palette,     label: "UI Preferences"      },
   { id: "model",    icon: Cpu,         label: "Model & AI"          },
   { id: "shield",   icon: ShieldCheck, label: "Hallucination Shield" },
@@ -583,11 +584,12 @@ function SettingsInner() {
       case "billing": return <BillingTab role={role} plan={plan} loading={loading} />;
       case "firm":    return <FirmProfileTab isAdmin={isAdmin} />;
       case "teams":   return <TeamsTab />;
-      case "api-key": return <ApiKeyTab user={user} loading={loading} />;
-      case "ui":      return <UiTab settings={settings} set={set} />;
-      case "model":   return <ModelTab settings={settings} set={set} />;
-      case "shield":  return <ShieldTab settings={settings} set={set} />;
-      case "prompt":  return <PromptTab settings={settings} set={set} />;
+      case "api-key":  return <ApiKeyTab user={user} loading={loading} />;
+      case "security": return user?.id ? <SecurityTab userId={user.id} /> : null;
+      case "ui":       return <UiTab settings={settings} set={set} />;
+      case "model":    return <ModelTab settings={settings} set={set} />;
+      case "shield":   return <ShieldTab settings={settings} set={set} />;
+      case "prompt":   return <PromptTab settings={settings} set={set} />;
     }
   };
 
@@ -665,6 +667,109 @@ function SettingsInner() {
           </div>
 
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Security tab ────────────────────────────────────────────────────────── */
+interface SessionRow {
+  session_id: string;
+  ip_address: string | null;
+  user_agent: string | null;
+  last_seen: string;
+  created_at: string;
+  is_revoked: boolean;
+}
+
+function SecurityTab({ userId }: { userId: string }) {
+  const [sessions, setSessions] = useState<SessionRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [revoking, setRevoking] = useState<string | null>(null);
+  const currentSessionId = typeof window !== "undefined"
+    ? localStorage.getItem("lex_session_id") ?? ""
+    : "";
+
+  useEffect(() => {
+    supabase
+      .from("user_sessions_ext")
+      .select("session_id, ip_address, user_agent, last_seen, created_at, is_revoked")
+      .eq("user_id", userId)
+      .eq("is_revoked", false)
+      .order("last_seen", { ascending: false })
+      .limit(20)
+      .then(({ data }) => { setSessions((data as SessionRow[]) ?? []); setLoading(false); });
+  }, [userId]);
+
+  async function revoke(sessionId: string) {
+    setRevoking(sessionId);
+    await supabase.rpc("revoke_user_sessions", { p_target_uid: userId });
+    setSessions(s => s.filter(r => r.session_id !== sessionId));
+    setRevoking(null);
+  }
+
+  const fmtDate = (d: string) => new Date(d).toLocaleString();
+  const fmtUA = (ua: string | null) => {
+    if (!ua) return "Unknown device";
+    if (/mobile/i.test(ua)) return "Mobile browser";
+    if (/chrome/i.test(ua)) return "Chrome";
+    if (/firefox/i.test(ua)) return "Firefox";
+    if (/safari/i.test(ua)) return "Safari";
+    return "Browser";
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="rounded-lg p-6" style={{ background: "rgba(17,17,20,0.8)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
+        <SectionHeading>ACTIVE SESSIONS</SectionHeading>
+        <p className="text-xs mb-4" style={{ color: "var(--fg-tertiary)" }}>
+          Sessions where you are currently signed in. LexAgent enforces single-session — signing in elsewhere revokes this session.
+        </p>
+        {loading ? (
+          <p className="text-xs" style={{ color: "var(--fg-quaternary)" }}>Loading…</p>
+        ) : sessions.length === 0 ? (
+          <p className="text-xs" style={{ color: "var(--fg-quaternary)" }}>No active sessions found.</p>
+        ) : (
+          <div className="space-y-3">
+            {sessions.map(s => {
+              const isCurrent = s.session_id === currentSessionId;
+              return (
+                <div key={s.session_id} className="flex items-start justify-between gap-4 p-3 rounded"
+                  style={{ background: "rgba(255,255,255,0.03)", border: "0.5px solid rgba(224,224,224,0.07)" }}>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="font-mono text-[10px] tracking-widest" style={{ color: "var(--fg-secondary)" }}>
+                        {fmtUA(s.user_agent)}
+                      </span>
+                      {isCurrent && (
+                        <span className="font-mono text-[9px] tracking-[0.14em] uppercase px-1.5 py-0.5 rounded-full"
+                          style={{ background: "rgba(0,255,195,0.08)", border: "0.5px solid rgba(0,255,195,0.3)", color: "var(--verdict-neon)" }}>
+                          THIS SESSION
+                        </span>
+                      )}
+                    </div>
+                    {s.ip_address && (
+                      <p className="font-mono text-[10px]" style={{ color: "var(--fg-quaternary)" }}>IP: {s.ip_address}</p>
+                    )}
+                    <p className="font-mono text-[10px]" style={{ color: "var(--fg-quaternary)" }}>
+                      Last seen: {fmtDate(s.last_seen)}
+                    </p>
+                  </div>
+                  {!isCurrent && (
+                    <button
+                      onClick={() => revoke(s.session_id)}
+                      disabled={revoking === s.session_id}
+                      className="lex-btn text-xs flex-shrink-0"
+                      style={{ color: "var(--verdict-crimson)", borderColor: "rgba(239,68,68,0.3)" }}
+                    >
+                      {revoking === s.session_id ? "Revoking…" : "Revoke"}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

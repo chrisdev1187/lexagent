@@ -48,6 +48,21 @@ export const requireAuth = createMiddleware(async (c, next) => {
     return c.json({ error: "Invalid or expired token" }, 401);
   }
 
+  // Suspension check — user_roles.suspended_until > now() means account is banned
+  const { data: role } = await supabase
+    .from("user_roles")
+    .select("suspended_until, suspension_reason")
+    .eq("user_id", data.user.id)
+    .maybeSingle();
+
+  if (role?.suspended_until && new Date(role.suspended_until) > new Date()) {
+    return c.json({
+      error: "Account suspended",
+      reason: role.suspension_reason ?? "Contact support for details.",
+      suspended_until: role.suspended_until,
+    }, 403);
+  }
+
   c.set("userId", data.user.id);
   await next();
 });
