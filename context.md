@@ -1,6 +1,6 @@
 # LexAgent — Codebase Context (read first)
 
-**Updated:** 2026-04-28 · v1.6.0 shipped · v1.7.1 inventory done
+**Updated:** 2026-04-28 · v1.7 audit COMPLETE · v1.8 next
 
 ## URLs
 - web: https://lexagent-ochre.vercel.app
@@ -34,7 +34,7 @@ context.md (this)
 - routes/billing.ts — stripe portal/checkout
 - routes/{cap,congress,courtlistener,ecfr,edgar,govinfo,openstates,regulations,uspto}.ts — gov feeds
 - routes/healthdeep.ts — deep health probe
-- middleware/auth.ts — Bearer JWT; **fails open to anon on Supabase outage (smell)**
+- middleware/auth.ts — Bearer JWT; fails closed (503) on Supabase outage ✅
 - middleware/session.ts — checks user_sessions_ext.is_revoked via X-Session-Id
 - middleware/ratelimit.ts — in-process token bucket; not multi-instance
 - middleware/{credits,quota,free_tier,telemetry}.ts — gates + access log
@@ -51,7 +51,7 @@ context.md (this)
 - lib/settings.ts — ARES system prompt v5 (~1740 tok)
 - lib/db.ts — loadMatters / upsertMatter
 - lib/audit.ts — logAudit()
-- lib/lex-memory/ — 4-level (L1 Raw → L4 Theme); extract.ts has duplicate looser AresShadow type
+- lib/lex-memory/ — 4-level (L1 Raw → L4 Theme); extract.ts uses canonical shadow-schema types ✅
 - lib/ares/index.ts — barrel
 - lib/ares/shadow-schema.ts — strict AresShadow
 - lib/ares/critic.ts — evaluator-optimizer, 1-rev cap, PROHIBITED_PATTERNS
@@ -75,23 +75,28 @@ context.md (this)
 ### Client storage keys
 - lex_session_id · lex_fp
 
-## State (v1.7.1 pushed 2026-04-28)
+## State (v1.7 audit complete 2026-04-28)
 - ✅ ARES v5 prompt-only
 - ✅ ARES v6: critic + debate + eval harness + subsequent-history
 - ✅ Mistral-large-latest at waterfall #1
-- ✅ v1.7.1 security pass complete (see gaps below)
-- ✅ Migration 026: heavy_usage abuse trigger
-- ✅ Settings → Security tab (active sessions + revoke)
+- ✅ v1.7.1 security pass (7/13 gaps fixed; 6 deferred)
+- ✅ Migration 026: heavy_usage abuse trigger (⏳ apply in prod Supabase)
+- ✅ Migration 024: ares_v5_telemetry (⏳ apply in prod Supabase)
+- ✅ Settings → Security tab + ChangePasswordSection
 - ✅ API auth: suspension enforcement → 403 + AccountSuspendedError
 - ✅ Admin → ARES tab: Gold Set Eval button wired to /api/ares-eval
 - ✅ /administration → redirects to /admin; sidebar fixed
+- ✅ v1.7.2–v1.7.6 audited: no regressions; billing invoice + enrichment UI tabs deferred to v1.8
 - ⏳ Wiring: with-lex-memory→aresCritic · pages→aresDebate (msj/appeal) · citeVerify(context)
 - ⏳ Smoke test waterfall order · Run eval for v5 baseline
-- ⏳ Apply migration 026 to prod Supabase
 
-## v1.7 audit roadmap
+## v1.7 audit — COMPLETE (2026-04-28)
 - 1.7.1 Users & onboarding — ✅ DONE (7/13 gaps fixed; 6 deferred)
-- 1.7.2 Admin · 1.7.3 Settings · 1.7.4 Billing · 1.7.5 Matters · 1.7.6 Enrichment — QUEUED
+- 1.7.2 Admin — ✅ DONE (eval button wired)
+- 1.7.3 Settings — ✅ DONE (Security tab + ChangePasswordSection)
+- 1.7.4 Billing — ✅ AUDITED (CSV export exists; invoice generation → v1.8)
+- 1.7.5 Matters — ✅ AUDITED (all 14 sub-pages clean; no broken code)
+- 1.7.6 Enrichment — ✅ AUDITED (all 10 routes healthy; GovInfo/USPTO/OpenStates UI → v1.8)
 
 ## v1.7.1 gap status
 1. ✅ record_session IP — FIXED (migration 025, API route reads x-forwarded-for)

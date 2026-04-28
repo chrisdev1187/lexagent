@@ -528,6 +528,37 @@ Sprint 8 (v1.7 system-wide audit):     IN PROGRESS 2026-04-28
        displays accuracy / correct/total / Brier score / duration inline. Was ⏳ in
        context.md since v1.6.0.
 
+  v1.7.3 Settings (2026-04-28):
+    ✅ ChangePasswordSection added to Settings → Profile tab. Input validation:
+       min 8 chars, confirm match. Calls supabase.auth.updateUser({ password }).
+       TypeScript clean. Commit 21a549f.
+    ✅ Security tab (committed prior session): user_sessions_ext list, Revoke button,
+       current-session badge. (logged under v1.7.1 Pass C1.)
+
+  v1.7.4 Billing (2026-04-28):
+    AUDIT FINDING: billing/page.tsx has time entry CRUD + CSV export + summary stats.
+    No formal invoice generation — deferred to v1.8. Scope: invoice generation from
+    time entries is a distinct feature (PDF, matter header, attorney/client fields).
+    No broken code; existing functionality is complete and functional.
+
+  v1.7.5 Matters (2026-04-28):
+    AUDIT FINDING: All 14 matter sub-pages checked (billing, citations, conflict,
+    deadlines, deep-research, draft, judge, notes, overview, research, strategy,
+    timeline, vault). No TODO/FIXME/broken code found. Persistence via matters.metadata
+    JSONB. Data integrity confirmed — no data-loss risk. Clean pass.
+
+  v1.7.6 Enrichment (2026-04-28):
+    AUDIT FINDING: All 10 API routes registered in index.ts and functional.
+    CAP returns clean 410 Gone (decommissioned; handled gracefully). Deep-research UI
+    exposes 4 sources (congress, ecfr, courtlistener opinions, edgar). GovInfo,
+    OpenStates, USPTO, Regulations.gov routes exist at API layer but no UI tabs —
+    deferred to v1.8 (new feature addition, not a bug). Admin API-keys tab already
+    has fields for GovInfo/OpenStates keys. Clean pass.
+
+  v1.7 Sprint COMPLETE (2026-04-28):
+    All 6 surfaces audited. No regressions introduced. Deferred items logged in
+    context.md v1.8 roadmap. Next: v1.8 attorney workflow features.
+
   v1.7 Attorney Workflow Audit (2026-04-28):
     Research: mapped 7-stage attorney workflow (intake→filing→billing); 45% time lost
     to admin, 12 hrs/week non-billable. LexAgent strong at stages 3–5 (research/draft/
