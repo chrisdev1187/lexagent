@@ -198,6 +198,45 @@ function ProfileTab({
           )}
         </div>
       )}
+      <ChangePasswordSection />
+    </div>
+  );
+}
+
+/* ── Change password (appended to ProfileTab) ──────────────────────────── */
+function ChangePasswordSection() {
+  const [pw, setPw] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [status, setStatus] = useState<"idle" | "saving" | "ok" | "err">("idle");
+  const [errMsg, setErrMsg] = useState("");
+
+  async function handleSave() {
+    if (pw.length < 8) { setErrMsg("Minimum 8 characters."); setStatus("err"); return; }
+    if (pw !== confirm) { setErrMsg("Passwords do not match."); setStatus("err"); return; }
+    setStatus("saving");
+    const { error } = await supabase.auth.updateUser({ password: pw });
+    if (error) { setErrMsg(error.message); setStatus("err"); }
+    else { setStatus("ok"); setPw(""); setConfirm(""); }
+  }
+
+  return (
+    <div className="rounded-lg p-6 mt-6" style={{ background: "rgba(17,17,20,0.8)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
+      <SectionHeading>CHANGE PASSWORD</SectionHeading>
+      <div className="space-y-3 max-w-sm">
+        <Field label="New password">
+          <input type="password" value={pw} onChange={e => setPw(e.target.value)} placeholder="Min. 8 characters"
+            className="lex-input w-full text-sm" />
+        </Field>
+        <Field label="Confirm password">
+          <input type="password" value={confirm} onChange={e => setConfirm(e.target.value)} placeholder="Repeat new password"
+            className="lex-input w-full text-sm" onKeyDown={e => e.key === "Enter" && handleSave()} />
+        </Field>
+        {status === "err" && <p className="text-xs font-mono" style={{ color: "var(--verdict-crimson)" }}>{errMsg}</p>}
+        {status === "ok" && <p className="text-xs font-mono" style={{ color: "var(--verdict-neon)" }}>Password updated.</p>}
+        <button onClick={handleSave} disabled={status === "saving"} className="lex-btn lex-btn--primary text-xs">
+          {status === "saving" ? "Saving…" : "Update Password"}
+        </button>
+      </div>
     </div>
   );
 }
