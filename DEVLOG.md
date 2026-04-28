@@ -574,10 +574,30 @@ Sprint 8 (v1.7 system-wide audit):     IN PROGRESS 2026-04-28
     diffs not files. context.md (in repo root) is now SSOT for codebase orientation;
     update at end of every sprint commit. Memory pointer in MEMORY.md.
 
-Sprint 9 (v1.7 — data enrichment agents): PLANNED
-  Apply the same audit/upgrade methodology, then ship a tier of automated
-  enrichment agents (cron-driven web scrapers, regulator scanners, docket
-  watchers, judge-profile builders) that feed the matter graph.
+Sprint 9 (v1.8 — attorney workflow): COMPLETE 2026-04-28
+  v1.8 attorney workflow features shipped (4 items from attorney audit plan):
+  1. ✅ NewMatterModal → 3-step intake wizard
+       Step 1: Matter info (title, client, opposing party, type, jurisdiction, facts)
+       Step 2: AI conflict check — POSTs to waterfall, checks against all matters,
+               returns CONFLICT_FOUND/RISK/REASON. Advisory + manual review notice.
+       Step 3: Confirm + optional engagement letter draft (AI-generated, saved to
+               matter metadata as engagementLetter; editable in Draft tab).
+  2. ✅ Citations → "Scan Full Document" section
+       Paste full brief/motion → AI extracts all legal citations → auto-populates
+       the verify queue. Collapses on success. Non-fatal on AI error.
+  3. ✅ Research → "Memo" button (visible when conversation has messages)
+       AI call formats research conversation as formal legal memo (Questions
+       Presented / Brief Answer / Discussion / Conclusion). MD + PDF export
+       via existing ExportButton. Dismissable inline panel.
+  4. ✅ Deadlines → "AI Deadline Calculator" section
+       Select trigger event (complaint filed, MSJ, etc.) + date + jurisdiction
+       → AI computes exact YYYY-MM-DD deadlines with rule citations + priority.
+       "Add to Matter" bulk-adds parsed deadlines to deadlines list.
+  TypeScript clean. Commit b0bc3dd.
+
+Sprint 10 (v1.9 — document assembly): PLANNED
+  Docassemble-style interview engine: matter fields → auto-populated draft variables.
+  Jurisdiction × doc-type template library. Clause/snippet bank per matter.
 ```
 
 ---

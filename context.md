@@ -1,6 +1,6 @@
 # LexAgent — Codebase Context (read first)
 
-**Updated:** 2026-04-28 · v1.7 audit COMPLETE · v1.8 next
+**Updated:** 2026-04-28 · v1.8 attorney workflow shipped
 
 ## URLs
 - web: https://lexagent-ochre.vercel.app
@@ -113,11 +113,11 @@ context.md (this)
 12. ❌ Trusted device flow — DEFERRED
 13. ✅ resetPassword redirectTo — FIXED (NEXT_PUBLIC_SITE_URL)
 
-## v1.8 roadmap (attorney workflow gaps — next sprint)
-1. Guided intake flow (intake form → conflict check → engagement letter)
-2. eyecite full-doc citation scan (upload brief → all citations verified)
-3. Research memo export (research tab → downloadable memo)
-4. Jurisdiction deadline calculator (event + jurisdiction → computed deadlines)
+## v1.8 — SHIPPED (2026-04-28)
+1. ✅ Guided intake: NewMatterModal → 3-step wizard (info → AI conflict check → confirm + engagement letter draft)
+2. ✅ Cite scan: citations page "Scan Full Document" → AI extracts citations from pasted brief → auto-populates verify queue
+3. ✅ Research memo: research page "Memo" button → AI formats conversation as formal legal memo → MD/PDF export
+4. ✅ Deadline calc: deadlines page "AI Deadline Calculator" → trigger event + jurisdiction → computes procedural deadlines → bulk-add to matter
 
 ## Hard rules
 - No budget — all AI via lib/ares/critic-llm.ts → 9-LLM waterfall, never direct Haiku/Opus
