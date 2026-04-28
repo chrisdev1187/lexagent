@@ -866,11 +866,37 @@ interface AiUsageRow {
   matter_title?: string;
 }
 
+interface EvalAggregate { accuracy: number; brier: number; total: number; correct: number; }
+interface EvalRunResult { aggregate: EvalAggregate; promptVersion: string; durationMs: number; }
+
 function AresTab() {
   const { settings } = useSettings();
   const [rows, setRows] = useState<AiUsageRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [lexStats, setLexStats] = useState<{ mattersWithMemory: number; avgNodes: number; totalInputTok: number; totalOutputTok: number; memRatio: number } | null>(null);
+  const [evalRunning, setEvalRunning] = useState(false);
+  const [evalResult, setEvalResult] = useState<EvalRunResult | null>(null);
+  const [evalError, setEvalError] = useState<string | null>(null);
+
+  async function runEval() {
+    setEvalRunning(true);
+    setEvalError(null);
+    setEvalResult(null);
+    try {
+      const res = await fetch("/api/ares-eval", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ maxQuestions: 16, concurrency: 2 }),
+      });
+      if (!res.ok) { const j = await res.json().catch(() => ({})) as {error?:string}; throw new Error(j.error ?? `HTTP ${res.status}`); }
+      const data = await res.json() as EvalRunResult;
+      setEvalResult(data);
+    } catch (e) {
+      setEvalError(String(e));
+    } finally {
+      setEvalRunning(false);
+    }
+  }
 
   useEffect(() => {
     async function load() {
@@ -966,6 +992,34 @@ function AresTab() {
           ))}
         </div>
       )}
+
+      <SectionHeading>GOLD SET EVAL</SectionHeading>
+      <div className="rounded p-4" style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
+        <p className="text-xs mb-3" style={{ color: "var(--fg-tertiary)" }}>
+          Runs the 16-question seed gold set through the live ARES prompt. Takes ~2 min.
+        </p>
+        <button onClick={runEval} disabled={evalRunning} className="lex-btn lex-btn--primary text-xs">
+          {evalRunning ? "Running eval…" : "Run Eval (16q)"}
+        </button>
+        {evalError && (
+          <p className="text-xs mt-3 font-mono" style={{ color: "var(--verdict-crimson)" }}>{evalError}</p>
+        )}
+        {evalResult && (
+          <div className="grid grid-cols-4 gap-3 mt-4">
+            {[
+              { label: "Accuracy", value: `${Math.round(evalResult.aggregate.accuracy * 100)}%`, color: "var(--verdict-neon)" },
+              { label: "Correct", value: `${evalResult.aggregate.correct}/${evalResult.aggregate.total}`, color: "var(--fg-secondary)" },
+              { label: "Brier Score", value: evalResult.aggregate.brier.toFixed(3), color: "var(--verdict-amber)" },
+              { label: "Duration", value: `${(evalResult.durationMs / 1000).toFixed(1)}s`, color: "var(--fg-tertiary)" },
+            ].map(s => (
+              <div key={s.label} className="rounded p-3 text-center" style={{ background: "rgba(255,255,255,0.03)", border: "0.5px solid rgba(224,224,224,0.07)" }}>
+                <p className="text-lg font-mono font-semibold" style={{ color: s.color }}>{s.value}</p>
+                <p className="text-[10px] mt-0.5 font-mono tracking-widest uppercase" style={{ color: "var(--fg-quaternary)" }}>{s.label}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

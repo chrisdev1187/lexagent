@@ -116,7 +116,7 @@ export function Sidebar({ onNewMatter }: SidebarProps) {
     { href: "/dashboard",      icon: LayoutDashboard, label: "Dashboard"      },
     { href: "/clients",        icon: Users,           label: "Clients"        },
     { href: "/settings",       icon: Settings,        label: "Settings"       },
-    ...(isAdmin ? [{ href: "/administration", icon: Building2, label: "Administration" }] : []),
+    ...(isAdmin ? [{ href: "/admin", icon: Building2, label: "Administration" }] : []),
   ];
 
   const fmtElapsed = (s: number) =>

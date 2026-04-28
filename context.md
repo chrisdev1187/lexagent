@@ -83,6 +83,8 @@ context.md (this)
 - ✅ Migration 026: heavy_usage abuse trigger
 - ✅ Settings → Security tab (active sessions + revoke)
 - ✅ API auth: suspension enforcement → 403 + AccountSuspendedError
+- ✅ Admin → ARES tab: Gold Set Eval button wired to /api/ares-eval
+- ✅ /administration → redirects to /admin; sidebar fixed
 - ⏳ Wiring: with-lex-memory→aresCritic · pages→aresDebate (msj/appeal) · citeVerify(context)
 - ⏳ Smoke test waterfall order · Run eval for v5 baseline
 - ⏳ Apply migration 026 to prod Supabase

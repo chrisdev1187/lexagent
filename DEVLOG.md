@@ -58,6 +58,8 @@
 | 022 | telemetry | ✅ | user_sessions_ext, abuse_flags, suspension cols, single-session RPCs, admin RPCs |
 | 023 | feedback | ✅ | feedback table, RLS |
 | 024 | ares_v5_telemetry | ⏳ PENDING | `prompt_version`, `mode`, `tool_calls`, `critic_score` columns on `ai_usage` + `get_admin_ares_version_split()` RPC |
+| 025 | record_session_user_id | ✅ | record_session() accepts p_user_id; auth.tsx routes through /api/record-session so x-forwarded-for IP is captured |
+| 026 | abuse_heavy_usage | ⏳ PENDING | check_heavy_usage() trigger on ai_usage: flags heavy_usage if today > 5× 30d avg (min avg 3 req/day) |
 
 ---
 
@@ -516,9 +518,15 @@ Sprint 8 (v1.7 system-wide audit):     IN PROGRESS 2026-04-28
          generic "Auth error".
     C3 → Magic link · TOTP · CAPTCHA on signup — DEFERRED (Supabase auth changes)
 
-  v1.7.1 Pass D (deferred, architecture):
-    D1 → Resolve /admin vs /administration duplicate route (Sidebar links the latter)
+  v1.7.1 Pass D (2026-04-28):
+    D1 ✅ /administration → redirects to /admin. Sidebar updated to href="/admin".
+         Old page now renders null + router.replace("/admin") on mount.
     D2 → Rate limiter to multi-instance store (Redis on Render addon) when scale demands
+
+  v1.7.2 Admin (2026-04-28):
+    ✅ ARES tab: Gold Set Eval button wired. POSTs /api/ares-eval (16q, concurrency 2),
+       displays accuracy / correct/total / Brier score / duration inline. Was ⏳ in
+       context.md since v1.6.0.
 
   v1.7 Attorney Workflow Audit (2026-04-28):
     Research: mapped 7-stage attorney workflow (intake→filing→billing); 45% time lost
