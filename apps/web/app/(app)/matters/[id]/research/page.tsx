@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Search, Send, RotateCcw, Copy, Check, BookOpen } from "lucide-react";
+import { Search, Send, RotateCcw, Copy, Check, BookOpen, FileText, Loader2, X } from "lucide-react";
 import { ExportButton } from "@/components/shared/ExportButton";
 import { useParams } from "next/navigation";
 import { useMatters } from "@/providers/matters-provider";
@@ -44,6 +44,8 @@ export default function ResearchPage() {
   const [freeTierMsg, setFreeTierMsg] = useState<string | null>(null);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const [expandedSources, setExpandedSources] = useState<Set<number>>(new Set());
+  const [memoLoading, setMemoLoading] = useState(false);
+  const [memoContent, setMemoContent] = useState<string | null>(null);
   const loadingTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -135,6 +137,29 @@ export default function ResearchPage() {
       setLoadingPhase(0);
       setStreamingText("");
       setLoading(false);
+    }
+  };
+
+  const generateMemo = async () => {
+    if (!matter || messages.length === 0 || memoLoading) return;
+    setMemoLoading(true);
+    const convo = messages
+      .map(m => `${m.role === "user" ? "QUESTION" : "ANALYSIS"}:\n${m.content}`)
+      .join("\n\n---\n\n");
+    const today = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+    const memoPrompt = `Draft a formal legal research memo from the research conversation below.\n\nMatter: ${matter.title}\nJurisdiction: ${matter.jurisdiction ?? "not specified"}\nDate: ${today}\n\nResearch:\n${convo}\n\nFormat:\n# RESEARCH MEMO\nTo: Attorney of Record\nRe: [concise description]\nDate: ${today}\n\n## Question(s) Presented\n## Brief Answer\n## Discussion\n## Conclusion\n\nPreserve all citations exactly. Write in formal legal prose.`;
+    try {
+      const lexFetch = withLexMemory(matter, updateMatter, { tab: "research" });
+      const res = await lexFetch(
+        { model: settings.model, max_tokens: 3000, system: settings.systemPrompt, messages: [{ role: "user", content: memoPrompt }] },
+        undefined, {}
+      );
+      const data = await res.json() as { content?: Array<{ type: string; text: string }> };
+      setMemoContent(data.content?.[0]?.text ?? "No content returned.");
+    } catch (e) {
+      setMemoContent(`Error: ${(e as Error).message}`);
+    } finally {
+      setMemoLoading(false);
     }
   };
 
@@ -339,6 +364,18 @@ export default function ResearchPage() {
                 format="markdown"
                 label="Export"
               />
+              {messages.length > 0 && (
+                <LexTooltip content="Generate formal research memo from this conversation">
+                  <button
+                    onClick={generateMemo}
+                    disabled={memoLoading}
+                    className="lex-btn lex-btn--secondary"
+                  >
+                    {memoLoading ? <Loader2 size={12} className="animate-spin" /> : <FileText size={12} />}
+                    {memoLoading ? "Generating…" : "Memo"}
+                  </button>
+                </LexTooltip>
+              )}
               <span className="text-xs" style={{ color: "var(--fg-tertiary)" }}>
                 Enter to send · Shift+Enter for newline
               </span>
@@ -355,6 +392,35 @@ export default function ResearchPage() {
             </LexTooltip>
           </div>
         </div>
+      {memoContent && (
+        <div
+          className="mt-4 rounded overflow-hidden"
+          style={{ border: "0.5px solid rgba(255,255,255,0.12)" }}
+        >
+          <div
+            className="flex items-center justify-between px-4 py-2"
+            style={{ background: "rgba(17,17,20,0.9)", borderBottom: "0.5px solid rgba(255,255,255,0.08)" }}
+          >
+            <span className="font-mono text-[9px] tracking-[0.2em] uppercase" style={{ color: "var(--fg-quaternary)" }}>
+              Research Memo
+            </span>
+            <div className="flex items-center gap-2">
+              <ExportButton content={memoContent} filename={`memo-${matter?.title ?? id}`} format="markdown" label="MD" />
+              <ExportButton content={memoContent} filename={`memo-${matter?.title ?? id}`} format="pdf" label="PDF" />
+              <button
+                onClick={() => setMemoContent(null)}
+                className="p-1 rounded"
+                style={{ color: "var(--fg-tertiary)", background: "none", border: "none", cursor: "pointer" }}
+              >
+                <X size={12} />
+              </button>
+            </div>
+          </div>
+          <div className="p-4" style={{ background: "rgba(10,10,12,0.8)" }}>
+            <Markdown text={memoContent} />
+          </div>
+        </div>
+      )}
       </PanelShell>
     </>
   );

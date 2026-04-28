@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { ShieldCheck, CheckCircle, XCircle, ExternalLink, Loader2, Save, BookMarked, ChevronDown, ChevronUp } from "lucide-react";
+import { ShieldCheck, CheckCircle, XCircle, ExternalLink, Loader2, Save, BookMarked, ChevronDown, ChevronUp, FileSearch } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useMatters } from "@/providers/matters-provider";
 import { citationLookup, CLLookupResult } from "@/lib/courtlistener";
 import { PanelShell } from "@/components/panels/PanelShell";
 import { bootstrapMemory, mergeMemory, authorityFromVerified, LexMemory } from "@/lib/lex-memory";
+import { anthropicFetch } from "@/lib/api";
+import { useSettings } from "@/providers/settings-provider";
 
 interface VerifiedEntry extends CLLookupResult {
   uid: string;
@@ -37,13 +39,39 @@ export default function CitationsPage() {
   const { getMatter, updateMatter } = useMatters();
   const matter = getMatter(id);
 
+  const { settings } = useSettings();
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<VerifiedEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [savedOpen, setSavedOpen] = useState(false);
+  const [showScan, setShowScan] = useState(false);
+  const [scanText, setScanText] = useState("");
+  const [scanLoading, setScanLoading] = useState(false);
 
   const savedCitations = (matter?.verifiedCitations as string[] | undefined) ?? [];
+
+  const scanDocument = async () => {
+    if (!scanText.trim() || scanLoading) return;
+    setScanLoading(true);
+    try {
+      const res = await anthropicFetch(
+        { model: settings.model, max_tokens: 1200, system: "You are a legal citation extractor. Extract all legal case citations, statute citations, and regulation citations from text.", messages: [{ role: "user", content: `Extract all legal citations from the text below. Return ONLY the citations, one per line, no numbering, no commentary. Include case citations, statutes (U.S.C., C.F.R.), and court rules. Skip short forms like Id. and supra.\n\n${scanText.slice(0, 8000)}` }] },
+        undefined, {}
+      );
+      const data = await res.json() as { content?: Array<{ type: string; text: string }> };
+      const extracted = (data.content?.[0]?.text ?? "").split("\n").map(l => l.trim()).filter(Boolean);
+      if (extracted.length > 0) {
+        setInput(prev => prev.trim() ? `${prev}\n${extracted.join("\n")}` : extracted.join("\n"));
+        setScanText("");
+        setShowScan(false);
+      }
+    } catch {
+      // non-fatal — leave scan text for user to retry
+    } finally {
+      setScanLoading(false);
+    }
+  };
 
   const verify = async () => {
     const lines = input
@@ -107,6 +135,47 @@ export default function CitationsPage() {
       title="Hallucination Shield"
       description="Batch-verify citations against 18M+ CourtListener records"
     >
+      {/* Scan Document */}
+      <div className="mb-4">
+        <button
+          onClick={() => setShowScan(p => !p)}
+          className="flex items-center gap-1.5 font-mono text-[9px] tracking-[0.18em] uppercase"
+          style={{ color: "var(--fg-tertiary)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+        >
+          <FileSearch size={11} />
+          Scan Full Document
+          {showScan ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+        </button>
+        {showScan && (
+          <div
+            className="mt-2 rounded overflow-hidden"
+            style={{ background: "rgba(17,17,20,0.8)", border: "0.5px solid rgba(0,255,195,0.14)" }}
+          >
+            <textarea
+              value={scanText}
+              onChange={e => setScanText(e.target.value)}
+              placeholder="Paste a brief, motion, or any document. Citations will be auto-extracted and added to the verify queue."
+              rows={5}
+              className="w-full px-4 py-3 text-sm resize-none lex-focus"
+              style={{ background: "transparent", color: "var(--fg-primary)", outline: "none", border: "none" }}
+            />
+            <div
+              className="flex justify-end px-3 py-2"
+              style={{ borderTop: "0.5px solid rgba(224,224,224,0.08)" }}
+            >
+              <button
+                onClick={scanDocument}
+                disabled={!scanText.trim() || scanLoading}
+                className="lex-btn lex-btn--secondary"
+              >
+                {scanLoading ? <Loader2 size={12} className="animate-spin" /> : <FileSearch size={12} />}
+                {scanLoading ? "Extracting…" : "Extract Citations"}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Input */}
       <div
         className="rounded overflow-hidden mb-6"
