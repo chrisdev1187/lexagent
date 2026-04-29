@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { FileEdit, Zap, Copy, Check, Loader2, Download } from "lucide-react";
+import { FileEdit, Zap, Copy, Check, Loader2, Download, BookOpen, ChevronDown, ChevronUp, Bookmark, Trash2, Plus } from "lucide-react";
 import { ExportButton } from "@/components/shared/ExportButton";
 import { buildLetterheadHtml } from "@/components/shared/Letterhead";
 import { useParams } from "next/navigation";
@@ -18,6 +18,47 @@ interface DraftVersion {
   docType: string;
   timestamp: number;
 }
+
+interface Snippet { id: string; label: string; text: string; }
+
+const DOC_TEMPLATES: Record<string, string[]> = {
+  "Motion to Dismiss": [
+    "12(b)(6) failure to state a claim — Twombly/Iqbal plausibility standard; focus on facial insufficiency of factual allegations",
+    "12(b)(1) lack of subject matter jurisdiction — Article III standing, mootness arguments",
+    "12(b)(2) lack of personal jurisdiction — minimum contacts, purposeful availment analysis",
+  ],
+  "Motion for Summary Judgment": [
+    "No genuine dispute of material fact — Rule 56(a) standard; movant burden then nonmovant obligation to show specific facts",
+    "Qualified immunity — clearly established law prong under Pearson v. Callahan; no clearly established right",
+  ],
+  "Brief": [
+    "Appellate brief — standard of review first (de novo / abuse of discretion); preserve all preserved-error arguments; harmless error",
+    "Opposition brief — lead with applicable standard; distinguish adverse cases on facts; attack opponent's legal conclusions",
+  ],
+  "Demand Letter": [
+    "Pre-litigation demand — specific dollar amount, legal basis, 14-day cure period, litigation warning",
+    "FDCPA demand — 30-day debt validation period, cease-and-desist language under 15 U.S.C. § 1692c",
+  ],
+  "Settlement Agreement": [
+    "Full mutual release — representations and warranties, confidentiality clause, no admission of liability",
+    "Structured settlement — payment schedule, default clause, acceleration on missed payment",
+  ],
+  "Complaint": [
+    "Federal complaint — short plain statement per Rule 8(a); jurisdictional allegations first; demand jury trial",
+    "Class action — class definition, numerosity, commonality, typicality, adequacy under Rule 23",
+  ],
+  "Memo of Law": [
+    "IRAC format — Issue / Rule / Application / Conclusion for each argument heading",
+    "Office memo — Questions Presented, Brief Answer, Discussion (IRAC), Conclusion",
+  ],
+  "Client Letter": [
+    "Status update — matter summary, recent developments, next steps, client action items",
+    "Adverse outcome — plain language explanation of result, options going forward, timeline",
+  ],
+};
+
+const QUICK_FILL_KEYS = ["court", "caseNumber", "parties", "judgeName"] as const;
+const QUICK_FILL_LABELS: Record<string, string> = { court: "Court", caseNumber: "Case No.", parties: "Parties", judgeName: "Judge" };
 
 const DOC_TYPES = [
   "Motion to Dismiss",
@@ -44,6 +85,8 @@ export default function DraftPage() {
 
   const [docType, setDocType] = useState(DOC_TYPES[0]);
   const [instructions, setInstructions] = useState("");
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [showSnippets, setShowSnippets] = useState(false);
 
   useEffect(() => {
     if (!matter) return;
@@ -225,8 +268,76 @@ DRAFTING REQUIREMENTS:
             </div>
           )}
 
+          {/* Missing fields quick-fill */}
+          {matter && QUICK_FILL_KEYS.some(k => !(matter as Record<string, unknown>)[k]) && (
+            <div className="rounded p-3 space-y-2" style={{ background: "rgba(255,185,0,0.04)", border: "0.5px solid rgba(255,185,0,0.18)" }}>
+              <p className="font-mono text-[9px] tracking-[0.18em] uppercase" style={{ color: "var(--verdict-amber)" }}>
+                Missing matter fields — fill to improve draft quality
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {QUICK_FILL_KEYS.filter(k => !(matter as Record<string, unknown>)[k]).map(k => (
+                  <div key={k} style={{ flex: "1 1 140px" }}>
+                    <label className="lex-micro mb-1 block">{QUICK_FILL_LABELS[k]}</label>
+                    <input
+                      type="text"
+                      className="lex-input w-full"
+                      placeholder={QUICK_FILL_LABELS[k]}
+                      onBlur={e => { if (e.target.value && matter) updateMatter({ ...matter, [k]: e.target.value }); }}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Template library */}
           <div>
-            <label className="lex-micro mb-1.5 block">Special instructions (optional)</label>
+            <button
+              onClick={() => setShowTemplates(p => !p)}
+              className="flex items-center gap-1.5 font-mono text-[9px] tracking-[0.18em] uppercase mb-1.5"
+              style={{ color: "var(--fg-tertiary)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+            >
+              <BookOpen size={10} />
+              Quick Templates
+              {showTemplates ? <ChevronUp size={9} /> : <ChevronDown size={9} />}
+            </button>
+            {showTemplates && (
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {(DOC_TEMPLATES[docType] ?? []).length === 0 && (
+                  <span className="text-xs" style={{ color: "var(--fg-quaternary)" }}>No templates for this doc type yet.</span>
+                )}
+                {(DOC_TEMPLATES[docType] ?? []).map((tpl, i) => (
+                  <button
+                    key={i}
+                    onClick={() => { setInstructions(tpl); setShowTemplates(false); }}
+                    className="lex-btn lex-btn--ghost text-xs text-left"
+                    style={{ maxWidth: "100%", whiteSpace: "normal", height: "auto", padding: "4px 8px" }}
+                  >
+                    {tpl}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="lex-micro">Special instructions (optional)</label>
+              <button
+                onClick={() => {
+                  if (!instructions.trim() || !matter) return;
+                  const snippets = ((matter.snippets as Snippet[] | undefined) ?? []);
+                  updateMatter({ ...matter, snippets: [{ id: crypto.randomUUID(), label: `${docType} — ${new Date().toLocaleTimeString()}`, text: instructions }, ...snippets].slice(0, 20) });
+                }}
+                disabled={!instructions.trim()}
+                className="lex-btn lex-btn--ghost"
+                style={{ fontSize: "0.65rem", padding: "2px 6px" }}
+                title="Save current instructions as snippet"
+              >
+                <Bookmark size={10} />
+                Save snippet
+              </button>
+            </div>
             <textarea
               value={instructions}
               onChange={e => setInstructions(e.target.value)}
@@ -253,6 +364,55 @@ DRAFTING REQUIREMENTS:
               : <><Zap size={15} /> Generate {docType}</>
             }
           </button>
+
+          {/* Snippet bank */}
+          {((matter?.snippets as Snippet[] | undefined) ?? []).length > 0 && (
+            <div>
+              <button
+                onClick={() => setShowSnippets(p => !p)}
+                className="flex items-center gap-1.5 font-mono text-[9px] tracking-[0.18em] uppercase"
+                style={{ color: "var(--fg-tertiary)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+              >
+                <Bookmark size={10} />
+                Saved Snippets ({((matter?.snippets as Snippet[] | undefined) ?? []).length})
+                {showSnippets ? <ChevronUp size={9} /> : <ChevronDown size={9} />}
+              </button>
+              {showSnippets && (
+                <div className="mt-2 space-y-1.5">
+                  {((matter?.snippets as Snippet[] | undefined) ?? []).map(s => (
+                    <div key={s.id} className="flex items-start gap-2 rounded p-2" style={{ background: "rgba(255,255,255,0.02)", border: "0.5px solid rgba(255,255,255,0.06)" }}>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-mono text-[9px] tracking-widest uppercase mb-0.5" style={{ color: "var(--fg-quaternary)" }}>{s.label}</p>
+                        <p className="text-xs truncate" style={{ color: "var(--fg-secondary)" }}>{s.text}</p>
+                      </div>
+                      <div className="flex gap-1 flex-shrink-0">
+                        <button
+                          onClick={() => setInstructions(prev => prev ? `${prev}\n\n${s.text}` : s.text)}
+                          className="lex-btn lex-btn--ghost"
+                          style={{ fontSize: "0.65rem", padding: "2px 6px" }}
+                          title="Append to instructions"
+                        >
+                          <Plus size={9} />
+                          Use
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (!matter) return;
+                            updateMatter({ ...matter, snippets: ((matter.snippets as Snippet[] | undefined) ?? []).filter(x => x.id !== s.id) });
+                          }}
+                          className="lex-btn lex-btn--ghost"
+                          style={{ fontSize: "0.65rem", padding: "2px 4px", color: "var(--verdict-crimson)" }}
+                          title="Delete snippet"
+                        >
+                          <Trash2 size={9} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {error && (
