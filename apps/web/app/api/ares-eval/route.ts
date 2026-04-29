@@ -7,7 +7,7 @@
 //   promptVersion?: string,        // label for the run (default: ARES_PROMPT_VERSION)
 //   systemPrompt?: string,         // override DEFAULT_SYSTEM (e.g. v3 archive)
 //   questionIds?: string[],        // run only these IDs from the gold set
-//   maxQuestions?: number,         // cap (default 16, all of seed)
+//   maxQuestions?: number,         // cap (default: all 200)
 //   concurrency?: number,          // default 2
 // }
 //
@@ -17,7 +17,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "../admin/_lib";
 import { ARES_PROMPT_VERSION, DEFAULT_SYSTEM } from "@/lib/settings";
 import {
-  GOLD_SET_SEED,
+  GOLD_SET,
   runGoldSet,
   computeMetrics,
   aggregate,
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
     concurrency?: number;
   };
 
-  let questions: EvalQuestion[] = GOLD_SET_SEED;
+  let questions: EvalQuestion[] = GOLD_SET;
   if (Array.isArray(questionIds) && questionIds.length > 0) {
     const set = new Set(questionIds);
     questions = questions.filter((q) => set.has(q.id));

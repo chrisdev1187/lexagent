@@ -1,6 +1,6 @@
 # LexAgent — Codebase Context (read first)
 
-**Updated:** 2026-04-29 · v1.11 invoice PDF + enrichment tabs shipped
+**Updated:** 2026-04-29 · v1.12 eval 16→200q + admin comparison UI shipped
 
 ## URLs
 - web: https://lexagent-ochre.vercel.app
@@ -89,6 +89,8 @@ context.md (this)
 - ✅ v1.7.2–v1.7.6 audited: no regressions; billing invoice + enrichment UI tabs deferred to v1.8
 - ✅ v1.10: with-lex-memory→aresCritic (criticScore populated in ai_usage) 
 - ✅ v1.10: strategy + deep-research → postureDetect → aresDebate (msj/appeal)
+- ⏳ v1.13: Redis rate limiter + 2FA/invite UX (deferred security gaps)
+- ⏳ v2.0: Docket watch / PACER / CourtListener alerts + judge profiles
 - ⏳ citeVerify(context) wiring
 - ⏳ Smoke test waterfall order · Run eval for v5 baseline
 - ⏳ Migrations 024 + 026 — apply in prod Supabase
@@ -121,6 +123,11 @@ context.md (this)
 2. ✅ Cite scan: citations page "Scan Full Document" → AI extracts citations from pasted brief → auto-populates verify queue
 3. ✅ Research memo: research page "Memo" button → AI formats conversation as formal legal memo → MD/PDF export
 4. ✅ Deadline calc: deadlines page "AI Deadline Calculator" → trigger event + jurisdiction → computes procedural deadlines → bulk-add to matter
+
+## v1.12 — SHIPPED (2026-04-29)
+1. ✅ Eval gold set: 16→200 questions (gold-set-expansion.ts; 5 postures × 4 jurisdictions × 10)
+2. ✅ eval/index.ts: exports combined GOLD_SET; ares-eval route uses full 200q set
+3. ✅ Admin AresTab: RealEvalAggregate type, 5 ship gates with ✓/✗/— display, baseline save + delta comparison
 
 ## v1.11 — SHIPPED (2026-04-29)
 1. ✅ Invoice PDF: billing page "Invoice PDF" button → generates formatted HTML invoice → opens in new tab → browser print dialog

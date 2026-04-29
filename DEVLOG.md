@@ -595,6 +595,22 @@ Sprint 9 (v1.8 — attorney workflow): COMPLETE 2026-04-28
        "Add to Matter" bulk-adds parsed deadlines to deadlines list.
   TypeScript clean. Commit b0bc3dd.
 
+Sprint 13 (v1.12 — eval gold set 16→200 + admin eval comparison UI): COMPLETE 2026-04-29
+  1. gold-set-expansion.ts — new file, 184 EvalQuestion objects
+     Completes 5×4×10 matrix: 4 existing postures (msj, appeal, motion, pleadings) × 4 jurisdictions × 9 more
+     + 1 new "trial" posture × 4 jurisdictions × 10. IDs follow {posture}-{jurisdiction}-{num} slug.
+     Topics: employment, commercial lit, IP, real estate, securities, personal injury, antitrust, class action.
+     All have expected_counterarg_count (2-4) and expected_outcome (favorable/mixed/adverse).
+  2. lib/eval/index.ts — GOLD_SET_EXPANSION re-export + combined GOLD_SET = [...seed, ...expansion]
+  3. app/api/ares-eval/route.ts — uses GOLD_SET (200q); maxQuestions default comment updated to "all 200"
+  4. Admin AresTab — full overhaul:
+     - Local EvalAggregate replaced with RealEvalAggregate matching real route response schema
+     - baseline: RealEvalAggregate | null state; "Save as Baseline" / "Clear Baseline" buttons appear post-run
+     - Gate display: 5 ship gates (hallucinated/100 ≤2, counterarg ≥70%, bottom line 100%, Brier ≤0.20, latency)
+       each shows ✓/✗/— with pass/fail color coding
+     - Delta display: when baseline exists, shows Δ arrows on hallucinated, counterarg, Brier, latency metrics
+  TypeScript clean. No migrations.
+
 Sprint 12 (v1.11 — invoice PDF + enrichment UI tabs): COMPLETE 2026-04-29
   1. Invoice PDF — billing/page.tsx
      "Invoice PDF" button (disabled when no entries); generateInvoice() builds a full HTML document

@@ -866,8 +866,27 @@ interface AiUsageRow {
   matter_title?: string;
 }
 
-interface EvalAggregate { accuracy: number; brier: number; total: number; correct: number; }
-interface EvalRunResult { aggregate: EvalAggregate; promptVersion: string; durationMs: number; }
+interface RealEvalAggregate {
+  prompt_version: string;
+  questions_run: number;
+  questions_ok: number;
+  hallucinated_per_100_avg: number;
+  counterarg_coverage_avg: number;
+  bottom_line_present_rate: number;
+  brier_score: number | null;
+  required_authority_hit_rate_avg: number;
+  prohibited_authority_violation_rate: number;
+  latency_p50_ms: number;
+  latency_p95_ms: number;
+  gates: {
+    hallucinated_cites_per_100_le_2: boolean;
+    counterarg_coverage_ge_70: boolean;
+    bottom_line_100: boolean;
+    brier_le_20: boolean | null;
+    latency_le_1_1x_baseline: boolean | null;
+  };
+}
+interface EvalRunResult { aggregate: RealEvalAggregate; promptVersion: string; durationMs: number; }
 
 function AresTab() {
   const { settings } = useSettings();
@@ -877,6 +896,7 @@ function AresTab() {
   const [evalRunning, setEvalRunning] = useState(false);
   const [evalResult, setEvalResult] = useState<EvalRunResult | null>(null);
   const [evalError, setEvalError] = useState<string | null>(null);
+  const [baseline, setBaseline] = useState<RealEvalAggregate | null>(null);
 
   async function runEval() {
     setEvalRunning(true);
@@ -996,29 +1016,85 @@ function AresTab() {
       <SectionHeading>GOLD SET EVAL</SectionHeading>
       <div className="rounded p-4" style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
         <p className="text-xs mb-3" style={{ color: "var(--fg-tertiary)" }}>
-          Runs the 16-question seed gold set through the live ARES prompt. Takes ~2 min.
+          Runs 16 questions from the 200-question gold set through the live ARES prompt. Takes ~2 min.
+          {baseline && <span style={{ color: "var(--verdict-amber)" }}> Baseline saved: {baseline.prompt_version}.</span>}
         </p>
-        <button onClick={runEval} disabled={evalRunning} className="lex-btn lex-btn--primary text-xs">
-          {evalRunning ? "Running eval…" : "Run Eval (16q)"}
-        </button>
+        <div className="flex gap-2 flex-wrap">
+          <button onClick={runEval} disabled={evalRunning} className="lex-btn lex-btn--primary text-xs">
+            {evalRunning ? "Running eval…" : "Run Eval (16q)"}
+          </button>
+          {evalResult && !baseline && (
+            <button onClick={() => setBaseline(evalResult.aggregate)} className="lex-btn lex-btn--ghost text-xs">
+              Save as Baseline
+            </button>
+          )}
+          {baseline && (
+            <button onClick={() => setBaseline(null)} className="lex-btn lex-btn--ghost text-xs">
+              Clear Baseline
+            </button>
+          )}
+        </div>
         {evalError && (
           <p className="text-xs mt-3 font-mono" style={{ color: "var(--verdict-crimson)" }}>{evalError}</p>
         )}
-        {evalResult && (
-          <div className="grid grid-cols-4 gap-3 mt-4">
-            {[
-              { label: "Accuracy", value: `${Math.round(evalResult.aggregate.accuracy * 100)}%`, color: "var(--verdict-neon)" },
-              { label: "Correct", value: `${evalResult.aggregate.correct}/${evalResult.aggregate.total}`, color: "var(--fg-secondary)" },
-              { label: "Brier Score", value: evalResult.aggregate.brier.toFixed(3), color: "var(--verdict-amber)" },
-              { label: "Duration", value: `${(evalResult.durationMs / 1000).toFixed(1)}s`, color: "var(--fg-tertiary)" },
-            ].map(s => (
-              <div key={s.label} className="rounded p-3 text-center" style={{ background: "rgba(255,255,255,0.03)", border: "0.5px solid rgba(224,224,224,0.07)" }}>
-                <p className="text-lg font-mono font-semibold" style={{ color: s.color }}>{s.value}</p>
-                <p className="text-[10px] mt-0.5 font-mono tracking-widest uppercase" style={{ color: "var(--fg-quaternary)" }}>{s.label}</p>
+        {evalResult && (() => {
+          const agg = evalResult.aggregate;
+          const gates = agg.gates;
+          const gatePass = (v: boolean | null) => v === null ? "—" : v ? "✓" : "✗";
+          const gateColor = (v: boolean | null) => v === null ? "var(--fg-quaternary)" : v ? "var(--verdict-neon)" : "var(--verdict-crimson)";
+          const delta = baseline ? {
+            hallucinated: agg.hallucinated_per_100_avg - baseline.hallucinated_per_100_avg,
+            counterarg: agg.counterarg_coverage_avg - baseline.counterarg_coverage_avg,
+            brier: agg.brier_score !== null && baseline.brier_score !== null ? agg.brier_score - baseline.brier_score : null,
+            latency: agg.latency_p50_ms - baseline.latency_p50_ms,
+          } : null;
+          const deltaStr = (v: number | null, lowerBetter: boolean) => {
+            if (v === null) return null;
+            const sign = v > 0 ? "+" : "";
+            const arrow = lowerBetter ? (v < 0 ? "↓" : v > 0 ? "↑" : "") : (v > 0 ? "↑" : v < 0 ? "↓" : "");
+            const col = lowerBetter ? (v < 0 ? "var(--verdict-neon)" : v > 0 ? "var(--verdict-crimson)" : "var(--fg-tertiary)") : (v > 0 ? "var(--verdict-neon)" : v < 0 ? "var(--verdict-crimson)" : "var(--fg-tertiary)");
+            return { text: `${arrow}${sign}${v.toFixed(2)}`, color: col };
+          };
+          return (
+            <div className="mt-4 space-y-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {[
+                  { label: "Questions", value: `${agg.questions_ok}/${agg.questions_run}`, color: "var(--fg-secondary)" },
+                  { label: "Brier Score", value: agg.brier_score !== null ? agg.brier_score.toFixed(3) : "n/a", color: "var(--verdict-amber)", d: delta ? deltaStr(delta.brier, true) : null },
+                  { label: "Duration", value: `${(evalResult.durationMs / 1000).toFixed(1)}s`, color: "var(--fg-tertiary)" },
+                  { label: "p50 Latency", value: `${agg.latency_p50_ms}ms`, color: "var(--fg-tertiary)", d: delta ? deltaStr(delta.latency, true) : null },
+                ].map(s => (
+                  <div key={s.label} className="rounded p-3 text-center" style={{ background: "rgba(255,255,255,0.03)", border: "0.5px solid rgba(224,224,224,0.07)" }}>
+                    <p className="text-lg font-mono font-semibold" style={{ color: s.color }}>{s.value}</p>
+                    {"d" in s && s.d && <p className="text-[10px] font-mono" style={{ color: s.d.color }}>{s.d.text}</p>}
+                    <p className="text-[10px] mt-0.5 font-mono tracking-widest uppercase" style={{ color: "var(--fg-quaternary)" }}>{s.label}</p>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        )}
+              <div className="space-y-1.5">
+                <p className="font-mono text-[9px] tracking-[0.18em] uppercase" style={{ color: "var(--fg-quaternary)" }}>Ship Gates</p>
+                {[
+                  { label: "Hallucinated cites/100 ≤ 2", pass: gates.hallucinated_cites_per_100_le_2, val: agg.hallucinated_per_100_avg.toFixed(2), d: delta ? deltaStr(delta.hallucinated, true) : null },
+                  { label: "Counterarg coverage ≥ 70%", pass: gates.counterarg_coverage_ge_70, val: `${Math.round(agg.counterarg_coverage_avg * 100)}%`, d: delta ? deltaStr(delta.counterarg, false) : null },
+                  { label: "Bottom line 100%", pass: gates.bottom_line_100, val: `${Math.round(agg.bottom_line_present_rate * 100)}%`, d: null },
+                  { label: "Brier ≤ 0.20", pass: gates.brier_le_20, val: agg.brier_score !== null ? agg.brier_score.toFixed(3) : "n/a", d: null },
+                  { label: "Latency ≤ 1.1× baseline", pass: gates.latency_le_1_1x_baseline, val: `${agg.latency_p50_ms}ms`, d: null },
+                ].map(g => (
+                  <div key={g.label} className="flex items-center justify-between rounded px-3 py-1.5" style={{ background: "rgba(255,255,255,0.02)", border: "0.5px solid rgba(224,224,224,0.06)" }}>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-mono font-bold" style={{ color: gateColor(g.pass) }}>{gatePass(g.pass)}</span>
+                      <span className="text-xs" style={{ color: "var(--fg-secondary)" }}>{g.label}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {g.d && <span className="text-[10px] font-mono" style={{ color: g.d.color }}>{g.d.text}</span>}
+                      <span className="text-[10px] font-mono" style={{ color: "var(--fg-quaternary)" }}>{g.val}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
