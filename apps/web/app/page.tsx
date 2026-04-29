@@ -7,18 +7,22 @@ import { useAuth } from "@/lib/auth";
 import {
   Scale, Shield, Brain, Search, BookOpen, Gavel,
   Clock, ChevronRight, Zap, Database, Users,
-  CheckCircle2, ArrowRight, Lock, ShieldCheck,
+  ArrowRight, Lock, ShieldCheck, Layers, FolderOpen,
 } from "lucide-react";
+import { NeonOrbit } from "@/components/brand/NeonOrbit";
 
 /* ── Data ───────────────────────────────────────────────────────────────── */
 
 const FEATURES = [
-  { icon: Search,   title: "Legal Research",       desc: "Query 10 live legal databases simultaneously — CourtListener, SEC EDGAR, USPTO, Congress.gov, eCFR, and more. AI synthesises results into actionable analysis.", color: "var(--verdict-neon)",    bg: "rgba(0,255,195,0.06)",  border: "rgba(0,255,195,0.28)" },
-  { icon: Shield,   title: "Hallucination Shield",  desc: "Every AI-generated citation is verified in real-time against CourtListener. Unconfirmed citations are flagged before they reach your brief.",               color: "var(--verdict-violet)", bg: "rgba(106,0,255,0.08)", border: "rgba(106,0,255,0.35)" },
-  { icon: Brain,    title: "LexMemory",             desc: "A 4-level knowledge hierarchy that remembers your case across sessions. Research feeds strategy feeds drafting — no re-explaining required.",              color: "var(--verdict-neon)",    bg: "rgba(0,255,195,0.06)",  border: "rgba(0,255,195,0.28)" },
-  { icon: Gavel,    title: "Judge Intelligence",    desc: "Profiles on 16,000+ federal and state judges — writing style, ruling tendencies, and oral argument preferences.",                                        color: "var(--verdict-amber)",  bg: "rgba(255,184,0,0.07)",  border: "rgba(255,184,0,0.28)" },
-  { icon: BookOpen, title: "Document Drafting",     desc: "AI-assisted briefs, motions, demand letters, and contracts. Inline editing with version history and print export.",                                       color: "var(--verdict-violet)", bg: "rgba(106,0,255,0.08)", border: "rgba(106,0,255,0.35)" },
-  { icon: Clock,    title: "Deadlines & Timeline",  desc: "Statute of limitations calculator, deadline tracker, and visual timeline builder — with jurisdiction-aware rules.",                                       color: "var(--verdict-amber)",  bg: "rgba(255,184,0,0.07)",  border: "rgba(255,184,0,0.28)" },
+  { icon: Search,     title: "Legal Research",        desc: "Query multiple live legal databases in parallel. AI synthesises results into case-specific analysis — in seconds, not hours.",                                 color: "var(--verdict-neon)",    bg: "rgba(0,255,195,0.06)",  border: "rgba(0,255,195,0.28)" },
+  { icon: Shield,     title: "Hallucination Shield",  desc: "Every AI-generated citation is verified in real-time. Unconfirmed references are flagged before they reach your brief — zero tolerance for bad citations.",   color: "var(--verdict-violet)", bg: "rgba(106,0,255,0.08)", border: "rgba(106,0,255,0.35)" },
+  { icon: Brain,      title: "LexMemory",             desc: "A persistent knowledge layer that remembers your entire case across sessions. Every AI call gets smarter the longer you work on a matter.",                    color: "var(--verdict-neon)",    bg: "rgba(0,255,195,0.06)",  border: "rgba(0,255,195,0.28)" },
+  { icon: Gavel,      title: "Judge Intelligence",    desc: "Deep profiles on thousands of federal and state judges — tendencies, preferences, and patterns that inform your courtroom strategy.",                           color: "var(--verdict-amber)",  bg: "rgba(255,184,0,0.07)",  border: "rgba(255,184,0,0.28)" },
+  { icon: BookOpen,   title: "Document Drafting",     desc: "AI-assisted briefs, motions, demand letters, and contracts. Inline editing, version history, and one-click export — ready to file.",                           color: "var(--verdict-violet)", bg: "rgba(106,0,255,0.08)", border: "rgba(106,0,255,0.35)" },
+  { icon: Clock,      title: "Deadlines & Timeline",  desc: "Jurisdiction-aware deadline calculator, visual timeline builder, and real-time alerts — so nothing slips through the cracks.",                                 color: "var(--verdict-amber)",  bg: "rgba(255,184,0,0.07)",  border: "rgba(255,184,0,0.28)" },
+  { icon: Layers,     title: "Case Strategy",         desc: "AI-generated case analysis covering argument strength, risk factors, and strategic recommendations — tailored to your specific matter and jurisdiction.",       color: "var(--verdict-neon)",    bg: "rgba(0,255,195,0.06)",  border: "rgba(0,255,195,0.28)" },
+  { icon: Users,      title: "Conflict Screening",    desc: "Automated conflict-of-interest checks across all matters and clients. Fast, reliable, and fully auditable — run checks in seconds, not days.",                 color: "var(--verdict-violet)", bg: "rgba(106,0,255,0.08)", border: "rgba(106,0,255,0.35)" },
+  { icon: FolderOpen, title: "Document Vault",        desc: "Secure, searchable document storage with AI-powered retrieval. Every file your matter needs — organised, accessible, and always at hand.",                     color: "var(--verdict-amber)",  bg: "rgba(255,184,0,0.07)",  border: "rgba(255,184,0,0.28)" },
 ];
 
 const STATS = [
@@ -31,13 +35,7 @@ const TRUST_ITEMS = [
   { icon: Lock,       label: "TLS Encrypted"    },
   { icon: ShieldCheck, label: "SOC 2 Ready"     },
   { icon: Scale,      label: "Courtroom-tested" },
-  { icon: Zap,        label: "Claude Sonnet 4.6" },
-];
-
-const PLANS = [
-  { name: "Starter",      price: "$45",  period: "/mo", budget: "$8 AI budget included",  features: ["All AI research tools", "Citation verification", "1 user seat", "Email support"],                                      highlight: false, tag: "" },
-  { name: "Professional", price: "$95",  period: "/mo", budget: "$20 AI budget included", features: ["Everything in Starter", "LexMemory across matters", "Judge intelligence", "Priority support"],                          highlight: true,  tag: "Most popular" },
-  { name: "Firm",         price: "$200", period: "/mo", budget: "$35 AI budget included", features: ["Everything in Professional", "Up to 5 user seats", "Admin dashboard", "Dedicated support"],                             highlight: false, tag: "" },
+  { icon: Zap,        label: "Claude Opus 4.7" },
 ];
 
 /* ── Dashboard mockup (right-side hero element) ─────────────────────────── */
@@ -136,7 +134,7 @@ export default function Home() {
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center" style={{ background: "var(--midnight-court)" }}>
-        <div className="h-5 w-5 rounded-full border animate-spin" style={{ borderColor: "var(--midnight-line)", borderTopColor: "var(--verdict-neon)" }} />
+        <NeonOrbit size={60} />
       </div>
     );
   }
@@ -183,7 +181,7 @@ export default function Home() {
             <div className="fade-in" style={{ maxWidth: 560 }}>
               <div className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 mb-7" style={{ background: "rgba(0,255,195,0.06)", border: "0.5px solid rgba(0,255,195,0.22)" }}>
                 <Zap size={10} style={{ color: "var(--verdict-neon)" }} />
-                <span className="font-mono text-[10px] tracking-[0.18em] uppercase" style={{ color: "var(--verdict-neon)" }}>Powered by Claude Sonnet 4.6</span>
+                <span className="font-mono text-[10px] tracking-[0.18em] uppercase" style={{ color: "var(--verdict-neon)" }}>Powered by Claude Opus 4.7</span>
               </div>
 
               <h1 style={{ fontFamily: "var(--font-serif)", fontSize: "clamp(36px, 5.5vw, 60px)", fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.08, color: "var(--fg-primary)", marginBottom: 24 }}>
@@ -321,78 +319,31 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── Pricing ─────────────────────────────────────────────────────── */}
+      {/* ── Pricing teaser ──────────────────────────────────────────────── */}
       <section style={{ padding: "0 32px 96px" }}>
-        <div style={{ maxWidth: 1000, margin: "0 auto" }}>
-          <div className="text-center mb-14">
-            <p className="font-mono text-[10px] tracking-[0.22em] uppercase mb-3" style={{ color: "var(--verdict-neon)" }}>Simple pricing</p>
-            <h2 className="font-serif font-semibold tracking-tight mb-3" style={{ fontSize: "clamp(24px, 4vw, 36px)", color: "var(--fg-primary)" }}>
-              Legal AI that pays for itself
-            </h2>
-            <p style={{ fontSize: 15, color: "var(--fg-tertiary)" }}>All plans include Claude Sonnet 4.6. Higher tiers unlock more AI budget and seats.</p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-            {PLANS.map(plan => (
-              <div
-                key={plan.name}
-                className="rounded-xl p-7 flex flex-col"
-                style={{
-                  background: plan.highlight ? "rgba(0,255,195,0.05)" : "rgba(14,14,18,0.80)",
-                  border: `0.5px solid ${plan.highlight ? "rgba(0,255,195,0.35)" : "rgba(224,224,224,0.09)"}`,
-                  boxShadow: plan.highlight ? "0 0 40px rgba(0,255,195,0.08), 0 0 0 0.5px rgba(0,255,195,0.35)" : "none",
-                  animation: plan.highlight ? "glowPulse 3s ease-in-out infinite" : "none",
-                }}
-              >
-                {plan.tag && (
-                  <p className="font-mono text-[9px] tracking-[0.18em] uppercase mb-3" style={{ color: "var(--verdict-neon)" }}>{plan.tag}</p>
-                )}
-                <h3 className="font-serif text-[18px] font-semibold mb-1" style={{ color: plan.highlight ? "var(--verdict-neon)" : "var(--fg-primary)" }}>
-                  {plan.name}
-                </h3>
-                <div className="mb-1">
-                  <span style={{ fontFamily: "var(--font-serif)", fontSize: 34, fontWeight: 600, color: "var(--fg-primary)", letterSpacing: "-0.02em" }}>{plan.price}</span>
-                  <span className="font-mono text-[11px] ml-1" style={{ color: "var(--fg-quaternary)" }}>{plan.period}</span>
-                </div>
-                <p className="font-mono text-[10px] tracking-[0.08em] mb-6" style={{ color: "var(--fg-quaternary)" }}>{plan.budget}</p>
-                <ul className="space-y-2.5 flex-1">
-                  {plan.features.map(f => (
-                    <li key={f} className="flex items-start gap-2 text-[13px]" style={{ color: "var(--fg-secondary)" }}>
-                      <CheckCircle2 size={12} className="flex-shrink-0 mt-0.5" style={{ color: plan.highlight ? "var(--verdict-neon)" : "var(--fg-quaternary)" }} />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-                <Link
-                  href="/login?tab=signup"
-                  className="mt-7 lex-btn justify-center"
-                  style={{
-                    background: plan.highlight ? "var(--verdict-neon)" : "rgba(255,255,255,0.04)",
-                    color: plan.highlight ? "var(--midnight-court)" : "var(--fg-secondary)",
-                    border: plan.highlight ? "none" : "0.5px solid rgba(224,224,224,0.12)",
-                    fontSize: 12,
-                    fontWeight: plan.highlight ? 700 : 500,
-                  }}
-                >
-                  Get started
-                </Link>
-              </div>
-            ))}
-          </div>
-
-          {/* Trust badges */}
-          <div className="flex items-center justify-center gap-6 flex-wrap">
-            {["256-bit TLS", "SOC 2 Ready", "No data retention"].map(b => (
-              <span key={b} className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "var(--fg-quaternary)" }}>
-                · {b}
-              </span>
-            ))}
-          </div>
-
-          <div className="text-center mt-6">
-            <Link href="/pricing" className="lex-btn lex-btn--ghost justify-center mx-auto" style={{ fontSize: 12 }}>
-              See full plan comparison <ChevronRight size={13} />
-            </Link>
+        <div style={{ maxWidth: 900, margin: "0 auto" }}>
+          <div
+            className="rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-8 relative overflow-hidden"
+            style={{ background: "rgba(14,14,18,0.80)", border: "0.5px solid rgba(224,224,224,0.09)", padding: "48px 48px" }}
+          >
+            <div style={{ position: "absolute", top: -40, right: -40, width: 200, height: 200, background: "radial-gradient(ellipse, rgba(106,0,255,0.10) 0%, transparent 70%)", pointerEvents: "none" }} />
+            <div className="relative">
+              <p className="font-mono text-[10px] tracking-[0.22em] uppercase mb-3" style={{ color: "var(--verdict-neon)" }}>Simple pricing</p>
+              <h2 className="font-serif font-semibold tracking-tight mb-3" style={{ fontSize: "clamp(22px, 3.5vw, 32px)", color: "var(--fg-primary)" }}>
+                Start free. Scale as you grow.
+              </h2>
+              <p style={{ fontSize: 14, lineHeight: 1.7, color: "var(--fg-tertiary)", maxWidth: 420 }}>
+                From solo practitioners to full-service firms — plans designed around how you actually work. Free tier available, no credit card required.
+              </p>
+            </div>
+            <div className="relative flex-shrink-0 flex flex-col gap-3">
+              <Link href="/pricing" className="lex-btn lex-btn--primary" style={{ fontSize: 13, minHeight: 48, paddingLeft: 28, paddingRight: 28 }}>
+                View pricing <ChevronRight size={13} />
+              </Link>
+              <Link href="/login?tab=signup" className="lex-btn lex-btn--ghost justify-center" style={{ fontSize: 12 }}>
+                Start free — no card needed
+              </Link>
+            </div>
           </div>
         </div>
       </section>

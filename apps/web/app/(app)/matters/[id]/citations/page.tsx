@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ShieldCheck, CheckCircle, XCircle, ExternalLink, Loader2, Save, BookMarked, ChevronDown, ChevronUp, FileSearch } from "lucide-react";
+import { ShieldCheck, CheckCircle, XCircle, ExternalLink, Loader2, Save, BookMarked, ChevronDown, ChevronUp, FileSearch, Sparkles, AlertTriangle, Clock } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useMatters } from "@/providers/matters-provider";
 import { citationLookup, CLLookupResult } from "@/lib/courtlistener";
@@ -50,6 +50,11 @@ export default function CitationsPage() {
   const [scanLoading, setScanLoading] = useState(false);
 
   const savedCitations = (matter?.verifiedCitations as string[] | undefined) ?? [];
+  const aresResults = ((matter?.metadata as Record<string, unknown> | undefined)?.["cite_results"] as Array<{
+    raw: string; ok: boolean; normalized?: string; confidence?: number;
+    subsequent_history?: string; source_url?: string;
+  }> | undefined) ?? [];
+  const [aresOpen, setAresOpen] = useState(aresResults.length > 0);
 
   const scanDocument = async () => {
     if (!scanText.trim() || scanLoading) return;
@@ -175,6 +180,59 @@ export default function CitationsPage() {
           </div>
         )}
       </div>
+
+      {/* ARES Auto-Verified */}
+      {aresResults.length > 0 && (
+        <div className="mb-5">
+          <button
+            onClick={() => setAresOpen(o => !o)}
+            className="flex items-center gap-1.5 font-mono text-[9px] tracking-[0.18em] uppercase mb-2"
+            style={{ color: "var(--verdict-neon)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+          >
+            <Sparkles size={11} />
+            ARES Auto-Verified ({aresResults.length})
+            {aresOpen ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+          </button>
+          {aresOpen && (
+            <div className="space-y-2">
+              {aresResults.map((r, i) => (
+                <div key={i} className="rounded px-3 py-2.5 text-xs"
+                  style={{ background: r.ok ? "rgba(0,255,195,0.04)" : r.subsequent_history === "overruled" ? "rgba(255,51,85,0.05)" : "rgba(255,255,255,0.02)", border: `0.5px solid ${r.ok ? "rgba(0,255,195,0.2)" : r.subsequent_history === "overruled" ? "rgba(255,51,85,0.25)" : "rgba(224,224,224,0.08)"}` }}>
+                  <div className="flex items-start gap-2">
+                    <div className="flex-shrink-0 mt-0.5">
+                      {r.ok ? <CheckCircle size={13} style={{ color: "var(--verdict-neon)" }} />
+                        : r.subsequent_history === "overruled" ? <XCircle size={13} style={{ color: "var(--verdict-crimson)" }} />
+                        : <AlertTriangle size={13} style={{ color: "#f59e0b" }} />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-mono truncate" style={{ color: "var(--fg-secondary)" }}>{r.normalized ?? r.raw}</p>
+                      <div className="flex items-center gap-3 mt-1 flex-wrap">
+                        {r.subsequent_history && r.subsequent_history !== "unknown" && (
+                          <span className="flex items-center gap-1" style={{ color: r.subsequent_history === "overruled" ? "var(--verdict-crimson)" : r.subsequent_history === "distinguished" ? "#f59e0b" : "var(--fg-tertiary)" }}>
+                            <Clock size={10} />
+                            {r.subsequent_history}
+                          </span>
+                        )}
+                        {r.confidence !== undefined && (
+                          <span style={{ color: "var(--fg-quaternary)" }}>
+                            {Math.round(r.confidence * 100)}% conf
+                          </span>
+                        )}
+                        {r.source_url && (
+                          <a href={r.source_url} target="_blank" rel="noopener noreferrer"
+                            className="flex items-center gap-1" style={{ color: "var(--verdict-neon)" }}>
+                            CourtListener <ExternalLink size={10} />
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Input */}
       <div

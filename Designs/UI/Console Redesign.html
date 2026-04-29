@@ -1,0 +1,1112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lex Protocol Console — Redesign</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --midnight-court: #050505;
+  --midnight-deep:  #0a0a0c;
+  --midnight-raised:#111114;
+  --midnight-elev:  #17171c;
+  --midnight-line:  #1f1f26;
+  --midnight-mute:  #2a2a33;
+  --bg-base:   #050505;
+  --bg-panel:  #0a0a0c;
+  --bg-raised: #111114;
+  --gavel-chrome:   #e0e0e0;
+  --gavel-silver:   #b8b8bc;
+  --gavel-steel:    #7a7a82;
+  --gavel-graphite: #4a4a52;
+  --fg-primary:   #e0e0e0;
+  --fg-secondary: #b8b8bc;
+  --fg-tertiary:  #7a7a82;
+  --fg-quaternary:#4a4a52;
+  --verdict-neon:   #00ffc3;
+  --verdict-violet: #6a00ff;
+  --verdict-amber:  #ffb800;
+  --verdict-crimson:#ff3355;
+  --border-hair: rgba(224,224,224,0.08);
+  --font-serif: 'Fraunces', Georgia, serif;
+  --font-sans:  'Inter', system-ui, sans-serif;
+  --font-mono:  'JetBrains Mono', ui-monospace, monospace;
+  --ease-terminal: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; background: var(--bg-base); color: var(--fg-primary); overflow: hidden; }
+#root { height: 100vh; display: flex; flex-direction: column; }
+
+body::before {
+  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background-image:
+    linear-gradient(to right, rgba(0,255,195,var(--blueprint-opacity,0.022)) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0,255,195,var(--blueprint-opacity,0.022)) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse at 75% 8%, black 0%, transparent 65%);
+}
+
+::-webkit-scrollbar { width: 3px; height: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(224,224,224,0.07); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(224,224,224,0.14); }
+::selection { background: var(--verdict-neon); color: var(--midnight-court); }
+:focus-visible { outline: 1.5px solid var(--verdict-neon); outline-offset: 2px; border-radius: 2px; }
+input, textarea, button { font-family: inherit; }
+input::placeholder, textarea::placeholder { color: var(--fg-quaternary); }
+
+/* ── Scanline Logo Animation ── */
+@keyframes scan-sweep {
+  0%, 8%  { clip-path: inset(100% 0 0% 0); }
+  38%     { clip-path: inset(0%   0 0% 0); }
+  72%     { clip-path: inset(0%   0 0% 0); }
+  96%,100%{ clip-path: inset(0%   0 100% 0); }
+}
+@keyframes scanline-base {
+  0%, 8%  { opacity: 0.18; }
+  18%     { opacity: 1; }
+  88%     { opacity: 1; }
+  100%    { opacity: 0.18; }
+}
+@keyframes scan-bar {
+  0%,4%   { top: 100%; opacity: 0; }
+  8%      { top: 100%; opacity: 1; }
+  38%     { top: 0%;   opacity: 1; }
+  46%     { top: -4%;  opacity: 0; }
+  56%     { top: 100%; opacity: 0; }
+  64%     { top: 100%; opacity: 1; }
+  96%     { top: 0%;   opacity: 1; }
+  100%    { top: -4%;  opacity: 0; }
+}
+
+
+
+/* ── Tab active underline ── */
+.tab-active-bar {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  height: 1.5px; background: var(--verdict-neon);
+  border-radius: 1px 1px 0 0;
+  box-shadow: 0 0 6px rgba(0,255,195,0.6);
+}
+
+/* ── Fade in ── */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-in { animation: fade-in 0.3s var(--ease-terminal) both; }
+
+/* ── Stat card ── */
+.lex-stat-card {
+  position: relative; overflow: hidden;
+  background: rgba(17,17,20,0.8);
+  border: 0.5px solid rgba(224,224,224,0.09);
+  border-radius: 8px; padding: 14px 16px;
+  cursor: pointer; transition: border-color 160ms, transform 160ms;
+}
+.lex-stat-card:hover { border-color: rgba(224,224,224,0.2); transform: translateY(-1px); }
+.lex-stat-card__accent { position: absolute; top: 0; left: 0; right: 0; height: 1.5px; }
+.lex-stat-card__body { display: flex; align-items: center; gap: 12; margin-top: 10px; }
+.lex-stat-card__icon { width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.lex-stat-card__meta { flex: 1; min-width: 0; }
+.lex-stat-card__label { font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg-quaternary); }
+.lex-stat-card__number { font-family: var(--font-serif); font-size: 24px; font-weight: 500; color: var(--fg-primary); letter-spacing: -0.02em; line-height: 1.1; }
+
+/* ── Chip ── */
+.lex-chip { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; white-space: nowrap; }
+.lex-chip--neon    { background: rgba(0,255,195,0.08);   border: 0.5px solid rgba(0,255,195,0.28);   color: var(--verdict-neon);   }
+.lex-chip--amber   { background: rgba(255,184,0,0.08);   border: 0.5px solid rgba(255,184,0,0.28);   color: var(--verdict-amber);  }
+.lex-chip--violet  { background: rgba(106,0,255,0.08);   border: 0.5px solid rgba(106,0,255,0.28);   color: var(--verdict-violet); }
+.lex-chip--neutral { background: rgba(224,224,224,0.04); border: 0.5px solid rgba(224,224,224,0.12); color: var(--fg-tertiary);    }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+
+<script type="text/babel">
+
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "sidebarWidth": 232,
+  "accentColor": "#38ffa9",
+  "scanlineSpeed": 3.5,
+  "tabbarDensity": "normal",
+  "cardStyle": "flat",
+  "blueprintGrid": true
+}/*EDITMODE-END*/;
+
+/* ════════════════════════════════════
+   SHARED DATA
+════════════════════════════════════ */
+const LEX_MATTERS = [
+  { id:'4488-V',title:'In re: Nocturne Data Breach',   client:'Meridian Partners',  status:'Active',  caseType:'Litigation',    jurisdiction:'SDNY',    verified:12,hours:4.5,deadlines:2,notes:3,vaultDocs:7  },
+  { id:'4492-X',title:'Ashford v. Cipher Holdings',    client:'Kestrel & Sons',     status:'Active',  caseType:'IP Litigation', jurisdiction:'9th Cir', verified:7, hours:2.1,deadlines:1,notes:1,vaultDocs:2  },
+  { id:'4471-P',title:'Meridian Trust Estate',         client:'Meridian Family',    status:'Pending', caseType:'Estate',        jurisdiction:'Probate', verified:3, hours:1.2,deadlines:0,notes:0,vaultDocs:1  },
+  { id:'4462-C',title:'Kestrel Labs v. OmniCore',      client:'Kestrel Labs Inc.',  status:'Urgent',  caseType:'Patent',        jurisdiction:'EDTX',    verified:0, hours:0.5,deadlines:3,notes:2,vaultDocs:0  },
+  { id:'4449-B',title:'Delphi Industries — M&A',       client:'Delphi Industries',  status:'Active',  caseType:'Transactional', jurisdiction:'SDNY',    verified:21,hours:18.3,deadlines:1,notes:8,vaultDocs:14 },
+  { id:'4422-A',title:'State v. Voss',                 client:'Pro Bono',           status:'Closed',  caseType:'Criminal',      jurisdiction:'7th Cir', verified:45,hours:62.0,deadlines:0,notes:12,vaultDocs:3 },
+];
+const STATUS_KIND = { Active:'neon', Pending:'amber', Urgent:'crimson', Closed:'neutral' };
+const STATUS_DOT  = { Active:'var(--verdict-neon)', Pending:'var(--verdict-amber)', Urgent:'var(--verdict-crimson)', Closed:'var(--fg-tertiary)' };
+const PRIORITY_COLOR = { High:'var(--verdict-crimson)', Medium:'var(--verdict-amber)', Low:'var(--verdict-neon)' };
+
+const MATTER_TABS = [
+  { id:'overview',      label:'Overview',      icon:'dashboard'  },
+  { id:'research',      label:'Research',      icon:'search'     },
+  { id:'deep-research', label:'Deep Research', icon:'scanSearch' },
+  { id:'vault',         label:'Vault',         icon:'file'       },
+  { id:'strategy',      label:'Strategy',      icon:'target'     },
+  { id:'judge',         label:'Judge Intel',   icon:'users'      },
+  { id:'deadlines',     label:'Deadlines',     icon:'calendar'   },
+  { id:'timeline',      label:'Timeline',      icon:'clock'      },
+  { id:'citations',     label:'Shield',        icon:'shield'     },
+  { id:'draft',         label:'Draft',         icon:'fileEdit'   },
+  { id:'notes',         label:'Evidence',      icon:'bookOpen'   },
+  { id:'billing',       label:'Billing',       icon:'receipt'    },
+  { id:'conflict',      label:'Conflict',      icon:'scale'      },
+];
+
+/* ════════════════════════════════════
+   ICON SYSTEM
+════════════════════════════════════ */
+const ICON_PATHS = {
+  dashboard:    <><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></>,
+  scale:        <><line x1="12" y1="3" x2="12" y2="21"/><line x1="6" y1="21" x2="18" y2="21"/><line x1="4" y1="7" x2="20" y2="7"/><path d="M4 7c0 0-2 2.5-2 5s2 4 2 4"/><path d="M20 7c0 0 2 2.5 2 5s-2 4-2 4"/></>,
+  search:       <><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></>,
+  scanSearch:   <><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3"/><path d="M12 9v1"/><path d="M12 14v1"/><path d="M9 12h1"/><path d="M14 12h1"/></>,
+  plus:         <><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></>,
+  shield:       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>,
+  file:         <><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></>,
+  fileEdit:     <><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></>,
+  users:        <><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></>,
+  calendar:     <><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>,
+  clock:        <><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>,
+  bookOpen:     <><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></>,
+  receipt:      <><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1z"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/></>,
+  target:       <><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></>,
+  settings:     <><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></>,
+  chevronLeft:  <polyline points="15 18 9 12 15 6"/>,
+  chevronRight: <polyline points="9 18 15 12 9 6"/>,
+  logout:       <><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></>,
+  user:         <><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></>,
+  folder:       <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>,
+  send:         <><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></>,
+  play:         <polygon points="5 3 19 12 5 21 5 3"/>,
+  square:       <rect x="3" y="3" width="18" height="18" rx="2"/>,
+  x:            <><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></>,
+  lock:         <><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></>,
+  globe:        <><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></>,
+  bell:         <><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></>,
+  brain:        <><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96-.46 2.5 2.5 0 0 1-1.98-3 2.5 2.5 0 0 1-1.32-4.24 3 3 0 0 1 .34-5.58 2.5 2.5 0 0 1 1.32-4.24A2.5 2.5 0 0 1 9.5 2z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96-.46 2.5 2.5 0 0 0 1.98-3 2.5 2.5 0 0 0 1.32-4.24 3 3 0 0 0-.34-5.58 2.5 2.5 0 0 0-1.32-4.24A2.5 2.5 0 0 0 14.5 2z"/></>,
+    gavel:      <><path d="m14 13-8.5 8.5a2.12 2.12 0 0 1-3-3L11 10"/><path d="m16 16 6-6"/><path d="m8 8 6-6"/><path d="m9 7 8 8"/></>,
+};
+
+const Icon = ({ name, size = 16, color = 'currentColor', style }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+    stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={style}>
+    {ICON_PATHS[name] || null}
+  </svg>
+);
+
+/* ════════════════════════════════════
+   ATOMS
+════════════════════════════════════ */
+const MicroLabel = ({ children, neon, amber, violet, style }) => (
+  <span style={{
+    fontFamily:'var(--font-mono)', fontSize:9, fontWeight:500,
+    textTransform:'uppercase', letterSpacing:'0.18em',
+    color: neon ? 'var(--verdict-neon)' : amber ? 'var(--verdict-amber)' : violet ? 'var(--verdict-violet)' : 'var(--fg-tertiary)',
+    textShadow: neon ? '0 0 8px rgba(0,255,195,0.35)' : 'none',
+    ...style,
+  }}>{children}</span>
+);
+
+const StatusChip = ({ kind='neutral', dot, children }) => {
+  const m = {
+    neutral:{ c:'var(--fg-secondary)',    b:'rgba(224,224,224,0.14)', bg:'rgba(224,224,224,0.03)' },
+    neon:   { c:'var(--verdict-neon)',    b:'rgba(0,255,195,0.45)',   bg:'rgba(0,255,195,0.06)'   },
+    violet: { c:'var(--verdict-violet)',  b:'rgba(106,0,255,0.45)',   bg:'rgba(106,0,255,0.06)'   },
+    amber:  { c:'var(--verdict-amber)',   b:'rgba(255,184,0,0.45)',   bg:'rgba(255,184,0,0.06)'   },
+    crimson:{ c:'var(--verdict-crimson)', b:'rgba(255,51,85,0.45)',   bg:'rgba(255,51,85,0.06)'   },
+  };
+  const s = m[kind] || m.neutral;
+  return (
+    <span style={{ fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.15em', textTransform:'uppercase',
+      color:s.c, border:`0.5px solid ${s.b}`, background:s.bg,
+      padding:'3px 8px', borderRadius:999, display:'inline-flex', alignItems:'center', gap:5, whiteSpace:'nowrap' }}>
+      {dot && <span style={{ width:5, height:5, borderRadius:999, background:s.c, flexShrink:0,
+        boxShadow:(kind==='neon'||kind==='violet')?`0 0 5px ${s.c}`:'none' }} />}
+      {children}
+    </span>
+  );
+};
+
+const LexBtn = ({ variant='primary', children, icon, onClick, style, small }) => {
+  const sz = small ? { padding:'5px 10px', fontSize:11 } : { padding:'7px 14px', fontSize:12 };
+  const vs = {
+    primary:   { background:'var(--verdict-neon)', color:'var(--midnight-court)', border:'0.5px solid var(--verdict-neon)', boxShadow:'0 0 12px rgba(0,255,195,0.35)', fontWeight:600 },
+    secondary: { background:'transparent', color:'var(--fg-primary)', border:'0.5px solid rgba(0,255,195,0.32)' },
+    ghost:     { background:'transparent', color:'var(--fg-secondary)', border:'0.5px solid transparent' },
+  };
+  return (
+    <button onClick={onClick} style={{ fontFamily:'var(--font-sans)', fontWeight:500, borderRadius:4, cursor:'pointer',
+      display:'inline-flex', alignItems:'center', gap:6,
+      transition:'all 160ms', ...sz, ...vs[variant], ...style }}>
+      {icon && <span style={{display:'flex',alignItems:'center'}}>{icon}</span>}
+      {children}
+    </button>
+  );
+};
+
+
+
+/* ════════════════════════════════════
+   SCANLINE TEXT LOGO
+════════════════════════════════════ */
+const ScanlineText = ({ text, fontSize = 13, letterSpacing = '0.18em', baseColor = 'var(--fg-tertiary)', speed }) => {
+  const dur = `${speed || 4.5}s`;
+  const style = {
+    fontFamily:'var(--font-mono)', fontSize, fontWeight:500,
+    letterSpacing, textTransform:'uppercase', whiteSpace:'nowrap',
+  };
+  return (
+    <div style={{ position:'relative', display:'inline-block', lineHeight:1 }}>
+      <span style={{ ...style, color:baseColor, animation:`scanline-base ${dur} ease-in-out infinite`, display:'block' }}>{text}</span>
+      <span style={{ ...style, color:'var(--verdict-neon)',
+        textShadow:'0 0 10px rgba(0,255,195,0.8)',
+        position:'absolute', inset:0, display:'block',
+        clipPath:'inset(100% 0 0% 0)',
+        animation:`scan-sweep ${dur} ease-in-out infinite`,
+      }}>{text}</span>
+      <span style={{
+        position:'absolute', left:-2, right:-2, height:'1px',
+        background:'var(--verdict-neon)',
+        boxShadow:'0 0 6px rgba(0,255,195,0.9)',
+        animation:`scan-bar ${dur} ease-in-out infinite`,
+        opacity:0, top:0,
+      }}/>
+    </div>
+  );
+};
+
+/* ════════════════════════════════════
+   SIDEBAR
+════════════════════════════════════ */
+const Sidebar = ({ activeMatterId, onSelectMatter, view, onView, onNewMatter, overrideWidth, scanlineSpeed }) => {
+  const [collapsed, setCollapsed] = React.useState(() => localStorage.getItem('lex.collapsed') === '1');
+  const [userMenuOpen, setUserMenuOpen] = React.useState(false);
+  const menuRef = React.useRef(null);
+
+  const W = collapsed ? 52 : (overrideWidth || 256);
+
+  const toggle = () => {
+    const next = !collapsed;
+    setCollapsed(next);
+    localStorage.setItem('lex.collapsed', next ? '1' : '0');
+  };
+
+  React.useEffect(() => {
+    if (!userMenuOpen) return;
+    const fn = e => { if (menuRef.current && !menuRef.current.contains(e.target)) setUserMenuOpen(false); };
+    document.addEventListener('mousedown', fn);
+    return () => document.removeEventListener('mousedown', fn);
+  }, [userMenuOpen]);
+
+  const navItems = [
+    { id:'dashboard', icon:'dashboard', label:'Dashboard'     },
+    { id:'clients',   icon:'users',     label:'Clients'       },
+    { id:'settings',  icon:'settings',  label:'Settings'      },
+  ];
+
+  const Tip = ({ children, label }) => (
+    collapsed
+      ? <div title={label} style={{ width:'100%' }}>{children}</div>
+      : children
+  );
+
+  return (
+    <aside style={{
+      width:W, minWidth:W,
+      background:'var(--bg-panel)',
+      borderRight:'0.5px solid var(--border-hair)',
+      display:'flex', flexDirection:'column', height:'100%',
+      transition:'width 0.22s var(--ease-terminal), min-width 0.22s var(--ease-terminal)',
+      overflow:'hidden', flexShrink:0, position:'relative', zIndex:2,
+    }}>
+
+      {/* ── Logo Area ── */}
+      <div style={{
+        height:56, display:'flex', alignItems:'center',
+        padding: collapsed ? '0 12px' : '0 16px',
+        borderBottom:'0.5px solid var(--border-hair)',
+        gap:10, flexShrink:0, overflow:'hidden',
+      }}>
+        {collapsed ? (
+          <div style={{ width:24, height:24, borderRadius:4,
+            background:'rgba(0,255,195,0.06)', border:'0.5px solid rgba(0,255,195,0.25)',
+            display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+            <Icon name="scale" size={13} color="var(--verdict-neon)" />
+          </div>
+        ) : (
+          <div style={{ overflow:'hidden', minWidth:0 }}>
+            <ScanlineText text="LEX AGENT" fontSize={13} letterSpacing="0.2em" speed={scanlineSpeed} />
+            <div style={{ fontFamily:'var(--font-mono)', fontSize:8, letterSpacing:'0.16em',
+              textTransform:'uppercase', color:'var(--fg-quaternary)', marginTop:4 }}>
+              ARES · v0.3.0
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Main Nav ── */}
+      <nav style={{ padding:'10px 8px 6px', flexShrink:0 }}>
+        {!collapsed && (
+          <div style={{ padding:'0 6px 6px', fontFamily:'var(--font-mono)', fontSize:8,
+            letterSpacing:'0.22em', textTransform:'uppercase', color:'var(--fg-quaternary)' }}>
+            Navigation
+          </div>
+        )}
+        <div style={{ display:'flex', flexDirection:'column', gap:1 }}>
+          {navItems.map(({ id, icon, label }) => {
+            const active = view === id;
+            return (
+              <Tip key={id} label={label}>
+                <button onClick={() => onView(id)} style={{
+                  width:'100%', display:'flex', alignItems:'center',
+                  gap:collapsed?0:9, padding:'8px 10px',
+                  justifyContent: collapsed ? 'center' : 'flex-start',
+                  background: active ? 'rgba(0,255,195,0.07)' : 'transparent',
+                  borderLeft: `2px solid ${active ? 'var(--verdict-neon)' : 'transparent'}`,
+                  paddingLeft: active ? 8 : 10,
+                  borderRadius:4, border:`none`, borderLeft:`2px solid ${active?'var(--verdict-neon)':'transparent'}`,
+                  color: active ? 'var(--verdict-neon)' : 'var(--fg-tertiary)',
+                  cursor:'pointer', transition:'all 160ms',
+                  fontFamily:'var(--font-sans)', fontSize:13,
+                }}
+                onMouseEnter={e => { if(!active) e.currentTarget.style.background='rgba(255,255,255,0.025)'; }}
+                onMouseLeave={e => { if(!active) e.currentTarget.style.background='transparent'; }}>
+                  <Icon name={icon} size={14} color="currentColor" style={{flexShrink:0}} />
+                  {!collapsed && <span style={{lineHeight:1}}>{label}</span>}
+                </button>
+              </Tip>
+            );
+          })}
+        </div>
+      </nav>
+
+      {/* ── New Matter ── */}
+      <div style={{ padding:'0 8px 8px', flexShrink:0 }}>
+        <Tip label="New Matter">
+          <button onClick={onNewMatter} style={{
+            width:'100%', display:'flex', alignItems:'center', justifyContent: collapsed?'center':'flex-start',
+            gap:7, padding: collapsed?'9px 0':'8px 12px',
+            background:'rgba(0,255,195,0.04)',
+            border:'0.5px dashed rgba(0,255,195,0.28)',
+            borderRadius:4, color:'var(--verdict-neon)', cursor:'pointer',
+            fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.14em', textTransform:'uppercase',
+            transition:'background 160ms',
+          }}
+          onMouseEnter={e => e.currentTarget.style.background='rgba(0,255,195,0.08)'}
+          onMouseLeave={e => e.currentTarget.style.background='rgba(0,255,195,0.04)'}>
+            <Icon name="plus" size={12} color="currentColor" />
+            {!collapsed && 'New Matter'}
+          </button>
+        </Tip>
+      </div>
+
+      {/* ── Matters list ── */}
+      <div style={{ flex:1, overflowY:'auto', padding:'0 8px',
+        scrollbarWidth:'thin', scrollbarColor:'rgba(224,224,224,0.06) transparent' }}>
+        {!collapsed && (
+          <div style={{ padding:'2px 6px 6px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+            <span style={{ fontFamily:'var(--font-mono)', fontSize:8, letterSpacing:'0.22em',
+              textTransform:'uppercase', color:'var(--fg-quaternary)' }}>Matters</span>
+            <span style={{ fontFamily:'var(--font-mono)', fontSize:8, padding:'1px 6px', borderRadius:999,
+              border:'0.5px solid rgba(224,224,224,0.10)', color:'var(--fg-quaternary)',
+              background:'rgba(224,224,224,0.03)' }}>{LEX_MATTERS.length}</span>
+          </div>
+        )}
+        <div style={{ display:'flex', flexDirection:'column', gap:1 }}>
+          {LEX_MATTERS.map((m, idx) => {
+            const active = activeMatterId === m.id && view === 'matter';
+            const dot = STATUS_DOT[m.status] ?? 'var(--fg-tertiary)';
+            return (
+              <Tip key={m.id} label={`${m.title} — ${m.status}`}>
+                <button onClick={() => { onSelectMatter(m.id); onView('matter'); }}
+                  className="fade-in"
+                  style={{
+                    animationDelay:`${idx*0.03}s`,
+                    width:'100%', textAlign:'left', cursor:'pointer',
+                    display:'flex', alignItems:'center', gap:collapsed?0:8,
+                    justifyContent: collapsed?'center':'flex-start',
+                    padding: collapsed?'9px 0':'8px 10px',
+                    background: active ? 'rgba(0,255,195,0.05)' : 'transparent',
+                    borderLeft:`2px solid ${active?'var(--verdict-neon)':'transparent'}`,
+                    paddingLeft: active ? 8 : 10,
+                    borderRadius:4, border:'none',
+                    borderLeft:`2px solid ${active?'var(--verdict-neon)':'transparent'}`,
+                    transition:'all 160ms',
+                  }}
+                  onMouseEnter={e => { if(!active) e.currentTarget.style.background='rgba(255,255,255,0.02)'; }}
+                  onMouseLeave={e => { if(!active) e.currentTarget.style.background='transparent'; }}>
+                  <span style={{ width:5, height:5, borderRadius:999, background:dot, flexShrink:0,
+                    boxShadow: m.status==='Active'?`0 0 4px ${dot}`:'none' }}/>
+                  {!collapsed && (
+                    <div style={{ overflow:'hidden', minWidth:0 }}>
+                      <div style={{ fontFamily:'var(--font-serif)', fontSize:12, fontStyle:'italic',
+                        color: active ? 'var(--fg-primary)' : 'var(--fg-secondary)',
+                        overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', lineHeight:1.3 }}>
+                        {m.title}
+                      </div>
+                      {m.client && (
+                        <div style={{ fontFamily:'var(--font-mono)', fontSize:8, letterSpacing:'0.1em',
+                          textTransform:'uppercase', color:'var(--fg-quaternary)',
+                          overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', marginTop:1 }}>
+                          {m.client}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </button>
+              </Tip>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Bottom ── */}
+      <div style={{ borderTop:'0.5px solid var(--border-hair)', flexShrink:0 }}>
+        {/* Timer */}
+        {!collapsed && (
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 14px' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer' }}>
+              <Icon name="play" size={10} color="var(--verdict-neon)" />
+              <span style={{ fontFamily:'var(--font-mono)', fontSize:10, color:'var(--fg-quaternary)' }}>00:00:00</span>
+            </div>
+            <span style={{ fontFamily:'var(--font-mono)', fontSize:8, letterSpacing:'0.14em',
+              color:'var(--verdict-neon)', background:'rgba(0,255,195,0.06)',
+              border:'0.5px solid rgba(0,255,195,0.22)', padding:'2px 6px', borderRadius:2 }}>FREE</span>
+          </div>
+        )}
+
+        {/* User */}
+        <div ref={menuRef} style={{ position:'relative' }}>
+          <button onClick={() => setUserMenuOpen(v=>!v)} style={{
+            width:'100%', display:'flex', alignItems:'center', justifyContent:collapsed?'center':'flex-start',
+            gap:8, padding: collapsed?'10px 0':'10px 12px',
+            background: userMenuOpen?'rgba(0,255,195,0.04)':'transparent',
+            border:'none', cursor:'pointer', borderTop:'0.5px solid rgba(224,224,224,0.06)',
+          }}>
+            <div style={{ width:26, height:26, borderRadius:999, flexShrink:0,
+              display:'flex', alignItems:'center', justifyContent:'center',
+              background:'linear-gradient(135deg,rgba(0,255,195,0.15),rgba(106,0,255,0.15))',
+              border:'0.5px solid rgba(0,255,195,0.22)' }}>
+              <Icon name="user" size={12} color="var(--verdict-neon)" />
+            </div>
+            {!collapsed && (
+              <span style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--fg-tertiary)',
+                overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', flex:1, textAlign:'left' }}>
+                attorney
+              </span>
+            )}
+          </button>
+          {userMenuOpen && (
+            <div style={{
+              position:'absolute', bottom:'100%', left:collapsed?'calc(100% + 6px)':8, right:collapsed?'auto':8,
+              top: collapsed ? 0 : 'auto',
+              background:'var(--midnight-deep)', border:'0.5px solid rgba(0,255,195,0.22)',
+              borderRadius:6, boxShadow:'0 8px 32px rgba(0,0,0,0.6), 0 0 0 0.5px rgba(0,255,195,0.06)',
+              overflow:'hidden', zIndex:20, minWidth:180,
+            }}>
+              {[
+                { icon:'user',       label:'Profile & Usage' },
+                { icon:'settings',   label:'Billing & Plan'  },
+              ].map(({ icon, label }) => (
+                <div key={label} onClick={() => setUserMenuOpen(false)} style={{
+                  display:'flex', alignItems:'center', gap:8, padding:'9px 12px',
+                  cursor:'pointer', color:'var(--fg-secondary)', fontSize:12,
+                  fontFamily:'var(--font-sans)',
+                }}
+                onMouseEnter={e => e.currentTarget.style.background='rgba(255,255,255,0.03)'}
+                onMouseLeave={e => e.currentTarget.style.background='transparent'}>
+                  <Icon name={icon} size={12} color="var(--verdict-neon)" /> {label}
+                </div>
+              ))}
+              <div style={{ height:'0.5px', background:'rgba(224,224,224,0.07)' }}/>
+              <div onClick={() => setUserMenuOpen(false)} style={{
+                display:'flex', alignItems:'center', gap:8, padding:'9px 12px',
+                cursor:'pointer', color:'var(--verdict-crimson)', fontSize:12, fontFamily:'var(--font-sans)',
+              }}
+              onMouseEnter={e => e.currentTarget.style.background='rgba(255,51,85,0.04)'}
+              onMouseLeave={e => e.currentTarget.style.background='transparent'}>
+                <Icon name="logout" size={12} color="var(--verdict-crimson)" /> Sign out
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Collapse */}
+        <button onClick={toggle} style={{
+          width:'100%', display:'flex', alignItems:'center', justifyContent:'center',
+          padding:'7px 0', background:'none', border:'none',
+          borderTop:'0.5px solid rgba(224,224,224,0.06)',
+          color:'var(--fg-quaternary)', cursor:'pointer', transition:'color 160ms',
+        }}
+        onMouseEnter={e => e.currentTarget.style.color='var(--fg-primary)'}
+        onMouseLeave={e => e.currentTarget.style.color='var(--fg-quaternary)'}>
+          <Icon name={collapsed?'chevronRight':'chevronLeft'} size={12} color="currentColor"
+            style={{ transition:'transform 0.2s var(--ease-terminal)' }}/>
+        </button>
+      </div>
+    </aside>
+  );
+};
+
+/* ════════════════════════════════════
+   TOPBAR (mobile-only equivalent — desktop just uses sidebar)
+════════════════════════════════════ */
+const TopBar = ({ onOpenPalette }) => (
+  <header style={{
+    height:48, display:'flex', alignItems:'center', padding:'0 16px', gap:12, flexShrink:0,
+    background:'rgba(10,10,12,0.88)',
+    backdropFilter:'blur(18px) saturate(160%)',
+    borderBottom:'0.5px solid var(--border-hair)',
+    position:'relative', zIndex:30,
+  }}>
+    {/* Left: nothing — sidebar handles branding on desktop */}
+    <div style={{ flex:1 }}/>
+
+    {/* Search trigger */}
+    <button onClick={onOpenPalette} style={{
+      display:'flex', alignItems:'center', gap:8,
+      background:'rgba(17,17,20,0.55)', border:'0.5px solid rgba(224,224,224,0.08)',
+      borderRadius:4, padding:'6px 12px', width:280, cursor:'pointer',
+      fontFamily:'var(--font-mono)', fontSize:11, color:'var(--fg-tertiary)',
+      transition:'border-color 160ms',
+    }}
+    onMouseEnter={e => e.currentTarget.style.borderColor='rgba(224,224,224,0.16)'}
+    onMouseLeave={e => e.currentTarget.style.borderColor='rgba(224,224,224,0.08)'}>
+      <Icon name="search" size={12} color="var(--fg-quaternary)" />
+      <span>Search matters, citations…</span>
+      <span style={{ marginLeft:'auto', fontFamily:'var(--font-mono)', fontSize:9, padding:'1px 5px',
+        borderRadius:2, border:'0.5px solid rgba(224,224,224,0.08)',
+        background:'rgba(255,255,255,0.02)', color:'var(--fg-quaternary)' }}>⌘K</span>
+    </button>
+
+    {/* Bell */}
+    <button style={{ position:'relative', background:'none', border:'none', cursor:'pointer',
+      color:'var(--fg-tertiary)', display:'flex', padding:4 }}>
+      <Icon name="bell" size={15} color="currentColor" />
+      <span style={{ position:'absolute', top:3, right:3, width:5, height:5, borderRadius:999,
+        background:'var(--verdict-crimson)', border:'1.5px solid var(--bg-base)' }}/>
+    </button>
+
+    {/* Avatar */}
+    <div style={{ width:28, height:28, borderRadius:999, cursor:'pointer',
+      background:'linear-gradient(135deg,rgba(0,255,195,0.15),rgba(106,0,255,0.15))',
+      border:'0.5px solid rgba(0,255,195,0.22)',
+      display:'flex', alignItems:'center', justifyContent:'center' }}>
+      <Icon name="user" size={12} color="var(--verdict-neon)" />
+    </div>
+  </header>
+);
+
+/* ════════════════════════════════════
+   MATTER TAB BAR
+════════════════════════════════════ */
+const MatterTabBar = ({ activeTab, onTab, minHeight = 42 }) => (
+  <div style={{
+    display:'flex', alignItems:'center', gap:1, padding:'0 6px',
+    background:'var(--midnight-deep)', borderBottom:'0.5px solid var(--border-hair)',
+    overflowX:'auto', flexShrink:0, minHeight,
+    scrollbarWidth:'none',
+  }}>
+    {MATTER_TABS.map(tab => {
+      const active = activeTab === tab.id;
+      return (
+        <button key={tab.id} onClick={() => onTab(tab.id)} style={{
+          display:'flex', alignItems:'center', gap:5,
+          padding:'0 10px', minHeight:42, flexShrink:0,
+          background: active ? 'rgba(0,255,195,0.05)' : 'transparent',
+          border:'none', cursor:'pointer', position:'relative',
+          fontFamily:'var(--font-mono)', fontSize:10, letterSpacing:'0.07em',
+          textTransform:'uppercase', whiteSpace:'nowrap',
+          color: active ? 'var(--verdict-neon)' : 'var(--fg-tertiary)',
+          borderRadius:4, transition:'color 160ms',
+        }}
+        onMouseEnter={e => { if(!active) e.currentTarget.style.color='var(--fg-secondary)'; }}
+        onMouseLeave={e => { if(!active) e.currentTarget.style.color='var(--fg-tertiary)'; }}>
+          <Icon name={tab.icon} size={12} color="currentColor" style={{flexShrink:0}} />
+          <span style={{ display:'inline' }}>{tab.label}</span>
+          {active && <span className="tab-active-bar"/>}
+        </button>
+      );
+    })}
+  </div>
+);
+
+/* ════════════════════════════════════
+   MATTER HEADER
+════════════════════════════════════ */
+const MatterHeader = ({ matter, onBack }) => {
+  const [shared, setShared] = React.useState(false);
+  const statusColors = { Active:'var(--verdict-neon)', Pending:'var(--verdict-amber)', Urgent:'var(--verdict-crimson)', Closed:'var(--fg-tertiary)' };
+
+  return (
+    <div style={{
+      padding:'12px 20px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:14,
+      background:'var(--midnight-deep)', borderBottom:'0.5px solid var(--border-hair)', flexShrink:0,
+    }}>
+      <div style={{ display:'flex', alignItems:'center', gap:12, minWidth:0, flex:1 }}>
+        <button onClick={onBack} style={{ background:'none', border:'none', cursor:'pointer',
+          color:'var(--fg-quaternary)', display:'flex', flexShrink:0, padding:2,
+          borderRadius:4, transition:'color 160ms' }}
+          onMouseEnter={e => e.currentTarget.style.color='var(--fg-secondary)'}
+          onMouseLeave={e => e.currentTarget.style.color='var(--fg-quaternary)'}>
+          <Icon name="chevronLeft" size={15} color="currentColor" />
+        </button>
+        <div style={{ minWidth:0, flex:1 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:7, marginBottom:2, flexWrap:'wrap' }}>
+            <span style={{ fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.14em',
+              color:'var(--fg-quaternary)', textTransform:'uppercase' }}>{matter.id}</span>
+            <StatusChip kind={STATUS_KIND[matter.status]||'neutral'} dot>{matter.status}</StatusChip>
+            {matter.caseType && <span className="lex-chip lex-chip--neutral">{matter.caseType}</span>}
+            {matter.jurisdiction && <span className="lex-chip lex-chip--neutral">{matter.jurisdiction}</span>}
+          </div>
+          <h1 style={{ fontFamily:'var(--font-serif)', fontSize:15, fontStyle:'italic', fontWeight:400,
+            color:'var(--fg-primary)', letterSpacing:'-0.01em', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+            {matter.title}
+          </h1>
+        </div>
+      </div>
+      <button onClick={() => setShared(v => !v)} style={{
+        flexShrink:0, display:'flex', alignItems:'center', gap:6,
+        padding:'6px 12px', borderRadius:4, cursor:'pointer',
+        background: shared ? 'rgba(0,255,195,0.06)' : 'rgba(255,255,255,0.02)',
+        border:`0.5px solid ${shared ? 'rgba(0,255,195,0.25)' : 'rgba(224,224,224,0.10)'}`,
+        color: shared ? 'var(--verdict-neon)' : 'var(--fg-tertiary)',
+        fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.12em', textTransform:'uppercase',
+        transition:'all 160ms',
+      }}>
+        <Icon name={shared?'globe':'lock'} size={11} color="currentColor" />
+        {shared ? 'Team' : 'Private'}
+      </button>
+    </div>
+  );
+};
+
+/* ════════════════════════════════════
+   OVERVIEW PAGE
+════════════════════════════════════ */
+const StatCard = ({ icon, label, value, color, href, onClick }) => (
+  <div className="lex-stat-card fade-in" onClick={onClick} style={{cursor:'pointer'}}>
+    <div className="lex-stat-card__accent" style={{ background:color }}/>
+    <div className="lex-stat-card__body">
+      <div className="lex-stat-card__icon" style={{ background:`color-mix(in srgb,${color} 12%,transparent)`, border:`0.5px solid color-mix(in srgb,${color} 30%,transparent)` }}>
+        <Icon name={icon} size={15} style={{ color }} />
+      </div>
+      <div className="lex-stat-card__meta">
+        <div className="lex-stat-card__label">{label}</div>
+        <div className="lex-stat-card__number">{value}</div>
+      </div>
+    </div>
+  </div>
+);
+
+const CompactStat = ({ icon, label, value, color }) => (
+  <div className="fade-in" style={{
+    display:'flex', alignItems:'center', gap:10, padding:'10px 12px', borderRadius:8,
+    background:'rgba(17,17,20,0.7)', border:'0.5px solid rgba(224,224,224,0.09)',
+    cursor:'pointer', transition:'border-color 160ms',
+  }}
+  onMouseEnter={e => e.currentTarget.style.borderColor='rgba(224,224,224,0.18)'}
+  onMouseLeave={e => e.currentTarget.style.borderColor='rgba(224,224,224,0.09)'}>
+    <Icon name={icon} size={13} style={{ color, flexShrink:0 }} />
+    <div>
+      <div style={{ fontFamily:'var(--font-serif)', fontSize:18, lineHeight:1, color:'var(--fg-primary)', letterSpacing:'-0.02em' }}>{value}</div>
+      <div style={{ fontFamily:'var(--font-mono)', fontSize:8, letterSpacing:'0.14em', textTransform:'uppercase', color:'var(--fg-quaternary)', marginTop:2 }}>{label}</div>
+    </div>
+  </div>
+);
+
+const OverviewPage = ({ matter, cardStyle = 'raised' }) => {
+  const cardBg = cardStyle === 'glass'
+    ? 'rgba(20,20,26,0.55)' : cardStyle === 'flat'
+    ? 'rgba(255,255,255,0.01)' : 'rgba(17,17,20,0.8)';
+  const cardBlur = cardStyle === 'glass' ? 'blur(18px) saturate(160%)' : 'none';
+  const deadlines = [
+    { id:'d1', title:'Motion to Compel — Response due', dueDate:'2026-04-28', priority:'High'   },
+    { id:'d2', title:'Discovery cutoff',                 dueDate:'2026-05-12', priority:'Medium' },
+    { id:'d3', title:'Pre-trial conference',              dueDate:'2026-06-01', priority:'Low'    },
+  ];
+  const daysUntil = d => Math.ceil((new Date(d) - Date.now()) / 86400000);
+
+  return (
+    <div style={{ overflowY:'auto', flex:1, padding:'20px 24px 40px' }}>
+      {/* Primary stats */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:10, marginBottom:10 }}>
+        <StatCard icon="clock"    label="Hours Billed" value={`${matter.hours}h`} color="var(--verdict-amber)"  />
+        <StatCard icon="file"     label="Vault Docs"   value={matter.vaultDocs}   color="var(--verdict-neon)"   />
+        <StatCard icon="calendar" label="Deadlines"    value={deadlines.length}   color="var(--verdict-crimson)"/>
+        <StatCard icon="shield"   label="Verified"     value={matter.verified}    color="var(--verdict-neon)"   />
+      </div>
+
+      {/* Secondary compact stats */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8, marginBottom:20 }}>
+        <CompactStat icon="bookOpen" label="Notes"      value={matter.notes}    color="var(--verdict-neon)"   />
+        <CompactStat icon="gavel"    label="Precedents" value={4}               color="var(--verdict-violet)" />
+        <CompactStat icon="target"   label="Strategy"   value="Ready"           color="var(--verdict-amber)"  />
+        <CompactStat icon="receipt"  label="Entries"    value={3}               color="var(--verdict-amber)"  />
+      </div>
+
+      {/* Details + Deadlines */}
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:16 }}>
+        {/* Details */}
+        <div style={{ padding:'16px 18px', borderRadius:8, background:cardBg, backdropFilter:cardBlur, border:'0.5px solid rgba(224,224,224,0.09)' }}>
+          <p style={{ fontFamily:'var(--font-mono)', fontSize:8, letterSpacing:'0.22em', textTransform:'uppercase', color:'var(--fg-quaternary)', marginBottom:12 }}>Matter Details</p>
+          {[
+            ['Client',       matter.client       ],
+            ['Case Type',    matter.caseType     ],
+            ['Jurisdiction', matter.jurisdiction  ],
+            ['Status',       matter.status       ],
+          ].map(([label, value]) => value ? (
+            <div key={label} style={{ display:'flex', gap:12, padding:'8px 0', borderBottom:'0.5px solid rgba(224,224,224,0.06)' }}>
+              <span style={{ fontFamily:'var(--font-mono)', fontSize:8, letterSpacing:'0.14em', textTransform:'uppercase', width:80, flexShrink:0, color:'var(--fg-quaternary)' }}>{label}</span>
+              <span style={{ fontSize:13, color:'var(--fg-secondary)' }}>{value}</span>
+            </div>
+          ) : null)}
+        </div>
+
+        {/* Upcoming Deadlines */}
+        <div style={{ padding:'16px 18px', borderRadius:8, background:cardBg, backdropFilter:cardBlur, border:'0.5px solid rgba(224,224,224,0.09)' }}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
+            <p style={{ fontFamily:'var(--font-mono)', fontSize:8, letterSpacing:'0.22em', textTransform:'uppercase', color:'var(--fg-quaternary)' }}>Upcoming Deadlines</p>
+            <button style={{ fontFamily:'var(--font-mono)', fontSize:8, letterSpacing:'0.14em', textTransform:'uppercase', color:'var(--verdict-neon)', background:'none', border:'none', cursor:'pointer' }}>View all</button>
+          </div>
+          <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+            {deadlines.map(d => {
+              const color = PRIORITY_COLOR[d.priority] ?? 'var(--fg-quaternary)';
+              const days  = daysUntil(d.dueDate);
+              return (
+                <div key={d.id} style={{ display:'flex', alignItems:'center', gap:0, borderRadius:6, overflow:'hidden', background:'rgba(255,255,255,0.02)', border:'0.5px solid rgba(224,224,224,0.07)' }}>
+                  <div style={{ width:3, alignSelf:'stretch', background:color, flexShrink:0, boxShadow:`0 0 6px ${color}` }}/>
+                  <div style={{ display:'flex', alignItems:'center', gap:10, flex:1, padding:'9px 12px' }}>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <p style={{ fontSize:12, color:'var(--fg-primary)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{d.title}</p>
+                      <p style={{ fontFamily:'var(--font-mono)', fontSize:8, letterSpacing:'0.1em', textTransform:'uppercase', color:'var(--fg-quaternary)', marginTop:2 }}>{d.dueDate}</p>
+                    </div>
+                    <span style={{ fontFamily:'var(--font-mono)', fontSize:8, letterSpacing:'0.1em', textTransform:'uppercase', padding:'2px 8px', borderRadius:999, flexShrink:0,
+                      background:`color-mix(in srgb,${color} 12%,transparent)`, color, border:`0.5px solid color-mix(in srgb,${color} 30%,transparent)` }}>
+                      {days <= 0 ? 'TODAY' : `${days}d`}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* LexMemory — HIDDEN ON DESKTOP */}
+      <style>{`@media(min-width:768px){.lex-memory-panel{display:none!important;}}`}</style>
+      <div className="lex-memory-panel" style={{ padding:'14px 18px', borderRadius:8, marginBottom:16,
+        background:'rgba(0,255,195,0.03)', border:'0.5px solid rgba(0,255,195,0.22)' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:7 }}>
+          <Icon name="brain" size={12} color="var(--verdict-neon)"/>
+          <span style={{ fontFamily:'var(--font-mono)', fontSize:8, letterSpacing:'0.18em', textTransform:'uppercase', color:'var(--verdict-neon)' }}>LexMemory</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ════════════════════════════════════
+   MATTER DETAIL
+════════════════════════════════════ */
+const MatterDetail = ({ matterId, onBack, tweaks = {} }) => {
+  const [activeTab, setActiveTab] = React.useState(() => localStorage.getItem('lex.tab') || 'overview');
+  const matter = LEX_MATTERS.find(m => m.id === matterId) || LEX_MATTERS[0];
+  const tabH = tweaks.tabbarDensity === 'compact' ? 34 : tweaks.tabbarDensity === 'spacious' ? 52 : 42;
+
+  React.useEffect(() => { localStorage.setItem('lex.tab', activeTab); }, [activeTab]);
+
+  const renderPanel = () => {
+    if (activeTab === 'overview') return <OverviewPage matter={matter} cardStyle={tweaks.cardStyle} />;
+    return (
+      <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:12, padding:40 }}>
+        <div style={{ width:44, height:44, borderRadius:6, background:'rgba(0,255,195,0.05)',
+          border:'0.5px solid rgba(0,255,195,0.18)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+          <Icon name={MATTER_TABS.find(t=>t.id===activeTab)?.icon||'file'} size={18} color="var(--verdict-neon)" />
+        </div>
+        <p style={{ fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.16em', textTransform:'uppercase', color:'var(--fg-quaternary)' }}>
+          {MATTER_TABS.find(t=>t.id===activeTab)?.label} — No data
+        </p>
+        <LexBtn variant="secondary" small>Add entry</LexBtn>
+      </div>
+    );
+  };
+
+  return (
+    <div style={{ flex:1, display:'flex', flexDirection:'column', minHeight:0, overflow:'hidden' }}>
+      <MatterHeader matter={matter} onBack={onBack} />
+      <MatterTabBar activeTab={activeTab} onTab={setActiveTab} minHeight={tabH} />
+      <div style={{ flex:1, overflow:'auto', display:'flex', flexDirection:'column' }}>
+        {renderPanel()}
+      </div>
+    </div>
+  );
+};
+
+/* ════════════════════════════════════
+   DASHBOARD
+════════════════════════════════════ */
+const Dashboard = ({ onSelectMatter }) => {
+  const [search, setSearch] = React.useState('');
+  const [filter, setFilter] = React.useState('All');
+  const filters = ['All','Active','Pending','Urgent','Closed'];
+  const filtered = LEX_MATTERS.filter(m => {
+    const matchSearch = !search || m.title.toLowerCase().includes(search.toLowerCase()) || m.client.toLowerCase().includes(search.toLowerCase());
+    return matchSearch && (filter==='All' || m.status===filter);
+  });
+
+  return (
+    <div style={{ flex:1, overflowY:'auto', padding:'24px 24px 40px' }}>
+      <div style={{ maxWidth:1200, margin:'0 auto' }}>
+        <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:20 }}>
+          <div>
+            <div style={{ display:'flex', alignItems:'center', gap:7, marginBottom:3 }}>
+              <span style={{ color:'var(--verdict-neon)', fontSize:11 }}>▸</span>
+              <h1 style={{ fontFamily:'var(--font-serif)', fontSize:20, fontWeight:500, color:'var(--fg-primary)', letterSpacing:'-0.01em' }}>Dashboard</h1>
+            </div>
+            <p style={{ fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.14em', textTransform:'uppercase', color:'var(--fg-quaternary)' }}>
+              {LEX_MATTERS.length} matters · All active files
+            </p>
+          </div>
+          <LexBtn variant="primary" icon={<Icon name="plus" size={13} color="currentColor"/>}>New Matter</LexBtn>
+        </div>
+
+        {/* Stats */}
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:10, marginBottom:20 }}>
+          {[
+            { icon:'folder', label:'Total Matters',     value:LEX_MATTERS.length, color:'var(--fg-secondary)' },
+            { icon:'shield', label:'Citations Verified', value:LEX_MATTERS.reduce((a,m)=>a+m.verified,0), color:'var(--verdict-neon)' },
+            { icon:'clock',  label:'Billable Hours',     value:`${LEX_MATTERS.reduce((a,m)=>a+m.hours,0).toFixed(1)}h`, color:'var(--verdict-amber)' },
+            { icon:'calendar',label:'Active Deadlines',  value:LEX_MATTERS.reduce((a,m)=>a+m.deadlines,0), color:'var(--verdict-crimson)' },
+          ].map(s => (
+            <div key={s.label} style={{ background:'rgba(17,17,20,0.8)', border:'0.5px solid rgba(224,224,224,0.09)', borderRadius:6, padding:'12px 14px', display:'flex', alignItems:'center', gap:12 }}>
+              <div style={{ width:30, height:30, borderRadius:5, background:`color-mix(in srgb,${s.color} 12%,transparent)`, border:`0.5px solid color-mix(in srgb,${s.color} 28%,transparent)`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                <Icon name={s.icon} size={14} style={{ color:s.color }} />
+              </div>
+              <div>
+                <div style={{ fontFamily:'var(--font-serif)', fontSize:22, fontWeight:500, color:'var(--fg-primary)', lineHeight:1, marginBottom:3 }}>{s.value}</div>
+                <div style={{ fontFamily:'var(--font-mono)', fontSize:8, letterSpacing:'0.14em', textTransform:'uppercase', color:'var(--fg-quaternary)' }}>{s.label}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Search + filters */}
+        <div style={{ display:'flex', gap:10, marginBottom:16, flexWrap:'wrap' }}>
+          <div style={{ position:'relative', flex:1, minWidth:180 }}>
+            <Icon name="search" size={12} color="var(--fg-quaternary)" style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)' }} />
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search matters…" style={{
+              width:'100%', boxSizing:'border-box', paddingLeft:32, paddingRight:12, paddingTop:8, paddingBottom:8,
+              background:'rgba(255,255,255,0.025)', border:'0.5px solid rgba(224,224,224,0.10)',
+              borderRadius:4, color:'var(--fg-primary)', outline:'none',
+              fontFamily:'var(--font-sans)', fontSize:13,
+            }} />
+          </div>
+          <div style={{ display:'flex', gap:5 }}>
+            {filters.map(f => (
+              <button key={f} onClick={()=>setFilter(f)} style={{
+                padding:'7px 11px', borderRadius:4, cursor:'pointer',
+                background: filter===f?'rgba(0,255,195,0.07)':'rgba(255,255,255,0.02)',
+                border:`0.5px solid ${filter===f?'rgba(0,255,195,0.28)':'rgba(224,224,224,0.08)'}`,
+                color: filter===f?'var(--verdict-neon)':'var(--fg-tertiary)',
+                fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.12em', textTransform:'uppercase',
+              }}>{f}</button>
+            ))}
+          </div>
+        </div>
+
+        {/* Grid */}
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
+          {filtered.map((m, i) => {
+            const dot = STATUS_DOT[m.status];
+            const kind = STATUS_KIND[m.status] || 'neutral';
+            return (
+              <div key={m.id} className="fade-in" onClick={() => onSelectMatter(m.id)}
+                style={{ animationDelay:`${i*0.04}s`, background:'rgba(17,17,20,0.8)',
+                  border:'0.5px solid rgba(224,224,224,0.09)', borderRadius:6, padding:14, cursor:'pointer',
+                  transition:'border-color 160ms, transform 160ms',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor='rgba(0,255,195,0.22)'; e.currentTarget.style.transform='translateY(-1px)'; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor='rgba(224,224,224,0.09)'; e.currentTarget.style.transform='translateY(0)'; }}>
+                <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:8, marginBottom:10 }}>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <h3 style={{ fontFamily:'var(--font-serif)', fontSize:13, fontStyle:'italic', color:'var(--fg-primary)', margin:'0 0 2px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', letterSpacing:'-0.01em' }}>{m.title}</h3>
+                    <p style={{ fontFamily:'var(--font-mono)', fontSize:8, letterSpacing:'0.12em', textTransform:'uppercase', color:'var(--fg-quaternary)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{m.client}</p>
+                  </div>
+                  <StatusChip kind={kind} dot>{m.status}</StatusChip>
+                </div>
+                <div style={{ display:'flex', gap:5, marginBottom:10, flexWrap:'wrap' }}>
+                  {m.caseType && <span className="lex-chip lex-chip--neutral">{m.caseType}</span>}
+                  {m.jurisdiction && <span className="lex-chip lex-chip--neutral">{m.jurisdiction}</span>}
+                </div>
+                <div style={{ display:'flex', gap:12, paddingTop:9, borderTop:'0.5px solid rgba(224,224,224,0.07)' }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:4 }}>
+                    <Icon name="shield" size={10} color="var(--verdict-neon)" />
+                    <span style={{ fontFamily:'var(--font-mono)', fontSize:9, color:'var(--fg-tertiary)' }}>{m.verified}</span>
+                  </div>
+                  <div style={{ display:'flex', alignItems:'center', gap:4 }}>
+                    <Icon name="clock" size={10} color="var(--fg-quaternary)" />
+                    <span style={{ fontFamily:'var(--font-mono)', fontSize:9, color:'var(--fg-tertiary)' }}>{m.hours}h</span>
+                  </div>
+                  {m.deadlines > 0 && (
+                    <div style={{ display:'flex', alignItems:'center', gap:4 }}>
+                      <Icon name="calendar" size={10} color="var(--verdict-amber)" />
+                      <span style={{ fontFamily:'var(--font-mono)', fontSize:9, color:'var(--fg-tertiary)' }}>{m.deadlines}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ════════════════════════════════════
+   APP SHELL
+════════════════════════════════════ */
+function App() {
+  const [view, setView] = React.useState(() => localStorage.getItem('lex.view') || 'dashboard');
+  const [activeMatter, setActiveMatter] = React.useState(() => localStorage.getItem('lex.matter') || LEX_MATTERS[0].id);
+  const [paletteOpen, setPaletteOpen] = React.useState(false);
+  const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
+
+  // Apply accent color CSS var live
+  React.useEffect(() => {
+    document.documentElement.style.setProperty('--verdict-neon', tweaks.accentColor);
+  }, [tweaks.accentColor]);
+
+  // Apply blueprint grid
+  React.useEffect(() => {
+    document.documentElement.style.setProperty(
+      '--blueprint-opacity', tweaks.blueprintGrid ? '0.022' : '0'
+    );
+  }, [tweaks.blueprintGrid]);
+
+  React.useEffect(() => { localStorage.setItem('lex.view', view); }, [view]);
+  React.useEffect(() => { if(activeMatter) localStorage.setItem('lex.matter', activeMatter); }, [activeMatter]);
+
+  React.useEffect(() => {
+    const fn = e => {
+      if ((e.metaKey||e.ctrlKey) && e.key.toLowerCase()==='k') { e.preventDefault(); setPaletteOpen(p=>!p); }
+      if (e.key==='Escape') setPaletteOpen(false);
+    };
+    window.addEventListener('keydown', fn);
+    return () => window.removeEventListener('keydown', fn);
+  }, []);
+
+  const handleSelectMatter = id => { setActiveMatter(id); setView('matter'); };
+
+  return (
+    <div data-screen-label="Lex Console" style={{ height:'100vh', display:'flex', flexDirection:'column', position:'relative', zIndex:1 }}>
+      <TopBar onOpenPalette={() => setPaletteOpen(true)} />
+      <div style={{ display:'flex', flex:1, minHeight:0, overflow:'hidden' }}>
+        <Sidebar
+          activeMatterId={activeMatter}
+          onSelectMatter={handleSelectMatter}
+          view={view}
+          onView={setView}
+          onNewMatter={() => {}}
+          overrideWidth={tweaks.sidebarWidth}
+          scanlineSpeed={tweaks.scanlineSpeed}
+        />
+        <main style={{ flex:1, minWidth:0, display:'flex', flexDirection:'column', overflow:'hidden', position:'relative' }}>
+          {view==='dashboard' && <Dashboard onSelectMatter={handleSelectMatter} />}
+          {view==='matter' && <MatterDetail matterId={activeMatter} onBack={() => setView('dashboard')} tweaks={tweaks} />}
+          {view==='clients' && (
+            <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:10 }}>
+              <Icon name="users" size={28} color="var(--fg-quaternary)" />
+              <p style={{ fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.16em', textTransform:'uppercase', color:'var(--fg-quaternary)' }}>Clients — v1.0</p>
+            </div>
+          )}
+          {view==='settings' && (
+            <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:10 }}>
+              <Icon name="settings" size={28} color="var(--fg-quaternary)" />
+              <p style={{ fontFamily:'var(--font-mono)', fontSize:9, letterSpacing:'0.16em', textTransform:'uppercase', color:'var(--fg-quaternary)' }}>Settings</p>
+            </div>
+          )}
+        </main>
+      </div>
+
+      {/* Command Palette */}
+      {/* Tweaks Panel */}
+      <TweaksPanel title="Tweaks">
+        <TweakColor    label="Accent color"     value={tweaks.accentColor}    onChange={v => setTweak('accentColor', v)} />
+        <TweakSlider   label="Sidebar width"    value={tweaks.sidebarWidth}   onChange={v => setTweak('sidebarWidth', v)}   min={200} max={320} step={4} />
+        <TweakSlider   label="Scanline speed"   value={tweaks.scanlineSpeed}  onChange={v => setTweak('scanlineSpeed', v)}  min={1.5} max={9}   step={0.5} />
+        <TweakToggle   label="Blueprint grid"   value={tweaks.blueprintGrid}  onChange={v => setTweak('blueprintGrid', v)} />
+        <TweakRadio    label="Tab density"      value={tweaks.tabbarDensity}  onChange={v => setTweak('tabbarDensity', v)}
+          options={['compact','normal','spacious']} />
+        <TweakRadio    label="Card style"       value={tweaks.cardStyle}      onChange={v => setTweak('cardStyle', v)}
+          options={['flat','raised','glass']} />
+      </TweaksPanel>
+
+      {paletteOpen && (
+        <div style={{ position:'fixed', inset:0, zIndex:200, display:'flex', alignItems:'flex-start', justifyContent:'center', paddingTop:100 }}>
+          <div style={{ position:'absolute', inset:0, background:'rgba(0,0,0,0.65)', backdropFilter:'blur(6px)' }} onClick={() => setPaletteOpen(false)} />
+          <div style={{ position:'relative', width:540, background:'rgba(14,14,18,0.95)',
+            backdropFilter:'blur(32px) saturate(180%)',
+            border:'0.5px solid rgba(0,255,195,0.22)', borderRadius:10,
+            boxShadow:'0 32px 64px rgba(0,0,0,0.7), 0 0 0 0.5px rgba(0,255,195,0.08)',
+            overflow:'hidden' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:10, padding:'12px 16px', borderBottom:'0.5px solid rgba(224,224,224,0.08)' }}>
+              <Icon name="search" size={14} color="var(--verdict-neon)" />
+              <input autoFocus placeholder="Search matters, commands, citations…"
+                onKeyDown={e => e.key==='Escape' && setPaletteOpen(false)}
+                style={{ flex:1, background:'none', border:'none', outline:'none',
+                  fontFamily:'var(--font-sans)', fontSize:14, color:'var(--fg-primary)' }} />
+              <kbd style={{ fontFamily:'var(--font-mono)', fontSize:9, padding:'2px 6px', borderRadius:3,
+                border:'0.5px solid rgba(224,224,224,0.12)', background:'rgba(255,255,255,0.03)', color:'var(--fg-tertiary)' }}>ESC</kbd>
+            </div>
+            <div style={{ maxHeight:340, overflowY:'auto' }}>
+              {LEX_MATTERS.map(m => (
+                <div key={m.id} onClick={() => { handleSelectMatter(m.id); setPaletteOpen(false); }}
+                  style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 16px', cursor:'pointer',
+                    borderBottom:'0.5px solid rgba(224,224,224,0.05)', transition:'background 160ms' }}
+                  onMouseEnter={e => e.currentTarget.style.background='rgba(255,255,255,0.025)'}
+                  onMouseLeave={e => e.currentTarget.style.background='transparent'}>
+                  <div style={{ width:28, height:28, borderRadius:4, background:'rgba(0,255,195,0.06)',
+                    border:'0.5px solid rgba(0,255,195,0.14)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                    <Icon name="folder" size={13} color="var(--verdict-neon)" />
+                  </div>
+                  <span style={{ fontFamily:'var(--font-serif)', fontSize:13, fontStyle:'italic', color:'var(--fg-primary)', flex:1 }}>{m.title}</span>
+                  <span style={{ fontFamily:'var(--font-mono)', fontSize:9, color:'var(--fg-quaternary)' }}>{m.id}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+</script>
+</body>
+</html>

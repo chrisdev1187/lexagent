@@ -1,0 +1,345 @@
+/* ==========================================================================
+   LEX PROTOCOL — Legal-Cyberpunk Design System
+   Colors & Type tokens. Import once at the top of any page.
+   ========================================================================== */
+
+/* ---------- FONTS (Google Fonts substitutions — see README) ---------- */
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+:root {
+  /* =======================================================================
+     COLOR — "Midnight Court" palette
+     ======================================================================= */
+
+  /* Core neutrals */
+  --midnight-court:   #050505;   /* Absolute background */
+  --midnight-deep:    #0a0a0c;   /* Panel base */
+  --midnight-raised:  #111114;   /* Raised surface / cards */
+  --midnight-elev:    #17171c;   /* Elevated / hover */
+  --midnight-line:    #1f1f26;   /* Hairline borders (use 0.5px) */
+  --midnight-mute:    #2a2a33;   /* Disabled / muted chrome */
+
+  /* Chrome / foreground */
+  --gavel-chrome:     #e0e0e0;   /* Primary fg */
+  --gavel-silver:     #b8b8bc;   /* Secondary fg */
+  --gavel-steel:      #7a7a82;   /* Tertiary / metadata */
+  --gavel-graphite:   #4a4a52;   /* Quaternary / hints */
+
+  /* Verdict accents (neon) */
+  --verdict-neon:     #00ffc3;   /* Primary accent — affirmative, "verdict in" */
+  --verdict-neon-dim: #00b386;   /* Pressed / darker state */
+  --verdict-violet:   #6a00ff;   /* Secondary accent — sealed / privileged */
+  --verdict-violet-dim:#4a00b8;
+  --verdict-amber:    #ffb800;   /* Caution / pending */
+  --verdict-crimson:  #ff3355;   /* Adversarial / breach */
+
+  /* Semantic colors */
+  --fg-primary:       var(--gavel-chrome);
+  --fg-secondary:     var(--gavel-silver);
+  --fg-tertiary:      var(--gavel-steel);
+  --fg-quaternary:    var(--gavel-graphite);
+  --fg-accent:        var(--verdict-neon);
+  --fg-on-accent:     var(--midnight-court);
+
+  --bg-base:          var(--midnight-court);
+  --bg-panel:         var(--midnight-deep);
+  --bg-raised:        var(--midnight-raised);
+  --bg-elev:          var(--midnight-elev);
+
+  --border-hair:      rgba(224, 224, 224, 0.08);   /* 0.5px neutral */
+  --border-line:      rgba(224, 224, 224, 0.14);
+  --border-neon:      rgba(0, 255, 195, 0.35);     /* 0.5px neon */
+  --border-neon-hot:  rgba(0, 255, 195, 0.65);
+  --border-violet:    rgba(106, 0, 255, 0.40);
+
+  /* Glow / neon aura — for text-shadow & box-shadow */
+  --glow-neon-sm:     0 0 8px rgba(0, 255, 195, 0.35);
+  --glow-neon-md:     0 0 16px rgba(0, 255, 195, 0.45), 0 0 32px rgba(0, 255, 195, 0.20);
+  --glow-neon-lg:     0 0 24px rgba(0, 255, 195, 0.55), 0 0 48px rgba(0, 255, 195, 0.25);
+  --glow-violet-md:   0 0 16px rgba(106, 0, 255, 0.55), 0 0 32px rgba(106, 0, 255, 0.22);
+  --glow-crimson-md:  0 0 14px rgba(255, 51, 85, 0.55);
+
+  /* Liquid glass */
+  --glass-bg:         rgba(20, 20, 26, 0.55);
+  --glass-bg-strong:  rgba(24, 24, 30, 0.75);
+  --glass-bg-weak:    rgba(20, 20, 26, 0.30);
+  --glass-border:     rgba(224, 224, 224, 0.10);
+  --glass-spec:       rgba(255, 255, 255, 0.06);   /* top specular edge */
+  --glass-blur:       blur(18px) saturate(160%);
+  --glass-blur-lg:    blur(32px) saturate(180%);
+
+  /* Elevation (shadows — always layered with subtle neon ambient) */
+  --shadow-1:
+    0 1px 0 rgba(255,255,255,0.03) inset,
+    0 1px 2px rgba(0,0,0,0.6);
+  --shadow-2:
+    0 1px 0 rgba(255,255,255,0.03) inset,
+    0 4px 12px rgba(0,0,0,0.55),
+    0 0 0 0.5px rgba(224,224,224,0.06);
+  --shadow-3:
+    0 1px 0 rgba(255,255,255,0.04) inset,
+    0 16px 40px rgba(0,0,0,0.7),
+    0 0 0 0.5px rgba(224,224,224,0.08);
+  --shadow-4:
+    0 1px 0 rgba(255,255,255,0.05) inset,
+    0 40px 80px rgba(0,0,0,0.8),
+    0 0 0 0.5px rgba(0, 255, 195, 0.10);
+
+  /* =======================================================================
+     TYPOGRAPHY
+     ======================================================================= */
+  --font-serif:  'Fraunces', 'Editorial New', 'Tiempos Headline', Georgia, serif;
+  --font-mono:   'JetBrains Mono', 'Berkeley Mono', ui-monospace, Menlo, monospace;
+  --font-sans:   'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, sans-serif;
+
+  /* Type scale — tight, legal-editorial cadence */
+  --fs-micro:    10px;   /* CASE ID: 4492-X */
+  --fs-label:    11px;   /* chips, tags, field labels */
+  --fs-caption:  12px;
+  --fs-body-sm:  13px;
+  --fs-body:     15px;
+  --fs-body-lg:  17px;
+  --fs-h6:       18px;
+  --fs-h5:       22px;
+  --fs-h4:       28px;
+  --fs-h3:       36px;
+  --fs-h2:       52px;
+  --fs-h1:       72px;
+  --fs-display:  112px;
+
+  /* Line heights */
+  --lh-tight:    1.05;
+  --lh-snug:     1.20;
+  --lh-body:     1.55;
+  --lh-loose:    1.75;
+
+  /* Tracking */
+  --tr-tight:    -0.02em;
+  --tr-snug:     -0.01em;
+  --tr-normal:   0em;
+  --tr-wide:     0.04em;
+  --tr-wider:    0.08em;
+  --tr-widest:   0.18em;   /* for uppercase micro-labels */
+
+  /* =======================================================================
+     SPACING — 4px base
+     ======================================================================= */
+  --sp-0:   0px;
+  --sp-1:   4px;
+  --sp-2:   8px;
+  --sp-3:   12px;
+  --sp-4:   16px;
+  --sp-5:   20px;
+  --sp-6:   24px;
+  --sp-8:   32px;
+  --sp-10:  40px;
+  --sp-12:  48px;
+  --sp-16:  64px;
+  --sp-20:  80px;
+  --sp-24:  96px;
+  --sp-32:  128px;
+
+  /* Radii — low, industrial */
+  --radius-xs:  2px;
+  --radius-sm:  4px;
+  --radius-md:  6px;
+  --radius-lg:  10px;
+  --radius-xl:  16px;
+  --radius-pill: 999px;
+
+  /* Motion */
+  --ease-out:     cubic-bezier(0.2, 0.6, 0.2, 1);
+  --ease-in-out:  cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-terminal: cubic-bezier(0.16, 1, 0.3, 1); /* Entry Traces */
+  --dur-instant:  80ms;
+  --dur-fast:     160ms;
+  --dur-base:     240ms;
+  --dur-slow:     400ms;     /* Doherty threshold cap */
+  --dur-reveal:   800ms;
+
+  /* Grid & layout */
+  --container:    1280px;
+  --bento-gap:    12px;
+}
+
+/* ========================================================================== */
+/*  Semantic element defaults                                                  */
+/* ========================================================================== */
+
+html, body {
+  background: var(--bg-base);
+  color: var(--fg-primary);
+  font-family: var(--font-sans);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Serif display — legal headline voice */
+.h-display, .h1, h1 {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: var(--fs-h1);
+  line-height: var(--lh-tight);
+  letter-spacing: var(--tr-tight);
+  color: var(--fg-primary);
+  font-optical-sizing: auto;
+  font-variation-settings: "opsz" 144, "SOFT" 0;
+}
+.h-display { font-size: var(--fs-display); }
+.h2, h2 {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: var(--fs-h2);
+  line-height: var(--lh-snug);
+  letter-spacing: var(--tr-tight);
+}
+.h3, h3 {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: var(--fs-h3);
+  line-height: var(--lh-snug);
+  letter-spacing: var(--tr-snug);
+}
+.h4, h4 {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: var(--fs-h4);
+  line-height: var(--lh-snug);
+  letter-spacing: var(--tr-snug);
+}
+.h5, h5 {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: var(--fs-h5);
+  line-height: 1.3;
+}
+.h6, h6 {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: var(--fs-h6);
+  line-height: 1.4;
+}
+
+p { color: var(--fg-secondary); font-size: var(--fs-body); line-height: var(--lh-body); }
+.p-lead { font-size: var(--fs-body-lg); color: var(--fg-secondary); }
+.p-small { font-size: var(--fs-body-sm); color: var(--fg-tertiary); }
+
+/* Monospace — data, case IDs, timestamps */
+.mono, code, kbd, samp, pre {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  letter-spacing: var(--tr-normal);
+}
+
+/* Micro labels — "CASE ID: 4492-X" */
+.micro-label {
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: var(--tr-widest);
+  color: var(--fg-tertiary);
+}
+.micro-label--neon { color: var(--verdict-neon); text-shadow: var(--glow-neon-sm); }
+
+/* Eyebrow */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: var(--tr-widest);
+  color: var(--fg-tertiary);
+}
+
+/* Selection */
+::selection { background: var(--verdict-neon); color: var(--midnight-court); }
+
+/* ========================================================================== */
+/*  Utility classes                                                            */
+/* ========================================================================== */
+
+.glass-blur {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 0.5px solid var(--glass-border);
+  box-shadow: inset 0 1px 0 var(--glass-spec), var(--shadow-2);
+}
+.glass-blur--strong {
+  background: var(--glass-bg-strong);
+  backdrop-filter: var(--glass-blur-lg);
+  -webkit-backdrop-filter: var(--glass-blur-lg);
+}
+
+.neon-glow       { box-shadow: var(--glow-neon-md); }
+.neon-glow--sm   { box-shadow: var(--glow-neon-sm); }
+.neon-glow--lg   { box-shadow: var(--glow-neon-lg); }
+.neon-text       { color: var(--verdict-neon); text-shadow: var(--glow-neon-sm); }
+.violet-text     { color: var(--verdict-violet); text-shadow: var(--glow-violet-md); }
+
+.hair-border     { border: 0.5px solid var(--border-hair); }
+.neon-border     { border: 0.5px solid var(--border-neon); }
+.neon-border-hot { border: 0.5px solid var(--border-neon-hot); }
+
+/* Subtle noise texture — applied as ::after for "physical" feel */
+.texture-check::after {
+  content: "";
+  position: absolute; inset: 0;
+  pointer-events: none;
+  opacity: 0.035;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+/* Blueprint grid — for dashboard backgrounds */
+.bg-blueprint {
+  background-color: var(--bg-base);
+  background-image:
+    linear-gradient(to right, rgba(0,255,195,0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0,255,195,0.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+/* Scanline — for loading / data widgets */
+@keyframes scanline {
+  0%   { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
+}
+.scanline {
+  position: relative; overflow: hidden;
+}
+.scanline::before {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(180deg, transparent 0%, rgba(0,255,195,0.14) 50%, transparent 100%);
+  animation: scanline 2.6s linear infinite;
+  pointer-events: none;
+}
+
+/* Terminal blink */
+@keyframes term-blink { 50% { opacity: 0; } }
+.term-cursor::after {
+  content: "▌";
+  margin-left: 2px;
+  color: var(--verdict-neon);
+  animation: term-blink 1s step-end infinite;
+}
+
+/* Entry trace — keyframe used by Motion variants */
+@keyframes trace-in {
+  0%   { clip-path: inset(0 100% 0 0); opacity: 0; filter: blur(1px); }
+  60%  { clip-path: inset(0 0 0 0); opacity: 1; filter: blur(0); }
+  100% { clip-path: inset(0 0 0 0); opacity: 1; }
+}
+.trace-in { animation: trace-in var(--dur-reveal) var(--ease-terminal) both; }
+
+/* Focus ring — WCAG 2.1 — always 2px neon */
+:focus-visible {
+  outline: 2px solid var(--verdict-neon);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}

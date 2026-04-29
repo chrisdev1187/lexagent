@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;1,9..144,400&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin: 0; padding: 20px; background: var(--bg-base); display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-start; }
+  .card {
+    width: 220px; background: var(--bg-raised); border: 0.5px solid rgba(224,224,224,0.09);
+    border-radius: 6px; padding: 16px;
+    box-shadow: 0 1px 0 rgba(255,255,255,0.03) inset, 0 4px 12px rgba(0,0,0,0.55), 0 0 0 0.5px rgba(224,224,224,0.06);
+  }
+  .card--active { border-color: rgba(0,255,195,0.30); box-shadow: 0 1px 0 rgba(255,255,255,0.03) inset, 0 4px 12px rgba(0,0,0,0.55), 0 0 0 0.5px rgba(0,255,195,0.15), inset 0 0 0 0 transparent; }
+  .card--glass { background: rgba(20,20,26,0.55); backdrop-filter: blur(18px) saturate(160%); border-color: rgba(224,224,224,0.10); box-shadow: inset 0 1px 0 rgba(255,255,255,0.06); }
+  .eyebrow { font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--fg-quaternary); margin-bottom: 8px; }
+  .title { font-family: var(--font-serif); font-size: 14px; font-style: italic; color: var(--fg-primary); letter-spacing: -0.01em; line-height: 1.3; margin-bottom: 5px; }
+  .sub { font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--fg-quaternary); }
+  .divider { border: none; border-top: 0.5px solid rgba(224,224,224,0.07); margin: 10px 0; }
+  .stat { display: flex; align-items: center; gap: 5px; font-family: var(--font-mono); font-size: 10px; color: var(--fg-tertiary); }
+  .chip-sm { font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; padding: 2px 7px; border-radius: 999px; }
+</style>
+</head>
+<body>
+  <!-- Default -->
+  <div class="card">
+    <div class="eyebrow">CASE ID · 4488-V-KT2</div>
+    <div class="title">In re: Nocturne Data Breach</div>
+    <div class="sub">Meridian Partners · SDNY</div>
+    <hr class="divider">
+    <div style="display:flex;gap:12px">
+      <div class="stat"><span style="color:var(--verdict-neon)">✓</span> 12 verified</div>
+      <div class="stat">2.4h</div>
+    </div>
+  </div>
+  <!-- Active / selected -->
+  <div class="card card--active">
+    <div class="eyebrow" style="color:var(--verdict-neon);text-shadow:0 0 8px rgba(0,255,195,0.35)">CASE ID · 4492-X-ND9 · ACTIVE</div>
+    <div class="title">Ashford v. Cipher Holdings</div>
+    <div class="sub">Kestrel & Sons · 9th Cir</div>
+    <hr class="divider">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <span class="chip-sm" style="background:rgba(0,255,195,0.06);border:0.5px solid rgba(0,255,195,0.35);color:var(--verdict-neon)">Active</span>
+      <span class="stat">4 docs</span>
+    </div>
+  </div>
+  <!-- Glass -->
+  <div class="card card--glass">
+    <div class="eyebrow">MATTER · SEALED</div>
+    <div class="title">Meridian Trust Estate</div>
+    <div class="sub" style="color:var(--verdict-violet)">§ Privilege · Class A</div>
+    <hr class="divider">
+    <span class="chip-sm" style="background:rgba(106,0,255,0.08);border:0.5px solid rgba(106,0,255,0.40);color:var(--verdict-violet)">Sealed</span>
+  </div>
+</body>
+</html>

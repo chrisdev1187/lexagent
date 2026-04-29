@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useAuth, type AuthErrorCode } from "@/lib/auth";
-import { supabaseReachable } from "@/lib/supabase";
-import { WifiOff, Shield, Scale, Brain, Search, CheckCircle2 } from "lucide-react";
+import { supabase, supabaseReachable } from "@/lib/supabase";
+import { WifiOff, Shield, Scale, Brain, Search, CheckCircle2, Smartphone, Loader2, XCircle } from "lucide-react";
 
 const ERROR_COPY: Record<AuthErrorCode, string> = {
   invalid_credentials: "Email or password is incorrect. Double-check your details and try again.",
@@ -35,6 +36,12 @@ export default function LoginPage() {
   const [resending, setResending] = useState(false);
   const [resendDone, setResendDone] = useState(false);
   const [scanPhase, setScanPhase] = useState<"scanning" | "idle">("idle");
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get("redirect") || "/dashboard";
+  const [mfaChallenge, setMfaChallenge] = useState(false);
+  const [mfaCode, setMfaCode] = useState("");
+  const [mfaErr, setMfaErr] = useState<string | null>(null);
+  const [mfaBusy, setMfaBusy] = useState(false);
 
   useEffect(() => {
     supabaseReachable.then(setReachable);
@@ -76,8 +83,8 @@ export default function LoginPage() {
     );
   }
 
-  if (user) {
-    if (typeof window !== "undefined") window.location.href = "/dashboard";
+  if (user && !mfaChallenge) {
+    if (typeof window !== "undefined") window.location.href = redirectTo;
     return null;
   }
 
@@ -94,6 +101,31 @@ export default function LoginPage() {
       setErrorCode(error.code);
     } else if (mode === "signup") {
       setMessage("Account created. Check your email to confirm before signing in.");
+    } else {
+      // Check if MFA challenge is required (AAL2)
+      const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (aal?.nextLevel === "aal2" && aal?.currentLevel === "aal1") {
+        setMfaChallenge(true);
+        setMfaCode("");
+        setMfaErr(null);
+      }
+    }
+  };
+
+  const handleMfaVerify = async () => {
+    if (mfaCode.length !== 6) return;
+    setMfaBusy(true);
+    setMfaErr(null);
+    const { data: factors } = await supabase.auth.mfa.listFactors();
+    const factor = factors?.totp?.[0];
+    if (!factor) { setMfaBusy(false); return; }
+    const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId: factor.id, code: mfaCode });
+    setMfaBusy(false);
+    if (error) {
+      setMfaErr("Invalid code — try again.");
+    } else {
+      setMfaChallenge(false);
+      if (typeof window !== "undefined") window.location.href = redirectTo;
     }
   };
 
@@ -104,6 +136,40 @@ export default function LoginPage() {
     setResending(false);
     setResendDone(true);
   };
+
+  if (mfaChallenge) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--midnight-court)" }}>
+        <div className="w-full max-w-sm rounded-xl p-8" style={{ background: "var(--bg-surface, #111)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
+          <div className="flex items-center gap-2 mb-6">
+            <Smartphone size={18} style={{ color: "var(--verdict-neon)" }} />
+            <span className="font-mono text-[10px] tracking-widest" style={{ color: "var(--fg-tertiary)" }}>TWO-FACTOR AUTHENTICATION</span>
+          </div>
+          <p className="text-sm mb-4" style={{ color: "var(--fg-secondary)" }}>Enter the 6-digit code from your authenticator app.</p>
+          <div className="flex gap-2 mb-3">
+            <input
+              className="rounded px-3 py-2 text-sm font-mono tracking-widest flex-1"
+              style={{ background: "var(--bg-raised)", border: "0.5px solid rgba(224,224,224,0.09)", color: "var(--fg-primary)", outline: "none" }}
+              placeholder="000000"
+              maxLength={6}
+              value={mfaCode}
+              onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, ""))}
+              onKeyDown={(e) => e.key === "Enter" && handleMfaVerify()}
+              autoFocus
+            />
+            <button onClick={handleMfaVerify} disabled={mfaBusy || mfaCode.length !== 6} className="lex-btn lex-btn--primary">
+              {mfaBusy ? <Loader2 size={14} className="animate-spin" /> : "Verify"}
+            </button>
+          </div>
+          {mfaErr && (
+            <div className="flex items-center gap-1.5 text-xs" style={{ color: "var(--verdict-crimson)" }}>
+              <XCircle size={12} /> {mfaErr}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

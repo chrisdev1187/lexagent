@@ -9,6 +9,8 @@ import { mergeMemory } from "./merge";
 import { BUDGET_DEFAULT } from "./tokens";
 import { logAiUsage } from "./usage-logger";
 import { aresCritic } from "@/lib/ares";
+import { parseToolRequests, dispatchTool } from "@/lib/ares/tools/registry";
+import type { CiteVerifyOutput } from "@/lib/ares/tools/types";
 
 export interface LexMemoryOpts {
   tab: TabId;
@@ -105,6 +107,38 @@ export function withLexMemory(
           }).catch(() => null);
           criticScore = criticOut?.persisted_score ?? null;
         }
+
+        // Execute cite_verify tool requests from ARES response.
+        // Passes matter.facts as context for local subsequent-history detection.
+        if (text) {
+          const toolReqs = parseToolRequests(text).filter((r) => r.name === "cite_verify");
+          if (toolReqs.length > 0) {
+            const factsContext = matter.facts ? matter.facts.substring(0, 2000) : undefined;
+            const results = await Promise.allSettled(
+              toolReqs.map((r) =>
+                dispatchTool<Record<string, unknown>, CiteVerifyOutput>("cite_verify", {
+                  ...r.args,
+                  context: factsContext,
+                })
+              )
+            );
+            const citeResults = results
+              .map((r, i) => ({
+                raw: toolReqs[i].args["raw"] as string,
+                ...(r.status === "fulfilled" ? r.value : { ok: false, confidence: 0, subsequent_history: "unknown" as const }),
+              }));
+            await updateMatter((prev) => {
+              if (prev.id !== matter.id) return prev;
+              const meta = (prev.metadata ?? {}) as Record<string, unknown>;
+              const existing = (meta["cite_results"] as typeof citeResults | undefined) ?? [];
+              return {
+                ...prev,
+                metadata: { ...meta, cite_results: [...citeResults, ...existing].slice(0, 50) },
+              };
+            }).catch(() => {});
+          }
+        }
+
         await logAiUsage({
           matterId: matter.id,
           tab: opts.tab,

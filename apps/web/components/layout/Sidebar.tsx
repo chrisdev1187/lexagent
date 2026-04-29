@@ -15,6 +15,7 @@ import { LexTooltip } from "@/components/shared/LexTooltip";
 import { UsagePill } from "@/components/shared/UsagePill";
 import { VersionPill } from "@/components/shared/VersionPill";
 import { AlertBell } from "@/components/shared/AlertBell";
+import { ScanlineWipe } from "@/components/brand/ScanlineWipe";
 
 const STATUS_DOT: Record<string, string> = {
   Active: "var(--verdict-neon)",
@@ -152,19 +153,20 @@ export function Sidebar({ onNewMatter }: SidebarProps) {
           }
         </div>
         {!collapsed && (
-          <div className="overflow-hidden">
-            <div
-              className="font-serif font-semibold text-sm leading-tight tracking-tight"
-              style={{ color: "var(--fg-primary)" }}
-            >
-              {settings.firmName || "LEX PROTOCOL"}
-            </div>
-            <div
-              className="font-mono text-[9px] tracking-[0.18em] uppercase"
-              style={{ color: "var(--fg-quaternary)" }}
-            >
-              Legal AI
-            </div>
+          <div className="overflow-hidden flex flex-col">
+            {settings.firmName
+              ? (
+                <>
+                  <div className="font-serif font-semibold text-sm leading-tight tracking-tight" style={{ color: "var(--fg-primary)" }}>
+                    {settings.firmName}
+                  </div>
+                  <div className="font-mono text-[9px] tracking-[0.18em] uppercase" style={{ color: "var(--fg-quaternary)" }}>
+                    Legal AI
+                  </div>
+                </>
+              )
+              : <ScanlineWipe fontSize={13} />
+            }
           </div>
         )}
       </div>

@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin: 0; padding: 16px; background: var(--bg-base); font-family: var(--font-mono); display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
+  .icon-row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .icon-item { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .icon-box { width: 40px; height: 40px; border-radius: 6px; background: var(--bg-raised); border: 0.5px solid var(--border-hair); display: flex; align-items: center; justify-content: center; }
+  .icon-label { font-size: 8px; letter-spacing: 0.10em; text-transform: uppercase; color: var(--fg-quaternary); text-align: center; max-width: 48px; }
+</style>
+</head>
+<body>
+  <div class="icon-row">
+    <div class="icon-item">
+      <div class="icon-box"><img src="../assets/icons/gavel-blueprint.svg" width="24" height="24" alt="gavel"></div>
+      <div class="icon-label">Gavel</div>
+    </div>
+    <div class="icon-item">
+      <div class="icon-box"><img src="../assets/icons/seal-blueprint.svg" width="24" height="24" alt="seal"></div>
+      <div class="icon-label">Seal</div>
+    </div>
+    <div class="icon-item">
+      <div class="icon-box"><img src="../assets/icons/writ-blueprint.svg" width="24" height="24" alt="writ"></div>
+      <div class="icon-label">Writ</div>
+    </div>
+    <div class="icon-item">
+      <div class="icon-box"><img src="../assets/icons/chain-of-custody.svg" width="24" height="24" alt="chain"></div>
+      <div class="icon-label">Custody</div>
+    </div>
+    <!-- Lucide-style inline SVGs -->
+    <div class="icon-item">
+      <div class="icon-box">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--verdict-neon)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5.55 3.84 10.74 8 12 4.16-1.26 8-6.45 8-12V5z"/></svg>
+      </div>
+      <div class="icon-label">Shield</div>
+    </div>
+    <div class="icon-item">
+      <div class="icon-box">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--fg-tertiary)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+      </div>
+      <div class="icon-label">Matter</div>
+    </div>
+    <div class="icon-item">
+      <div class="icon-box">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--fg-tertiary)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      </div>
+      <div class="icon-label">Clock</div>
+    </div>
+    <div class="icon-item">
+      <div class="icon-box">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--verdict-amber)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      </div>
+      <div class="icon-label">Alert</div>
+    </div>
+  </div>
+</body>
+</html>

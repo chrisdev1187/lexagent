@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /* ==========================================================================
-   LEX PROTOCOL — Tailwind v4 theme registration
+   LexAgent — Tailwind v4 theme registration
    Maps Midnight Court tokens → Tailwind utilities.
    Without this, `text-sm`, `p-4`, `font-serif` etc. generate NOTHING.
    ========================================================================== */
@@ -93,7 +93,7 @@
 }
 
 /* ==========================================================================
-   LEX PROTOCOL — Midnight Court design-system variables
+   LexAgent — Midnight Court design-system variables
    ========================================================================== */
 
 :root {

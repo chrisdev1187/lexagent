@@ -42,7 +42,7 @@ export function TopBar() {
             color: "var(--fg-primary)",
           }}
         >
-          {settings.firmName || "LEX PROTOCOL"}
+          {settings.firmName || "LexAgent"}
         </span>
       </Link>
       <AlertBell collapsed />

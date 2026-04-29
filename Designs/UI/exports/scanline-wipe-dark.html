@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LexAgent — Scanline Wipe (Dark)</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --midnight-court: #050505;
+    --verdict-neon: #00ffc3;
+    --gavel-chrome: #e0e0e0;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 320px;
+    height: 80px;
+    background: var(--midnight-court);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  .wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .text-base {
+    font-family: 'Inter', sans-serif;
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--gavel-chrome);
+    animation: scanline-base 4s ease-in-out infinite;
+    position: relative;
+    z-index: 1;
+  }
+  .text-neon {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Inter', sans-serif;
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--verdict-neon);
+    clip-path: inset(100% 0 0% 0);
+    animation: scan-sweep 4s ease-in-out infinite;
+    text-shadow: 0 0 14px rgba(0,255,195,0.9);
+    z-index: 2;
+    white-space: nowrap;
+  }
+  .scan-bar {
+    position: absolute;
+    left: -4px; right: -4px;
+    height: 1.5px;
+    background: var(--verdict-neon);
+    box-shadow: 0 0 10px var(--verdict-neon), 0 0 3px #fff;
+    top: 0;
+    animation: scan-bar 4s ease-in-out infinite;
+    z-index: 3;
+    opacity: 0;
+  }
+  @keyframes scan-sweep {
+    0%, 10% { clip-path: inset(100% 0 0% 0); }
+    40% { clip-path: inset(0% 0 0% 0); }
+    70% { clip-path: inset(0% 0 0% 0); }
+    95%, 100% { clip-path: inset(0% 0 100% 0); }
+  }
+  @keyframes scanline-base {
+    0%, 10% { opacity: 0.2; }
+    20% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { opacity: 0.2; }
+  }
+  @keyframes scan-bar {
+    0%, 5% { top: 100%; opacity: 0; }
+    10% { opacity: 1; top: 100%; }
+    40% { top: 0%; opacity: 1; }
+    50% { top: -10%; opacity: 0; }
+    60% { top: 100%; opacity: 0; }
+    70% { top: 100%; opacity: 1; }
+    95% { top: 0%; opacity: 1; }
+    100% { top: -10%; opacity: 0; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="scan-bar"></div>
+  <div class="text-base">LEX AGENT</div>
+  <div class="text-neon">LEX AGENT</div>
+</div>
+</body>
+</html>

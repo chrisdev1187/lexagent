@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin: 0; padding: 20px; background: var(--bg-base); display: flex; flex-direction: column; gap: 12px; max-width: 380px; }
+  label { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--fg-quaternary); display: block; margin-bottom: 5px; }
+  input, textarea {
+    width: 100%; box-sizing: border-box;
+    background: rgba(17,17,20,0.7); border: 0.5px solid rgba(224,224,224,0.10);
+    border-radius: 4px; padding: 9px 12px;
+    font-family: var(--font-sans); font-size: 13px; color: var(--fg-primary);
+    outline: none;
+  }
+  input::placeholder, textarea::placeholder { color: var(--fg-quaternary); }
+  .focused { border-color: rgba(0,255,195,0.45) !important; box-shadow: 0 0 0 3px rgba(0,255,195,0.10); }
+  .error-field { border-color: rgba(255,51,85,0.45) !important; }
+  .hint { font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.10em; color: var(--fg-quaternary); margin-top: 4px; }
+  .error-hint { color: var(--verdict-crimson); }
+</style>
+</head>
+<body>
+  <div>
+    <label>Matter title</label>
+    <input placeholder="In re: Nocturne Data Breach" />
+    <div class="hint">Displayed across all tabs and in the sidebar.</div>
+  </div>
+  <div>
+    <label>Case number (focused)</label>
+    <input class="focused" value="4492-X-ND9" />
+  </div>
+  <div>
+    <label>Jurisdiction (error)</label>
+    <input class="error-field" value="Ninth Cir" />
+    <div class="hint error-hint">Select a valid jurisdiction from the list.</div>
+  </div>
+  <div>
+    <label>Notes</label>
+    <textarea rows="3" placeholder="Deposition scheduled 2026-05-01 at 09:00 PDT."></textarea>
+  </div>
+</body>
+</html>

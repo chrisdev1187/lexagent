@@ -574,7 +574,8 @@ function PacerTab({ userId }: { userId: string }) {
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       const token = data.session?.access_token;
-      const h = token ? { Authorization: `Bearer ${token}` } : {};
+      const h: Record<string, string> = {};
+      if (token) h["Authorization"] = `Bearer ${token}`;
       Promise.all([
         fetch(`${API_URL}/api/pacer/credentials/status`, { headers: h }).then(r => r.ok ? r.json() : null),
         supabase.from("user_roles").select("alert_email_enabled").eq("user_id", userId).single(),

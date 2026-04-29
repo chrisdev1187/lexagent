@@ -24,18 +24,36 @@ interface Plan {
 
 const PLANS: Plan[] = [
   {
-    id: "starter",
-    name: "Starter",
-    tagline: "Solo practitioners getting started",
-    zar: 800, gbp: 35, usd: 45,
-    budget: "$8/mo AI budget",
-    matterLimit: "10 matters",
+    id: "free",
+    name: "Free",
+    tagline: "Try LexAgent at no cost",
+    zar: 0, gbp: 0, usd: 0,
+    budget: "Limited AI usage",
+    matterLimit: "3 matters",
     seats: "1 seat",
     features: [
-      "Legal research (Claude Sonnet 4.6)",
-      "Document drafting",
+      "1 AI use per feature per matter",
+      "Legal research & citation check",
+      "Document drafting (basic)",
+      "Deadline tracker",
+      "Community support",
+    ],
+    cta: "Start Free",
+  },
+  {
+    id: "starter",
+    name: "Starter",
+    tagline: "Solo practitioners",
+    zar: 740, gbp: 32, usd: 40,
+    budget: "~500 AI actions/mo",
+    matterLimit: "Unlimited matters",
+    seats: "1 seat",
+    features: [
+      "Full AI access — all features",
+      "Legal research & deep research",
+      "Document drafting & vault",
       "Citation verification",
-      "10 active matters",
+      "Deadlines & timeline",
       "Email support",
     ],
     cta: "Get Started",
@@ -44,17 +62,17 @@ const PLANS: Plan[] = [
     id: "professional",
     name: "Professional",
     tagline: "Growing law practices",
-    zar: 1600, gbp: 75, usd: 95,
-    budget: "$20/mo AI budget",
-    matterLimit: "25 matters",
-    seats: "Up to 3 seats",
+    zar: 1850, gbp: 80, usd: 100,
+    budget: "~1,500 AI actions/mo",
+    matterLimit: "Unlimited matters",
+    seats: "2 seats",
     features: [
       "Everything in Starter",
       "Case strategy generation",
       "Judge intelligence profiles",
-      "25 active matters",
-      "Priority email support",
+      "Conflict of interest screening",
       "Usage analytics dashboard",
+      "Priority email support",
     ],
     cta: "Start Free Trial",
     highlighted: true,
@@ -62,36 +80,36 @@ const PLANS: Plan[] = [
   {
     id: "firm",
     name: "Firm",
-    tagline: "Established firms and teams",
-    zar: 3500, gbp: 160, usd: 200,
-    budget: "$35/mo AI budget",
-    matterLimit: "60 matters",
-    seats: "Up to 10 seats",
+    tagline: "Established firms & teams",
+    zar: 3700, gbp: 160, usd: 200,
+    budget: "~5,000 AI actions/mo",
+    matterLimit: "Unlimited matters",
+    seats: "4 seats",
     features: [
       "Everything in Professional",
-      "Conflict of interest checker",
-      "Timeline builder",
-      "60 active matters across all seats",
-      "Dedicated Slack channel",
-      "Quarterly strategy review",
+      "Admin dashboard & audit logs",
+      "Team matter management",
+      "Dedicated account support",
+      "Billing & usage controls",
+      "Early access to new features",
     ],
-    cta: "Contact Sales",
+    cta: "Get Started",
   },
   {
-    id: "premium",
-    name: "Premium",
-    tagline: "Mission-critical legal operations",
-    zar: 0, gbp: 2000, usd: 2000,
-    budget: "$150/mo AI budget",
+    id: "enterprise",
+    name: "Enterprise",
+    tagline: "Large firms & legal departments",
+    zar: 0, gbp: 0, usd: 0,
+    budget: "Custom AI usage",
     matterLimit: "Unlimited matters",
-    seats: "Unlimited seats",
+    seats: "Custom seats",
     features: [
       "Everything in Firm",
-      "Custom feature development",
-      "Custom API integrations",
-      "Personal onboarding & training",
-      "CEO-level dedicated support",
+      "Custom seat count & usage",
+      "Dedicated success manager",
+      "Custom integrations & API access",
       "SLA guarantee",
+      "Security & compliance review",
     ],
     cta: "Book a Demo",
     isPremium: true,
@@ -120,6 +138,7 @@ export default function PricingPage() {
 
   async function handleCTA(plan: Plan) {
     if (plan.isPremium) { setShowLeadForm(true); return; }
+    if (plan.id === "free") { window.location.href = "/login?tab=signup"; return; }
     setLoading(plan.id);
     try {
       const res = await fetch(`${API_URL}/api/billing/checkout`, {
@@ -160,7 +179,7 @@ export default function PricingPage() {
           Legal AI that pays for itself
         </h1>
         <p className="text-lg max-w-xl mx-auto" style={{ color: "var(--fg-tertiary)" }}>
-          Powered by Claude Sonnet 4.6. All plans include the same frontier model — higher tiers unlock more usage and features.
+          Powered by Claude Opus 4.7. All paid plans include full AI access — higher tiers unlock more actions, seats, and features.
         </p>
         {region.currency !== "USD" && (
           <p className="font-mono text-[10px] tracking-[0.1em] uppercase mt-3" style={{ color: "var(--fg-quaternary)" }}>
@@ -170,7 +189,7 @@ export default function PricingPage() {
       </div>
 
       {/* Plans grid */}
-      <div className="max-w-7xl mx-auto px-4 pb-24 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div className="max-w-7xl mx-auto px-4 pb-24 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-5">
         {PLANS.map((plan) => (
           <div
             key={plan.id}
@@ -193,20 +212,29 @@ export default function PricingPage() {
             <div className="mb-6">
               {plan.isPremium ? (
                 <p className="font-serif text-3xl font-semibold" style={{ color: "var(--verdict-violet)" }}>Custom</p>
+              ) : plan.id === "free" ? (
+                <>
+                  <p className="font-serif text-4xl font-semibold" style={{ color: "var(--fg-primary)" }}>
+                    Free
+                  </p>
+                  <p className="font-mono text-[10px] tracking-[0.08em] mt-2" style={{ color: "var(--fg-quaternary)" }}>
+                    {plan.budget} · {plan.matterLimit} · {plan.seats}
+                  </p>
+                </>
               ) : (
                 <>
                   <p className="font-serif text-4xl font-semibold" style={{ color: "var(--fg-primary)" }}>
                     {formatPrice(getPrice(plan), region)}
-                    <span className="text-sm font-normal ml-1" style={{ color: "var(--fg-quaternary)" }}>/seat/mo</span>
+                    <span className="text-sm font-normal ml-1" style={{ color: "var(--fg-quaternary)" }}>/mo</span>
                   </p>
                   {region.currency !== "USD" && (
-                    <p className="font-mono text-[10px] mt-1" style={{ color: "var(--fg-quaternary)" }}>${plan.usd} USD/seat/mo</p>
+                    <p className="font-mono text-[10px] mt-1" style={{ color: "var(--fg-quaternary)" }}>${plan.usd} USD/mo</p>
                   )}
+                  <p className="font-mono text-[10px] tracking-[0.08em] mt-2" style={{ color: "var(--fg-quaternary)" }}>
+                    {plan.budget} · {plan.matterLimit} · {plan.seats}
+                  </p>
                 </>
               )}
-              <p className="font-mono text-[10px] tracking-[0.08em] mt-2" style={{ color: "var(--fg-quaternary)" }}>
-                {plan.budget} · {plan.matterLimit} · {plan.seats}
-              </p>
             </div>
 
             <ul className="space-y-2 mb-8 flex-1">
@@ -267,9 +295,9 @@ export default function PricingPage() {
             ) : (
               <form onSubmit={submitLead} className="space-y-4">
                 <div>
-                  <h3 className="font-serif text-xl font-semibold" style={{ color: "var(--fg-primary)" }}>Book a Premium Demo</h3>
+                  <h3 className="font-serif text-xl font-semibold" style={{ color: "var(--fg-primary)" }}>Book an Enterprise Demo</h3>
                   <p className="text-[12px] mt-1" style={{ color: "var(--fg-quaternary)" }}>
-                    Premium is limited to 1 new client per month. Tell us about your firm.
+                    Tell us about your firm and we'll tailor a plan to your needs.
                   </p>
                 </div>
                 {[

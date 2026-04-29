@@ -12,7 +12,7 @@ export default function DesignShowcase() {
       }}>
         <span className="lex-micro lex-micro--neon">◆ COMPONENTS.CSS · v0.1.0 · 42 CLASSES</span>
         <h1 style={{ fontFamily: "var(--font-serif)", fontSize: 40, fontWeight: 400, letterSpacing: "-0.02em", margin: "8px 0 4px", color: "var(--fg-primary)" }}>
-          Lex Protocol — live component showcase
+          LexAgent — live component showcase
         </h1>
         <p style={{ fontFamily: "var(--font-sans)", fontSize: 15, color: "var(--fg-secondary)", maxWidth: 640, margin: "8px 0 0" }}>
           Every class in <span style={{ fontFamily: "var(--font-mono)", color: "var(--verdict-neon)" }}>components.css</span> rendered with real markup.

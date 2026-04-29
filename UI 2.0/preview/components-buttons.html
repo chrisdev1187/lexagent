@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin: 0; padding: 20px; background: var(--bg-base); font-family: var(--font-mono); display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  button {
+    font-family: var(--font-sans); font-size: 13px; font-weight: 500;
+    padding: 8px 16px; border-radius: 4px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 8px;
+    letter-spacing: 0;
+  }
+  .label { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--fg-quaternary); display: block; margin-top: 4px; text-align: center; }
+  .group { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+</style>
+</head>
+<body>
+  <div class="group">
+    <button style="background:var(--verdict-neon);color:var(--midnight-court);border:0.5px solid var(--verdict-neon);box-shadow:0 0 16px rgba(0,255,195,0.45);font-weight:600">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      New Matter
+    </button>
+    <span class="label">Primary</span>
+  </div>
+  <div class="group">
+    <button style="background:transparent;color:var(--fg-primary);border:0.5px solid rgba(0,255,195,0.35)">Secondary</button>
+    <span class="label">Secondary</span>
+  </div>
+  <div class="group">
+    <button style="background:transparent;color:var(--fg-secondary);border:0.5px solid transparent">Ghost</button>
+    <span class="label">Ghost</span>
+  </div>
+  <div class="group">
+    <button style="background:transparent;color:var(--verdict-crimson);border:0.5px solid rgba(255,51,85,0.4)">Seal filing</button>
+    <span class="label">Danger</span>
+  </div>
+  <div class="group">
+    <button style="background:rgba(0,255,195,0.04);color:var(--verdict-neon);border:0.5px dashed rgba(0,255,195,0.28);font-family:var(--font-mono);font-size:10px;letter-spacing:0.14em;text-transform:uppercase">+ New</button>
+    <span class="label">Dashed</span>
+  </div>
+  <div class="group">
+    <button style="background:rgba(224,224,224,0.04);color:var(--fg-quaternary);border:0.5px solid rgba(224,224,224,0.08);cursor:not-allowed" disabled>Disabled</button>
+    <span class="label">Disabled</span>
+  </div>
+</body>
+</html>

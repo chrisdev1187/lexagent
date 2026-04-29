@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin: 0; padding: 16px; background: var(--bg-base); font-family: var(--font-mono); }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .swatch { display: flex; flex-direction: column; gap: 5px; }
+  .chip { width: 110px; height: 56px; border-radius: 4px; display: flex; align-items: flex-end; padding: 6px 8px; }
+  .label { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 600; }
+  .name { font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--fg-quaternary); margin-top: 4px; }
+  .hex { font-size: 10px; color: var(--fg-tertiary); }
+  .role { font-size: 9px; color: var(--fg-quaternary); margin-top: 2px; }
+</style>
+</head>
+<body>
+<div class="row">
+  <div class="swatch">
+    <div class="chip" style="background:#00ffc3;box-shadow:0 0 24px rgba(0,255,195,0.55)">
+      <span class="label" style="color:#050505">NEON</span>
+    </div>
+    <div class="name">Verdict Neon</div>
+    <div class="hex">#00ffc3</div>
+    <div class="role">Primary · affirmative</div>
+  </div>
+  <div class="swatch">
+    <div class="chip" style="background:#6a00ff;box-shadow:0 0 24px rgba(106,0,255,0.55)">
+      <span class="label" style="color:#e0e0e0">VIOLET</span>
+    </div>
+    <div class="name">Verdict Violet</div>
+    <div class="hex">#6a00ff</div>
+    <div class="role">Sealed · privileged</div>
+  </div>
+  <div class="swatch">
+    <div class="chip" style="background:#ffb800;box-shadow:0 0 18px rgba(255,184,0,0.40)">
+      <span class="label" style="color:#050505">AMBER</span>
+    </div>
+    <div class="name">Verdict Amber</div>
+    <div class="hex">#ffb800</div>
+    <div class="role">Caution · pending</div>
+  </div>
+  <div class="swatch">
+    <div class="chip" style="background:#ff3355;box-shadow:0 0 18px rgba(255,51,85,0.50)">
+      <span class="label" style="color:#e0e0e0">CRIMSON</span>
+    </div>
+    <div class="name">Verdict Crimson</div>
+    <div class="hex">#ff3355</div>
+    <div class="role">Breach · adversarial</div>
+  </div>
+</div>
+</body>
+</html>

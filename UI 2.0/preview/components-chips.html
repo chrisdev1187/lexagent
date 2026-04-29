@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  body { margin: 0; padding: 20px; background: var(--bg-base); display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .chip {
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.18em;
+    text-transform: uppercase; font-weight: 500;
+    padding: 4px 10px; border-radius: 999px;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .dot { width: 5px; height: 5px; border-radius: 999px; }
+</style>
+</head>
+<body>
+  <span class="chip" style="color:var(--verdict-neon);border:0.5px solid rgba(0,255,195,0.45);background:rgba(0,255,195,0.06)">
+    <span class="dot" style="background:var(--verdict-neon);box-shadow:0 0 6px var(--verdict-neon)"></span>Active
+  </span>
+  <span class="chip" style="color:var(--verdict-violet);border:0.5px solid rgba(106,0,255,0.45);background:rgba(106,0,255,0.06)">
+    <span class="dot" style="background:var(--verdict-violet)"></span>Sealed
+  </span>
+  <span class="chip" style="color:var(--verdict-amber);border:0.5px solid rgba(255,184,0,0.45);background:rgba(255,184,0,0.06)">
+    <span class="dot" style="background:var(--verdict-amber)"></span>Pending
+  </span>
+  <span class="chip" style="color:var(--verdict-crimson);border:0.5px solid rgba(255,51,85,0.45);background:rgba(255,51,85,0.06)">
+    <span class="dot" style="background:var(--verdict-crimson)"></span>Urgent
+  </span>
+  <span class="chip" style="color:var(--fg-secondary);border:0.5px solid rgba(224,224,224,0.14);background:rgba(224,224,224,0.03)">
+    <span class="dot" style="background:var(--fg-tertiary)"></span>Closed
+  </span>
+  <span class="chip" style="color:var(--fg-tertiary);border:0.5px solid rgba(224,224,224,0.10);background:rgba(224,224,224,0.02)">Privileged</span>
+  <span class="chip" style="color:var(--verdict-neon);border:0.5px solid rgba(0,255,195,0.35);background:rgba(0,255,195,0.05);font-size:9px">[DB] VERIFIED</span>
+  <span class="chip" style="color:var(--verdict-amber);border:0.5px solid rgba(255,184,0,0.35);background:rgba(255,184,0,0.05);font-size:9px">[WEB] UNCONFIRMED</span>
+</body>
+</html>
