@@ -8,6 +8,7 @@ import { extractDelta, parseAresShadow } from "./extract";
 import { mergeMemory } from "./merge";
 import { BUDGET_DEFAULT } from "./tokens";
 import { logAiUsage } from "./usage-logger";
+import { aresCritic } from "@/lib/ares";
 
 export interface LexMemoryOpts {
   tab: TabId;
@@ -93,6 +94,17 @@ export function withLexMemory(
           });
         }
         const usage = extractUsage(json);
+        let criticScore: number | null = null;
+        if (text) {
+          const criticOut = await aresCritic({
+            draft: text,
+            shadow,
+            mode: shadow?.mode ?? null,
+            posture: shadow?.posture ?? null,
+            matterId: matter.id,
+          }).catch(() => null);
+          criticScore = criticOut?.persisted_score ?? null;
+        }
         await logAiUsage({
           matterId: matter.id,
           tab: opts.tab,
@@ -103,7 +115,7 @@ export function withLexMemory(
           promptVersion: shadow?.prompt_version?.replace(/^ARES-/, "") ?? ARES_PROMPT_VERSION,
           mode: shadow?.mode ?? null,
           toolCalls: shadow?.tool_requests ?? null,
-          criticScore: null,
+          criticScore,
         }).catch(() => {});
       } catch (e) {
         console.warn("[lex-memory] extraction failed:", (e as Error).message);

@@ -11,6 +11,7 @@ import { PanelShell } from "@/components/panels/PanelShell";
 import { CONGRESS_BASE, ECFR_BASE, EDGAR_BASE, QuotaExceededError, FreeTierExhaustedError, CreditExhaustedError } from "@/lib/api";
 import { UpgradeCTA } from "@/components/shared/UpgradeCTA";
 import { withLexMemory } from "@/lib/lex-memory";
+import { postureDetect, aresDebate } from "@/lib/ares";
 import { Markdown } from "@/components/shared/Markdown";
 import { searchOpinions, CLOpinion } from "@/lib/courtlistener";
 
@@ -246,10 +247,27 @@ Gaps or areas requiring further research.
 
 Be precise, cite sources by number, and flag any circuit splits or conflicting authority.`;
 
+      // Detect posture; if msj/appeal, prepend adversarial debate synthesis.
+      let debatePrefix = "";
+      const postureOut = await postureDetect({ matter_facts: matter.facts ?? "" }).catch(() => null);
+      if (postureOut && (postureOut.posture === "msj" || postureOut.posture === "appeal") && postureOut.confidence >= 0.5) {
+        const debateOut = await aresDebate({
+          question: `Deep research for: ${matter.title}`,
+          facts: matter.facts ?? "",
+          posture: postureOut.posture,
+          jurisdiction: matter.jurisdiction ?? undefined,
+          matterId: matter.id,
+        }).catch(() => null);
+        if (debateOut && !debateOut.skipped && !debateOut.partial) {
+          const judge = debateOut.rounds.find(r => r.role === "judge");
+          debatePrefix = `## ADVERSARIAL DEBATE SYNTHESIS (${postureOut.posture.toUpperCase()})\nPredicted outcome: ${debateOut.predicted_outcome} (confidence ${Math.round(debateOut.confidence * 100)}%)\n${debateOut.reasoning}\n${judge ? `Key points:\n${judge.key_points.map(p => `- ${p}`).join("\n")}` : ""}\n\n`;
+        }
+      }
+
       const lexFetch = withLexMemory(matter, updateMatter, { tab: "deep-research" });
       setStreamingText("");
       const res = await lexFetch(
-        { model: settings.model, max_tokens: settings.maxTokens, system: settings.systemPrompt, messages: [{ role: "user", content }] },
+        { model: settings.model, max_tokens: settings.maxTokens, system: settings.systemPrompt, messages: [{ role: "user", content: debatePrefix + content }] },
         undefined,
         { onChunk: chunk => setStreamingText(prev => prev + chunk) }
       );

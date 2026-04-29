@@ -1,6 +1,6 @@
 # LexAgent — Codebase Context (read first)
 
-**Updated:** 2026-04-28 · v1.8 attorney workflow shipped
+**Updated:** 2026-04-29 · v1.10 ARES wiring shipped
 
 ## URLs
 - web: https://lexagent-ochre.vercel.app
@@ -87,8 +87,11 @@ context.md (this)
 - ✅ Admin → ARES tab: Gold Set Eval button wired to /api/ares-eval
 - ✅ /administration → redirects to /admin; sidebar fixed
 - ✅ v1.7.2–v1.7.6 audited: no regressions; billing invoice + enrichment UI tabs deferred to v1.8
-- ⏳ Wiring: with-lex-memory→aresCritic · pages→aresDebate (msj/appeal) · citeVerify(context)
+- ✅ v1.10: with-lex-memory→aresCritic (criticScore populated in ai_usage) 
+- ✅ v1.10: strategy + deep-research → postureDetect → aresDebate (msj/appeal)
+- ⏳ citeVerify(context) wiring
 - ⏳ Smoke test waterfall order · Run eval for v5 baseline
+- ⏳ Migrations 024 + 026 — apply in prod Supabase
 
 ## v1.7 audit — COMPLETE (2026-04-28)
 - 1.7.1 Users & onboarding — ✅ DONE (7/13 gaps fixed; 6 deferred)
@@ -118,6 +121,10 @@ context.md (this)
 2. ✅ Cite scan: citations page "Scan Full Document" → AI extracts citations from pasted brief → auto-populates verify queue
 3. ✅ Research memo: research page "Memo" button → AI formats conversation as formal legal memo → MD/PDF export
 4. ✅ Deadline calc: deadlines page "AI Deadline Calculator" → trigger event + jurisdiction → computes procedural deadlines → bulk-add to matter
+
+## v1.10 — SHIPPED (2026-04-29)
+1. ✅ ARES critic wiring: with-lex-memory.ts calls aresCritic() after every response; persisted_score → ai_usage.critic_score
+2. ✅ ARES debate wiring: strategy + deep-research pages run postureDetect → aresDebate(msj/appeal) before main ARES call; judge synthesis prepended to user content
 
 ## v1.9 — SHIPPED (2026-04-28)
 1. ✅ Template library: draft tab "Quick Templates" → per-doc-type preset instruction chips (MTD 12b6/12b1, MSJ, briefs, demand letters, etc.) → click to pre-fill instructions textarea

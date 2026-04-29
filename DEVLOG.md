@@ -595,6 +595,23 @@ Sprint 9 (v1.8 — attorney workflow): COMPLETE 2026-04-28
        "Add to Matter" bulk-adds parsed deadlines to deadlines list.
   TypeScript clean. Commit b0bc3dd.
 
+Sprint 11 (v1.10 — ARES wiring): COMPLETE 2026-04-29
+  Two deferred wiring gaps closed:
+  1. with-lex-memory.ts → aresCritic():
+     After each ARES response, calls aresCritic({draft, shadow, mode, posture, matterId}).
+     Awaits persisted_score; passes to logAiUsage → ai_usage.critic_score col (was hardcoded null).
+     Error is caught and swallowed (null score) so main path is never blocked.
+     Files: apps/web/lib/lex-memory/with-lex-memory.ts
+  2. strategy + deep-research pages → aresDebate():
+     Before the main ARES call, both pages run postureDetect(matter.facts).
+     If posture === msj|appeal AND confidence ≥ 0.5: calls aresDebate (movant/respondent/judge).
+     On success, judge synthesis + predicted_outcome are prepended as a ADVERSARIAL DEBATE SYNTHESIS
+     block to the user content — feeds into the main ARES call context.
+     Errors caught and skipped silently (debate is enhancement, not gate).
+     Files: apps/web/app/(app)/matters/[id]/strategy/page.tsx
+            apps/web/app/(app)/matters/[id]/deep-research/page.tsx
+  TypeScript clean. No migrations.
+
 Sprint 10 (v1.9 — document assembly): COMPLETE 2026-04-28
   Three new features in apps/web/app/(app)/matters/[id]/draft/page.tsx (commit: see git log):
   1. Template library — DOC_TEMPLATES map (14 doc types, 2-3 presets each); collapsible "Quick Templates"
