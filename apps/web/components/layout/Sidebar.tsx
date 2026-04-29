@@ -14,6 +14,7 @@ import { useMatters, Matter } from "@/providers/matters-provider";
 import { LexTooltip } from "@/components/shared/LexTooltip";
 import { UsagePill } from "@/components/shared/UsagePill";
 import { VersionPill } from "@/components/shared/VersionPill";
+import { AlertBell } from "@/components/shared/AlertBell";
 
 const STATUS_DOT: Record<string, string> = {
   Active: "var(--verdict-neon)",
@@ -387,6 +388,11 @@ export function Sidebar({ onNewMatter }: SidebarProps) {
             <UsagePill />
           </div>
         )}
+
+        {/* Alert bell */}
+        <div style={{ borderTop: "0.5px solid rgba(224,224,224,0.06)", padding: "4px 8px" }}>
+          <AlertBell collapsed={collapsed} />
+        </div>
 
         {/* Feedback link */}
         <LexTooltip content="Feedback & Bug Reports" side="right">

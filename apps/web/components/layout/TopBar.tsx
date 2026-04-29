@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { Scale } from "lucide-react";
 import { useSettings } from "@/providers/settings-provider";
+import { AlertBell } from "@/components/shared/AlertBell";
 
 export function TopBar() {
   const { settings } = useSettings();
 
   return (
     <header
-      className="flex items-center justify-center px-4 md:hidden flex-shrink-0 lex-texture"
+      className="flex items-center justify-between px-4 md:hidden flex-shrink-0 lex-texture"
       style={{
         height: 52,
         background: "rgba(10,10,12,0.94)",
@@ -44,6 +45,7 @@ export function TopBar() {
           {settings.firmName || "LEX PROTOCOL"}
         </span>
       </Link>
+      <AlertBell collapsed />
     </header>
   );
 }

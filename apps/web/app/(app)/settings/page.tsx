@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/useToast";
 import { LexTooltip } from "@/components/shared/LexTooltip";
 import {
   CreditCard, ExternalLink, User, Palette, Cpu, ShieldCheck, FileText, Key, Building2, UsersRound, Lock,
+  Smartphone, QrCode, CheckCircle2, XCircle, Loader2, Scale, Eye, EyeOff, Trash2,
 } from "lucide-react";
 import { FirmProfileTab } from "@/components/settings/FirmProfileTab";
 import { TeamsTab } from "@/components/settings/TeamsTab";
@@ -30,7 +31,7 @@ const PLAN_COLOR: Record<string, string> = {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
-type Tab = "profile" | "billing" | "api-key" | "ui" | "model" | "shield" | "prompt" | "firm" | "teams" | "security";
+type Tab = "profile" | "billing" | "api-key" | "ui" | "model" | "shield" | "prompt" | "firm" | "teams" | "security" | "pacer";
 
 const TABS: { id: Tab; icon: React.ElementType; label: string }[] = [
   { id: "profile",  icon: User,        label: "Profile & Usage"     },
@@ -39,6 +40,7 @@ const TABS: { id: Tab; icon: React.ElementType; label: string }[] = [
   { id: "teams",    icon: UsersRound,  label: "Teams"               },
   { id: "api-key",  icon: Key,         label: "API Key (BYOK)"      },
   { id: "security", icon: Lock,        label: "Security"            },
+  { id: "pacer",    icon: Scale,       label: "PACER"               },
   { id: "ui",       icon: Palette,     label: "UI Preferences"      },
   { id: "model",    icon: Cpu,         label: "Model & AI"          },
   { id: "shield",   icon: ShieldCheck, label: "Hallucination Shield" },
@@ -556,6 +558,190 @@ function PromptTab({ settings, set }: { settings: any; set: (k: string, v: unkno
   );
 }
 
+/* ── PACER tab ──────────────────────────────────────────────────────────── */
+function PacerTab({ userId }: { userId: string }) {
+  const [connected, setConnected] = useState(false);
+  const [savedUsername, setSavedUsername] = useState<string | null>(null);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPw, setShowPw] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [emailAlerts, setEmailAlerts] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      const token = data.session?.access_token;
+      const h = token ? { Authorization: `Bearer ${token}` } : {};
+      Promise.all([
+        fetch(`${API_URL}/api/pacer/credentials/status`, { headers: h }).then(r => r.ok ? r.json() : null),
+        supabase.from("user_roles").select("alert_email_enabled").eq("user_id", userId).single(),
+      ]).then(([status, roleRes]) => {
+        if (status) { setConnected(status.connected); setSavedUsername(status.username); }
+        if (roleRes.data) setEmailAlerts(!!roleRes.data.alert_email_enabled);
+        setLoading(false);
+      }).catch(() => setLoading(false));
+    });
+  }, [userId]);
+
+  async function save() {
+    if (!username.trim() || !password.trim()) return;
+    setSaving(true); setError(null);
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token ?? "";
+    const res = await fetch(`${API_URL}/api/pacer/credentials`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ username: username.trim(), password: password.trim() }),
+    });
+    setSaving(false);
+    if (res.ok) {
+      setConnected(true); setSavedUsername(username.trim());
+      setUsername(""); setPassword(""); setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } else {
+      const d = await res.json().catch(() => ({})) as { error?: string };
+      setError(d.error ?? "Failed to save credentials");
+    }
+  }
+
+  async function remove() {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token ?? "";
+    await fetch(`${API_URL}/api/pacer/credentials`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    setConnected(false); setSavedUsername(null);
+  }
+
+  if (loading) return <p className="font-mono text-[10px] tracking-[0.14em] uppercase" style={{ color: "var(--fg-quaternary)" }}>Loading…</p>;
+
+  return (
+    <div className="space-y-5">
+      <div className="rounded-lg p-6" style={{ background: "rgba(17,17,20,0.8)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
+        <SectionHeading>PACER CONNECTION</SectionHeading>
+        <p className="text-[13px] mb-4" style={{ color: "var(--fg-secondary)" }}>
+          Connect your PACER account to search federal court dockets and sync filings directly into matters.
+          Credentials are stored server-side and only used to authenticate PACER API requests.
+        </p>
+        {connected ? (
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4" style={{ color: "var(--verdict-neon)" }} />
+              <span className="text-[13px] font-mono" style={{ color: "var(--verdict-neon)" }}>
+                Connected as <strong>{savedUsername}</strong>
+              </span>
+            </div>
+            <button
+              onClick={remove}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-mono uppercase tracking-widest hover:bg-[rgba(255,60,60,0.12)] transition-colors"
+              style={{ color: "var(--fg-tertiary)" }}
+            >
+              <Trash2 className="w-3.5 h-3.5" /> Disconnect
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[10px] font-mono uppercase tracking-widest mb-1" style={{ color: "var(--fg-tertiary)" }}>
+                  PACER Username
+                </label>
+                <input
+                  type="text"
+                  value={username}
+                  onChange={e => setUsername(e.target.value)}
+                  placeholder="your_pacer_login"
+                  className="w-full px-3 py-2 rounded text-sm font-mono bg-[var(--midnight-mid)] border border-[rgba(224,224,224,0.1)] text-[var(--fg-primary)] placeholder:text-[var(--fg-tertiary)] focus:outline-none focus:border-[var(--verdict-neon)]"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-mono uppercase tracking-widest mb-1" style={{ color: "var(--fg-tertiary)" }}>
+                  PACER Password
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPw ? "text" : "password"}
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && save()}
+                    placeholder="••••••••"
+                    className="w-full px-3 py-2 pr-9 rounded text-sm font-mono bg-[var(--midnight-mid)] border border-[rgba(224,224,224,0.1)] text-[var(--fg-primary)] placeholder:text-[var(--fg-tertiary)] focus:outline-none focus:border-[var(--verdict-neon)]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPw(p => !p)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--fg-tertiary)] hover:text-[var(--fg-primary)]"
+                  >
+                    {showPw ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+              </div>
+            </div>
+            {error && (
+              <p className="text-xs font-mono" style={{ color: "var(--verdict-red, #ff4d4d)" }}>{error}</p>
+            )}
+            <button
+              onClick={save}
+              disabled={saving || !username.trim() || !password.trim()}
+              className="flex items-center gap-1.5 px-4 py-2 rounded text-xs font-mono uppercase tracking-widest transition-colors"
+              style={{
+                background: saved ? "rgba(0,255,195,0.15)" : "var(--verdict-neon)",
+                color: saved ? "var(--verdict-neon)" : "var(--midnight-deep)",
+                opacity: saving || !username.trim() || !password.trim() ? 0.5 : 1,
+              }}
+            >
+              {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              {saved ? "Saved!" : "Connect PACER"}
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-lg p-5" style={{ background: "rgba(17,17,20,0.8)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
+        <SectionHeading>EMAIL ALERTS</SectionHeading>
+        <div className="flex items-center justify-between">
+          <p className="text-[13px]" style={{ color: "var(--fg-secondary)" }}>
+            Receive an email when new filings appear on watched dockets
+          </p>
+          <button
+            onClick={async () => {
+              const next = !emailAlerts;
+              setEmailAlerts(next);
+              await supabase.from("user_roles").update({ alert_email_enabled: next }).eq("user_id", userId);
+            }}
+            className="relative flex-shrink-0 w-9 h-5 rounded-full transition-colors ml-4"
+            style={{ background: emailAlerts ? "var(--verdict-neon)" : "rgba(255,255,255,0.12)" }}
+          >
+            <span
+              className="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all"
+              style={{ left: emailAlerts ? "calc(100% - 18px)" : "2px" }}
+            />
+          </button>
+        </div>
+        {emailAlerts && (
+          <p className="text-[11px] font-mono mt-2" style={{ color: "var(--fg-tertiary)" }}>
+            Emails sent to your account address. Requires <code>RESEND_API_KEY</code> on the server.
+          </p>
+        )}
+      </div>
+
+      <div className="rounded-lg p-5" style={{ background: "rgba(17,17,20,0.5)", border: "0.5px solid rgba(224,224,224,0.06)" }}>
+        <SectionHeading>HOW IT WORKS</SectionHeading>
+        <ul className="space-y-1.5 text-[12px] font-mono" style={{ color: "var(--fg-tertiary)" }}>
+          <li>• Credentials are verified against PACER before saving</li>
+          <li>• A fresh auth token is fetched per request — your password is never sent to the browser</li>
+          <li>• Used for case search and docket sync in the Docket Watch tab on any matter</li>
+          <li>• PACER charges $0.10/page for documents — LexAgent does not purchase documents on your behalf</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
 const ADMIN_ONLY_TABS: Tab[] = ["api-key", "prompt", "teams"];
 
 /* ── Inner component ────────────────────────────────────────────────────── */
@@ -629,6 +815,7 @@ function SettingsInner() {
       case "model":    return <ModelTab settings={settings} set={set} />;
       case "shield":   return <ShieldTab settings={settings} set={set} />;
       case "prompt":   return <PromptTab settings={settings} set={set} />;
+      case "pacer":    return user?.id ? <PacerTab userId={user.id} /> : null;
     }
   };
 
@@ -721,6 +908,151 @@ interface SessionRow {
   is_revoked: boolean;
 }
 
+type MfaStep = "idle" | "enrolling" | "verifying" | "done";
+
+function TwoFactorSection() {
+  const [factorId, setFactorId] = useState<string | null>(null);
+  const [loadingFactor, setLoadingFactor] = useState(true);
+  const [step, setStep] = useState<MfaStep>("idle");
+  const [qrCode, setQrCode] = useState<string | null>(null);
+  const [secret, setSecret] = useState<string | null>(null);
+  const [enrollId, setEnrollId] = useState<string | null>(null);
+  const [code, setCode] = useState("");
+  const [verifyErr, setVerifyErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.mfa.listFactors().then(({ data }) => {
+      const verified = data?.totp?.find((f) => f.status === "verified");
+      setFactorId(verified?.id ?? null);
+      setLoadingFactor(false);
+    });
+  }, []);
+
+  async function startEnroll() {
+    setBusy(true);
+    const { data, error } = await supabase.auth.mfa.enroll({ factorType: "totp", issuer: "LexAgent" });
+    if (error || !data) { setBusy(false); return; }
+    setQrCode(data.totp.qr_code);
+    setSecret(data.totp.secret);
+    setEnrollId(data.id);
+    setStep("verifying");
+    setCode("");
+    setVerifyErr(null);
+    setBusy(false);
+  }
+
+  async function verifyEnroll() {
+    if (!enrollId || code.length !== 6) return;
+    setBusy(true);
+    setVerifyErr(null);
+    const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId: enrollId, code });
+    if (error) {
+      setVerifyErr("Invalid code — try again.");
+      setBusy(false);
+      return;
+    }
+    setFactorId(enrollId);
+    setStep("done");
+    setBusy(false);
+  }
+
+  async function unenroll() {
+    if (!factorId) return;
+    setBusy(true);
+    await supabase.auth.mfa.unenroll({ factorId });
+    setFactorId(null);
+    setStep("idle");
+    setBusy(false);
+  }
+
+  if (loadingFactor) {
+    return (
+      <div className="rounded-lg p-6" style={{ background: "rgba(17,17,20,0.8)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
+        <SectionHeading>TWO-FACTOR AUTHENTICATION</SectionHeading>
+        <Loader2 size={16} className="animate-spin" style={{ color: "var(--fg-tertiary)" }} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg p-6" style={{ background: "rgba(17,17,20,0.8)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
+      <SectionHeading>TWO-FACTOR AUTHENTICATION</SectionHeading>
+
+      {factorId && step !== "done" ? (
+        /* Enabled state */
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 size={15} style={{ color: "var(--verdict-neon)" }} />
+            <span className="text-sm" style={{ color: "var(--fg-primary)" }}>Authenticator app enabled</span>
+          </div>
+          <button onClick={unenroll} disabled={busy} className="lex-btn text-xs" style={{ color: "var(--verdict-crimson)", borderColor: "rgba(239,68,68,0.3)" }}>
+            {busy ? "…" : "Disable 2FA"}
+          </button>
+        </div>
+      ) : step === "done" ? (
+        /* Just enrolled */
+        <div className="flex items-center gap-2">
+          <CheckCircle2 size={15} style={{ color: "var(--verdict-neon)" }} />
+          <span className="text-sm" style={{ color: "var(--fg-primary)" }}>2FA enabled — your account is now protected.</span>
+        </div>
+      ) : step === "idle" ? (
+        /* Not enrolled */
+        <>
+          <p className="text-xs mb-4" style={{ color: "var(--fg-tertiary)" }}>
+            Add a time-based one-time password (TOTP) app like Google Authenticator or Authy for an extra layer of security.
+          </p>
+          <button onClick={startEnroll} disabled={busy} className="lex-btn lex-btn--primary text-xs">
+            {busy ? <><Loader2 size={12} className="animate-spin mr-1.5" />Setting up…</> : <><Smartphone size={12} className="mr-1.5" />Enable 2FA</>}
+          </button>
+        </>
+      ) : (
+        /* Verifying enrollment */
+        <div className="space-y-4">
+          <p className="text-xs" style={{ color: "var(--fg-secondary)" }}>
+            Scan this QR code with your authenticator app, then enter the 6-digit code to confirm.
+          </p>
+          {qrCode && (
+            <div className="flex flex-col items-start gap-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={qrCode} alt="TOTP QR code" width={160} height={160} className="rounded" style={{ background: "#fff", padding: 6 }} />
+              {secret && (
+                <div className="flex items-center gap-2">
+                  <QrCode size={12} style={{ color: "var(--fg-tertiary)" }} />
+                  <span className="font-mono text-[11px]" style={{ color: "var(--fg-tertiary)" }}>Manual key: {secret}</span>
+                </div>
+              )}
+            </div>
+          )}
+          <div className="flex gap-2 items-center">
+            <input
+              className="rounded px-3 py-2 text-sm font-mono tracking-widest w-36"
+              style={{ background: "var(--bg-raised)", border: "0.5px solid rgba(224,224,224,0.09)", color: "var(--fg-primary)", outline: "none" }}
+              placeholder="000000"
+              maxLength={6}
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+              onKeyDown={(e) => e.key === "Enter" && verifyEnroll()}
+              autoFocus
+            />
+            <button onClick={verifyEnroll} disabled={busy || code.length !== 6} className="lex-btn lex-btn--primary text-xs">
+              {busy ? <Loader2 size={12} className="animate-spin" /> : "Verify"}
+            </button>
+            <button onClick={() => { setStep("idle"); setCode(""); setVerifyErr(null); }} className="lex-btn lex-btn--ghost text-xs">
+              Cancel
+            </button>
+          </div>
+          {verifyErr && (
+            <div className="flex items-center gap-1.5 text-xs" style={{ color: "var(--verdict-crimson)" }}>
+              <XCircle size={12} /> {verifyErr}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SecurityTab({ userId }: { userId: string }) {
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -759,6 +1091,7 @@ function SecurityTab({ userId }: { userId: string }) {
 
   return (
     <div className="space-y-6">
+      <TwoFactorSection />
       <div className="rounded-lg p-6" style={{ background: "rgba(17,17,20,0.8)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
         <SectionHeading>ACTIVE SESSIONS</SectionHeading>
         <p className="text-xs mb-4" style={{ color: "var(--fg-tertiary)" }}>

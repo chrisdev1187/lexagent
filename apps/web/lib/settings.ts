@@ -359,6 +359,7 @@ export const TABS = [
   { id: "notes",        label: "Evidence",       icon: "BookOpen",   tooltip: "Case notes, evidence log, and annotations" },
   { id: "billing",      label: "Billing",        icon: "Receipt",    tooltip: "Billable hours, time entries, and invoice generation" },
   { id: "conflict",     label: "Conflict",       icon: "Scale",      tooltip: "Conflict of interest checker across all active matters" },
+  { id: "docket",       label: "Docket Watch",   icon: "Radar",      tooltip: "Watch CourtListener dockets for new filings and get alerts" },
 ] as const;
 
 export type TabId = typeof TABS[number]["id"];

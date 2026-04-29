@@ -13,6 +13,8 @@ import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { anthropicRouter } from "./routes/anthropic.js";
 import { courtlistenerRouter } from "./routes/courtlistener.js";
+import { docketsRouter } from "./routes/dockets.js";
+import { pacerRouter } from "./routes/pacer.js";
 import { capRouter } from "./routes/cap.js";
 import { govinfoRouter } from "./routes/govinfo.js";
 import { congressRouter } from "./routes/congress.js";
@@ -69,6 +71,8 @@ app.onError((err, c) => {
 // ── Route groups ──────────────────────────────────────────────────────────
 app.route("/api/anthropic", anthropicRouter);
 app.route("/api/courtlistener", courtlistenerRouter);
+app.route("/api/dockets", docketsRouter);
+app.route("/api/pacer", pacerRouter);
 app.route("/api/cap", capRouter);
 app.route("/api/govinfo", govinfoRouter);
 app.route("/api/congress", congressRouter);

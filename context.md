@@ -1,6 +1,6 @@
 # LexAgent — Codebase Context (read first)
 
-**Updated:** 2026-04-29 · v1.12 eval 16→200q + admin comparison UI shipped
+**Updated:** 2026-04-29 · v1.13 COMPLETE: invite UX ✅ · 2FA ✅ · Redis rate limiter ✅
 
 ## URLs
 - web: https://lexagent-ochre.vercel.app
@@ -89,11 +89,11 @@ context.md (this)
 - ✅ v1.7.2–v1.7.6 audited: no regressions; billing invoice + enrichment UI tabs deferred to v1.8
 - ✅ v1.10: with-lex-memory→aresCritic (criticScore populated in ai_usage) 
 - ✅ v1.10: strategy + deep-research → postureDetect → aresDebate (msj/appeal)
-- ⏳ v1.13: Redis rate limiter + 2FA/invite UX (deferred security gaps)
-- ⏳ v2.0: Docket watch / PACER / CourtListener alerts + judge profiles
-- ⏳ citeVerify(context) wiring
+- ✅ v1.13: Redis rate limiter + 2FA/invite UX — COMPLETE
+- ⏳ v2.0: Docket watch ✅ · PACER ✅ · CL alerts ✅ · judge profiles
+- ✅ citeVerify(context) wiring — DONE (with-lex-memory parses TOOL_REQUEST blocks, executes cite_verify with matter.facts context, stores in metadata.cite_results; citations page surfaces auto-results)
 - ⏳ Smoke test waterfall order · Run eval for v5 baseline
-- ⏳ Migrations 024 + 026 — apply in prod Supabase
+- ✅ Migrations 024 + 026 — applied in prod Supabase (2026-04-29)
 
 ## v1.7 audit — COMPLETE (2026-04-28)
 - 1.7.1 Users & onboarding — ✅ DONE (7/13 gaps fixed; 6 deferred)
@@ -106,13 +106,13 @@ context.md (this)
 ## v1.7.1 gap status
 1. ✅ record_session IP — FIXED (migration 025, API route reads x-forwarded-for)
 2. ❌ No SAML/OIDC SSO — DEFERRED
-3. ❌ No magic link · 2FA · CAPTCHA — DEFERRED
+3. ✅ 2FA (TOTP) — FIXED (v1.13); magic link + CAPTCHA still deferred
 4. ❌ Email-alias detection — DEFERRED
 5. ✅ ">5× avg daily" abuse signal — FIXED (migration 026)
 6. ✅ requireAuth fails open — FIXED (auth.ts → 503)
-7. ❌ Rate limiter multi-instance — DEFERRED (needs Redis)
+7. ✅ Rate limiter multi-instance — FIXED (v1.13, Upstash Redis + in-memory fallback)
 8. ✅ No user sessions panel — FIXED (Settings → Security tab)
-9. ❌ No invite-acceptance UX — DEFERRED
+9. ✅ Invite-acceptance UX — FIXED (v1.13)
 10. ✅ No suspension UX — FIXED (API returns 403 + AccountSuspendedError)
 11. ✅ signUp enumeration — FIXED (auth.tsx anti-enumeration)
 12. ❌ Trusted device flow — DEFERRED

@@ -595,6 +595,51 @@ Sprint 9 (v1.8 — attorney workflow): COMPLETE 2026-04-28
        "Add to Matter" bulk-adds parsed deadlines to deadlines list.
   TypeScript clean. Commit b0bc3dd.
 
+Sprint 14 (v2.0-a — Docket Watch + PACER + CL Alerts): COMPLETE 2026-04-29
+  1. Migration 027 — watched_dockets + docket_alerts tables
+     watched_dockets: matter_id, docket_id (CL), case_name, court, docket_number, cl_url,
+       last_checked, last_entry_date, entry_count, created_by. UNIQUE(matter_id, docket_id).
+     docket_alerts: watched_docket_id, entry_number, entry_date, description, docket_text, seen_at.
+     RLS on both: org-membership check via matters→user_roles join. Index on alerts(wdid, date desc).
+  2. Migration 028 — user_roles: pacer_username text, pacer_password text.
+  3. Migration 029 — user_roles: alert_email_enabled bool default false.
+     RPCs: get_user_alert_count(p_user_id) → int (SECURITY DEFINER join across 4 tables).
+           get_user_recent_alerts(p_user_id, p_limit) → table (alert_id, entry_date, description,
+           case_name, matter_id, matter_name, created_at).
+  4. API: apps/api/src/routes/dockets.ts (new)
+     GET  /watched?matter_id          — list with nested docket_alerts
+     POST /watch                      — add docket (fetches CL metadata on-add)
+     DELETE /watch/:id                — unwatch
+     POST /poll/:id                   — manual poll one docket, write new alerts
+     PATCH /alerts/:id/seen           — mark alert seen
+     GET  /search?q=&court=           — search CL dockets
+     GET  /alert-count                — unseen count via RPC (used by 60s bell poller)
+     GET  /alerts/recent              — top-10 unseen via RPC (bell dropdown)
+     POST /poll-all                   — X-Poll-Secret gated; polls all watched dockets;
+                                        sends Resend email per user with alert_email_enabled=true.
+                                        Point cron-job.org at this endpoint hourly.
+  5. API: apps/api/src/routes/pacer.ts (new)
+     POST /credentials                — saves username+password after live PACER auth test
+     DELETE /credentials              — disconnect
+     GET  /credentials/status         — connected bool + username (no password leak)
+     GET  /search?q=&court=           — proxies PACER Case Locator API (PCL); fresh token per request
+     GET  /docket/:court/:caseId      — single docket metadata from PCL
+     Auth flow: POST pacer.login.uscourts.gov/services/cso-auth → X-NEXT-GEN-CSO token
+  6. UI: matters/[id]/docket/page.tsx (new tab — "Docket Watch", Radar icon)
+     Source toggle CL / PACER. CL search → results → one-click subscribe.
+     PACER search fires through API when connected; "Connect PACER" shortcut when not.
+     Watched list: unseen badge, expand for alert feed, refresh (manual poll), external CL link,
+     unwatch, per-alert mark-seen.
+  7. hooks/useAlertCount.ts — polls /api/dockets/alert-count every 60s.
+  8. components/shared/AlertBell.tsx — bell icon + neon badge; click opens dropdown:
+     recent unseen alerts with case name, description, date; links to /matters/:id/docket;
+     "Mark all seen" batch-patches via API.
+  9. Sidebar + TopBar — AlertBell wired in (collapsed=icon-only on sidebar, right side on mobile bar).
+  10. Settings → PACER tab (new) — PACER credentials form with live validation + show/hide pw toggle;
+      connected state display + disconnect; email alerts toggle (saves alert_email_enabled).
+  New env vars needed on Render: DOCKET_POLL_SECRET, RESEND_API_KEY, ALERT_FROM_EMAIL.
+  TypeScript clean. Migrations 027-029 applied in prod Supabase (028 by user prior to sprint).
+
 Sprint 13 (v1.12 — eval gold set 16→200 + admin eval comparison UI): COMPLETE 2026-04-29
   1. gold-set-expansion.ts — new file, 184 EvalQuestion objects
      Completes 5×4×10 matrix: 4 existing postures (msj, appeal, motion, pleadings) × 4 jurisdictions × 9 more
