@@ -12,9 +12,7 @@ as $$
   from docket_alerts da
   join watched_dockets wd on wd.id = da.watched_docket_id
   join matters m on m.id = wd.matter_id
-  join user_roles ur on ur.org_id = m.org_id
-  where ur.user_id = p_user_id
-    and ur.suspended_at is null
+  where m.user_id = p_user_id
     and da.seen_at is null
 $$;
 
@@ -42,9 +40,7 @@ as $$
   from docket_alerts da
   join watched_dockets wd on wd.id = da.watched_docket_id
   join matters m on m.id = wd.matter_id
-  join user_roles ur on ur.org_id = m.org_id
-  where ur.user_id = p_user_id
-    and ur.suspended_at is null
+  where m.user_id = p_user_id
     and da.seen_at is null
   order by da.created_at desc
   limit p_limit

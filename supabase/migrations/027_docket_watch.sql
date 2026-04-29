@@ -33,15 +33,13 @@ create table if not exists docket_alerts (
 alter table watched_dockets enable row level security;
 alter table docket_alerts   enable row level security;
 
--- Members of the org that owns the matter can read/write watched_dockets
+-- matters.user_id is the direct owner — no org layer
 create policy "watched_dockets_select" on watched_dockets for select
   using (
     exists (
       select 1 from matters m
-      join user_roles ur on ur.org_id = m.org_id
       where m.id = watched_dockets.matter_id
-        and ur.user_id = auth.uid()
-        and ur.suspended_at is null
+        and m.user_id = auth.uid()
     )
   );
 
@@ -49,10 +47,8 @@ create policy "watched_dockets_insert" on watched_dockets for insert
   with check (
     exists (
       select 1 from matters m
-      join user_roles ur on ur.org_id = m.org_id
       where m.id = watched_dockets.matter_id
-        and ur.user_id = auth.uid()
-        and ur.suspended_at is null
+        and m.user_id = auth.uid()
     )
   );
 
@@ -64,10 +60,8 @@ create policy "docket_alerts_select" on docket_alerts for select
     exists (
       select 1 from watched_dockets wd
       join matters m on m.id = wd.matter_id
-      join user_roles ur on ur.org_id = m.org_id
       where wd.id = docket_alerts.watched_docket_id
-        and ur.user_id = auth.uid()
-        and ur.suspended_at is null
+        and m.user_id = auth.uid()
     )
   );
 
@@ -76,9 +70,8 @@ create policy "docket_alerts_update" on docket_alerts for update
     exists (
       select 1 from watched_dockets wd
       join matters m on m.id = wd.matter_id
-      join user_roles ur on ur.org_id = m.org_id
       where wd.id = docket_alerts.watched_docket_id
-        and ur.user_id = auth.uid()
+        and m.user_id = auth.uid()
     )
   );
 

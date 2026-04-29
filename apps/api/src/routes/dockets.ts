@@ -240,11 +240,12 @@ docketsRouter.post("/poll-all", async (c) => {
         entry_count: (wd.entry_count ?? 0) + newForThis,
       }).eq("id", wd.id);
 
-      // Collect alerts per user for email
-      const { data: members } = await supabase
-        .from("user_roles")
-        .select("user_id, alert_email_enabled")
-        .eq("org_id", (await supabase.from("matters").select("org_id").eq("id", wd.matter_id).single()).data?.org_id ?? "");
+      // Collect alerts per user for email — matters.user_id is the direct owner
+      const { data: matter } = await supabase
+        .from("matters").select("user_id").eq("id", wd.matter_id).single();
+      const { data: members } = matter?.user_id
+        ? await supabase.from("user_roles").select("user_id, alert_email_enabled").eq("user_id", matter.user_id)
+        : { data: [] };
 
       for (const m of members ?? []) {
         if (!m.alert_email_enabled) continue;
