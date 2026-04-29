@@ -609,7 +609,7 @@ Sprint 13 (v1.12 — eval gold set 16→200 + admin eval comparison UI): COMPLET
      - Gate display: 5 ship gates (hallucinated/100 ≤2, counterarg ≥70%, bottom line 100%, Brier ≤0.20, latency)
        each shows ✓/✗/— with pass/fail color coding
      - Delta display: when baseline exists, shows Δ arrows on hallucinated, counterarg, Brier, latency metrics
-  TypeScript clean. No migrations.
+  TypeScript clean. No migrations. Commit 850beb4.
 
 Sprint 12 (v1.11 — invoice PDF + enrichment UI tabs): COMPLETE 2026-04-29
   1. Invoice PDF — billing/page.tsx
@@ -627,7 +627,7 @@ Sprint 12 (v1.11 — invoice PDF + enrichment UI tabs): COMPLETE 2026-04-29
      New tab "Patents"; searchPatents() → POST /api/uspto/patents with PatentsView JSON query;
      PatentResult interface; save → source "patent" (U.S. Patent No. citation); included in synthesize block.
   All 3 new enrichment tabs wire into the ARES synthesis block alongside existing sources.
-  Tab type union extended; SOURCE_BADGE + TAB_LABELS updated; TypeScript clean. No migrations.
+  Tab type union extended; SOURCE_BADGE + TAB_LABELS updated; TypeScript clean. No migrations. Commit 0ad0c11.
 
 Sprint 11 (v1.10 — ARES wiring): COMPLETE 2026-04-29
   Two deferred wiring gaps closed:
@@ -644,7 +644,7 @@ Sprint 11 (v1.10 — ARES wiring): COMPLETE 2026-04-29
      Errors caught and skipped silently (debate is enhancement, not gate).
      Files: apps/web/app/(app)/matters/[id]/strategy/page.tsx
             apps/web/app/(app)/matters/[id]/deep-research/page.tsx
-  TypeScript clean. No migrations.
+  TypeScript clean. No migrations. Commit b10674b.
 
 Sprint 10 (v1.9 — document assembly): COMPLETE 2026-04-28
   Three new features in apps/web/app/(app)/matters/[id]/draft/page.tsx (commit: see git log):
