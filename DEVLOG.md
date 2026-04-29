@@ -595,6 +595,13 @@ Sprint 9 (v1.8 — attorney workflow): COMPLETE 2026-04-28
        "Add to Matter" bulk-adds parsed deadlines to deadlines list.
   TypeScript clean. Commit b0bc3dd.
 
+Sprint 15 (v2.0-b — Judge Profiles): COMPLETE 2026-04-29
+  Judge page (matters/[id]/judge/) already existed with CL /people/ search, FJC bio lookup,
+  10 recent opinions, and AI strategic synthesis. Added:
+  - totalOpinions state populated from CL search `count` field.
+  - Stats badge on judge card: "{N} opinions on record" (neon badge, mono font).
+  v2.0 FULLY COMPLETE: Docket watch ✅ · PACER ✅ · CL alerts ✅ · judge profiles ✅.
+
 Sprint 14 (v2.0-a — Docket Watch + PACER + CL Alerts): COMPLETE 2026-04-29
   1. Migration 027 — watched_dockets + docket_alerts tables
      watched_dockets: matter_id, docket_id (CL), case_name, court, docket_number, cl_url,

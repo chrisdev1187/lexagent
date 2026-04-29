@@ -65,6 +65,7 @@ export default function JudgePage() {
   const [judge, setJudge] = useState<JudgeResult | null>(null);
   const [fjc, setFjc] = useState<FjcJudge | null>(null);
   const [opinions, setOpinions] = useState<Opinion[]>([]);
+  const [totalOpinions, setTotalOpinions] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [synthesizing, setSynthesizing] = useState(false);
   const [streamingText, setStreamingText] = useState("");
@@ -82,6 +83,7 @@ export default function JudgePage() {
     setJudge(null);
     setFjc(null);
     setOpinions([]);
+    setTotalOpinions(null);
     setSearched(true);
     try {
       const headers = getApiHeaders();
@@ -113,6 +115,7 @@ export default function JudgePage() {
         { headers }
       );
       const opinionData = await opinionRes.json() as {
+        count?: number;
         results?: Array<{
           caseName?: string;
           court?: string;
@@ -129,6 +132,7 @@ export default function JudgePage() {
         absoluteUrl: op.absolute_url ? `https://www.courtlistener.com${op.absolute_url}` : "",
       }));
       setOpinions(mapped);
+      if (opinionData.count != null) setTotalOpinions(opinionData.count);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -293,9 +297,16 @@ Be direct and actionable. This is for attorney preparation only.`;
             className="rounded p-5"
             style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}
           >
-            <h3 className="text-base font-semibold mb-3" style={{ color: "var(--fg-primary)" }}>
-              {judge.name_full}
-            </h3>
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <h3 className="text-base font-semibold" style={{ color: "var(--fg-primary)" }}>
+                {judge.name_full}
+              </h3>
+              {totalOpinions != null && (
+                <span className="text-xs px-2 py-0.5 rounded font-mono flex-shrink-0" style={{ background: "rgba(0,255,195,0.08)", color: "var(--verdict-neon)", border: "0.5px solid rgba(0,255,195,0.2)" }}>
+                  {totalOpinions.toLocaleString()} opinions on record
+                </span>
+              )}
+            </div>
             <div className="grid grid-cols-2 gap-3 text-xs">
               {judge.political_affiliation && (
                 <div>

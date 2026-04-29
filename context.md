@@ -90,7 +90,7 @@ context.md (this)
 - ✅ v1.10: with-lex-memory→aresCritic (criticScore populated in ai_usage) 
 - ✅ v1.10: strategy + deep-research → postureDetect → aresDebate (msj/appeal)
 - ✅ v1.13: Redis rate limiter + 2FA/invite UX — COMPLETE
-- ⏳ v2.0: Docket watch ✅ · PACER ✅ · CL alerts ✅ · judge profiles
+- ✅ v2.0: Docket watch ✅ · PACER ✅ · CL alerts ✅ · judge profiles ✅ — COMPLETE
 - ✅ citeVerify(context) wiring — DONE (with-lex-memory parses TOOL_REQUEST blocks, executes cite_verify with matter.facts context, stores in metadata.cite_results; citations page surfaces auto-results)
 - ⏳ Smoke test waterfall order · Run eval for v5 baseline
 - ✅ Migrations 024 + 026 — applied in prod Supabase (2026-04-29)
