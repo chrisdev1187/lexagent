@@ -595,9 +595,16 @@ Sprint 9 (v1.8 — attorney workflow): COMPLETE 2026-04-28
        "Add to Matter" bulk-adds parsed deadlines to deadlines list.
   TypeScript clean. Commit b0bc3dd.
 
-Sprint 10 (v1.9 — document assembly): PLANNED
-  Docassemble-style interview engine: matter fields → auto-populated draft variables.
-  Jurisdiction × doc-type template library. Clause/snippet bank per matter.
+Sprint 10 (v1.9 — document assembly): COMPLETE 2026-04-28
+  Three new features in apps/web/app/(app)/matters/[id]/draft/page.tsx (commit: see git log):
+  1. Template library — DOC_TEMPLATES map (14 doc types, 2-3 presets each); collapsible "Quick Templates"
+     section above instructions; click chip → pre-fills instructions, closes panel.
+  2. Missing fields quick-fill — QUICK_FILL_KEYS = [court, caseNumber, parties, judgeName]; amber callout
+     shown when any are absent; inline lex-input per field; onBlur → updateMatter; no navigation required.
+  3. Clause snippet bank — Snippet interface {id, label, text}; stored in matter.snippets JSONB (20-cap);
+     "Save snippet" button next to instructions label; saved snippets show in collapsible bank with "Use"
+     (appends) and delete per-snippet; bank hidden when empty.
+  No migrations — all data via [key: string]: unknown index signature. TypeScript clean.
 ```
 
 ---

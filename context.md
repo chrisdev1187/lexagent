@@ -119,6 +119,11 @@ context.md (this)
 3. ✅ Research memo: research page "Memo" button → AI formats conversation as formal legal memo → MD/PDF export
 4. ✅ Deadline calc: deadlines page "AI Deadline Calculator" → trigger event + jurisdiction → computes procedural deadlines → bulk-add to matter
 
+## v1.9 — SHIPPED (2026-04-28)
+1. ✅ Template library: draft tab "Quick Templates" → per-doc-type preset instruction chips (MTD 12b6/12b1, MSJ, briefs, demand letters, etc.) → click to pre-fill instructions textarea
+2. ✅ Missing fields quick-fill: draft tab amber callout when court/caseNumber/parties/judgeName absent → inline inputs save to matter on blur → improves draft without navigating away
+3. ✅ Clause snippet bank: save instructions as named snippet (persisted in matter.snippets JSONB, 20-cap) → append to instructions; delete per-snippet; bank auto-hides when empty
+
 ## Hard rules
 - No budget — all AI via lib/ares/critic-llm.ts → 9-LLM waterfall, never direct Haiku/Opus
 - Cannot test without commit + push to origin/master
