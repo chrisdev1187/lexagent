@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Receipt, Clock, Plus, Trash2 } from "lucide-react";
+import { Receipt, Clock, Plus, Trash2, FileText } from "lucide-react";
 import { ExportButton } from "@/components/shared/ExportButton";
 import { useParams } from "next/navigation";
 import { useMatters } from "@/providers/matters-provider";
@@ -60,6 +60,41 @@ export default function BillingPage() {
     });
   };
 
+  const generateInvoice = () => {
+    const invoiceNum = `INV-${Date.now().toString().slice(-6)}`;
+    const today = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Invoice ${invoiceNum}</title><style>
+body{font-family:Georgia,serif;max-width:800px;margin:40px auto;color:#111}
+h1{font-size:28px;margin-bottom:4px}
+.meta{color:#555;font-size:13px;margin-bottom:32px;line-height:1.8}
+table{width:100%;border-collapse:collapse;margin-top:24px}
+th{text-align:left;padding:10px 12px;font-size:11px;text-transform:uppercase;letter-spacing:0.1em;border-bottom:2px solid #000}
+td{padding:10px 12px;font-size:13px;border-bottom:1px solid #eee}
+.right{text-align:right}.bold{font-weight:bold;font-size:15px}
+@media print{body{margin:20px}}
+</style></head><body>
+<h1>Invoice</h1>
+<div class="meta">
+  <strong>Matter:</strong> ${matter.title}<br>
+  ${matter.client ? `<strong>Client:</strong> ${matter.client}<br>` : ""}
+  <strong>Invoice #:</strong> ${invoiceNum}<br>
+  <strong>Date:</strong> ${today}
+</div>
+<table>
+<thead><tr><th>Date</th><th>Description</th><th>Time</th><th>Rate</th><th class="right">Amount</th></tr></thead>
+<tbody>${entries.map(e => `<tr>
+  <td>${new Date(e.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</td>
+  <td>${e.description}</td>
+  <td>${e.minutes >= 60 ? `${(e.minutes / 60).toFixed(1)}h` : `${e.minutes}m`}</td>
+  <td>$${e.rate}/hr</td>
+  <td class="right">$${((e.minutes / 60) * e.rate).toFixed(2)}</td>
+</tr>`).join("")}</tbody>
+<tfoot><tr><td colspan="3"></td><td class="bold">Total</td><td class="right bold">$${totalBilled.toFixed(2)}</td></tr></tfoot>
+</table></body></html>`;
+    const w = window.open("", "_blank");
+    if (w) { w.document.write(html); w.document.close(); w.print(); }
+  };
+
   const inputCls = "w-full px-3 py-2 rounded text-[13px] font-mono lex-focus";
   const inputStyle = {
     background: "rgba(255,255,255,0.03)",
@@ -74,12 +109,22 @@ export default function BillingPage() {
       title="Time &amp; Billing"
       description="Track billable hours and generate fee summaries"
       actions={
-        <ExportButton
-          content={["Date,Description,Minutes,Rate,Amount", ...entries.map(e => `${e.date},"${e.description}",${e.minutes},${e.rate},${((e.minutes / 60) * e.rate).toFixed(2)}`)].join("\n")}
-          filename={`billing-${matter.title}`}
-          format="csv"
-          label="Export CSV"
-        />
+        <div className="flex gap-2">
+          <ExportButton
+            content={["Date,Description,Minutes,Rate,Amount", ...entries.map(e => `${e.date},"${e.description}",${e.minutes},${e.rate},${((e.minutes / 60) * e.rate).toFixed(2)}`)].join("\n")}
+            filename={`billing-${matter.title}`}
+            format="csv"
+            label="Export CSV"
+          />
+          <button
+            onClick={generateInvoice}
+            disabled={entries.length === 0}
+            className="lex-btn lex-btn--primary"
+          >
+            <FileText size={13} />
+            Invoice PDF
+          </button>
+        </div>
       }
     >
       {/* Summary */}

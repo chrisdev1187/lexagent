@@ -1,6 +1,6 @@
 # LexAgent — Codebase Context (read first)
 
-**Updated:** 2026-04-29 · v1.10 ARES wiring shipped
+**Updated:** 2026-04-29 · v1.11 invoice PDF + enrichment tabs shipped
 
 ## URLs
 - web: https://lexagent-ochre.vercel.app
@@ -121,6 +121,12 @@ context.md (this)
 2. ✅ Cite scan: citations page "Scan Full Document" → AI extracts citations from pasted brief → auto-populates verify queue
 3. ✅ Research memo: research page "Memo" button → AI formats conversation as formal legal memo → MD/PDF export
 4. ✅ Deadline calc: deadlines page "AI Deadline Calculator" → trigger event + jurisdiction → computes procedural deadlines → bulk-add to matter
+
+## v1.11 — SHIPPED (2026-04-29)
+1. ✅ Invoice PDF: billing page "Invoice PDF" button → generates formatted HTML invoice → opens in new tab → browser print dialog
+2. ✅ GovInfo tab in deep-research: search federal documents via /api/govinfo/search; save to precedents; feeds synthesize
+3. ✅ OpenStates tab in deep-research: search state bills via /api/openstates/bills; save to precedents; feeds synthesize
+4. ✅ Patents tab in deep-research: search USPTO patents via /api/uspto/patents (POST); save to precedents; feeds synthesize
 
 ## v1.10 — SHIPPED (2026-04-29)
 1. ✅ ARES critic wiring: with-lex-memory.ts calls aresCritic() after every response; persisted_score → ai_usage.critic_score

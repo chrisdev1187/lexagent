@@ -595,6 +595,24 @@ Sprint 9 (v1.8 — attorney workflow): COMPLETE 2026-04-28
        "Add to Matter" bulk-adds parsed deadlines to deadlines list.
   TypeScript clean. Commit b0bc3dd.
 
+Sprint 12 (v1.11 — invoice PDF + enrichment UI tabs): COMPLETE 2026-04-29
+  1. Invoice PDF — billing/page.tsx
+     "Invoice PDF" button (disabled when no entries); generateInvoice() builds a full HTML document
+     with print CSS, matter/client header, entries table, total row; opens in new window → window.print().
+     Zero new dependencies — browser print dialog handles PDF export.
+  2. GovInfo tab — deep-research/page.tsx
+     New tab "GovInfo"; searchGovInfo() → GET /api/govinfo/search?query=...&pageSize=20;
+     GovInfoDoc interface {packageId, title, dateIssued, governmentAuthor1, collectionCode, packageLink};
+     save → precedent source "govinfo"; included in ARES synthesize block.
+  3. OpenStates tab — deep-research/page.tsx
+     New tab "State Leg."; searchOpenStates() → GET /api/openstates/bills?q=...&per_page=20;
+     OpenStatesBill interface; save → source "openstates"; included in synthesize block.
+  4. Patents tab — deep-research/page.tsx
+     New tab "Patents"; searchPatents() → POST /api/uspto/patents with PatentsView JSON query;
+     PatentResult interface; save → source "patent" (U.S. Patent No. citation); included in synthesize block.
+  All 3 new enrichment tabs wire into the ARES synthesis block alongside existing sources.
+  Tab type union extended; SOURCE_BADGE + TAB_LABELS updated; TypeScript clean. No migrations.
+
 Sprint 11 (v1.10 — ARES wiring): COMPLETE 2026-04-29
   Two deferred wiring gaps closed:
   1. with-lex-memory.ts → aresCritic():

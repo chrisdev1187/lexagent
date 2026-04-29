@@ -8,7 +8,7 @@ import { useMatters } from "@/providers/matters-provider";
 import { useSettings } from "@/providers/settings-provider";
 import { useAuth } from "@/lib/auth";
 import { PanelShell } from "@/components/panels/PanelShell";
-import { CONGRESS_BASE, ECFR_BASE, EDGAR_BASE, QuotaExceededError, FreeTierExhaustedError, CreditExhaustedError } from "@/lib/api";
+import { CONGRESS_BASE, ECFR_BASE, EDGAR_BASE, GOVINFO_BASE, OPENSTATES_BASE, USPTO_BASE, QuotaExceededError, FreeTierExhaustedError, CreditExhaustedError } from "@/lib/api";
 import { UpgradeCTA } from "@/components/shared/UpgradeCTA";
 import { withLexMemory } from "@/lib/lex-memory";
 import { postureDetect, aresDebate } from "@/lib/ares";
@@ -43,16 +43,42 @@ interface EdgarFiling {
   description?: string;
 }
 
+interface GovInfoDoc {
+  packageId: string;
+  title: string;
+  dateIssued?: string;
+  governmentAuthor1?: string;
+  collectionCode?: string;
+  packageLink?: string;
+}
+
+interface OpenStatesBill {
+  id: string;
+  identifier: string;
+  title: string;
+  jurisdiction?: { name?: string };
+  session?: { identifier?: string };
+  latest_action_date?: string;
+  openstates_url?: string;
+}
+
+interface PatentResult {
+  patent_id: string;
+  patent_title: string;
+  patent_date?: string;
+  assignees?: Array<{ assignee_organization?: string }>;
+}
+
 interface SavedPrecedent {
   id: string;
-  source: "congress" | "ecfr" | "opinion" | "edgar";
+  source: "congress" | "ecfr" | "opinion" | "edgar" | "govinfo" | "openstates" | "patent";
   title: string;
   citation: string;
   url?: string;
   savedAt: number;
 }
 
-type Tab = "congress" | "ecfr" | "opinions" | "edgar";
+type Tab = "congress" | "ecfr" | "opinions" | "edgar" | "govinfo" | "openstates" | "patents";
 
 function formatBillCitation(bill: CongressBill): string {
   const typeMap: Record<string, string> = {
@@ -77,6 +103,9 @@ export default function DeepResearchPage() {
   const [ecfrResults, setEcfrResults] = useState<EcfrResult[]>([]);
   const [opinionResults, setOpinionResults] = useState<CLOpinion[]>([]);
   const [edgarResults, setEdgarResults] = useState<EdgarFiling[]>([]);
+  const [govInfoResults, setGovInfoResults] = useState<GovInfoDoc[]>([]);
+  const [openStatesResults, setOpenStatesResults] = useState<OpenStatesBill[]>([]);
+  const [patentResults, setPatentResults] = useState<PatentResult[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [synthesizing, setSynthesizing] = useState(false);
   const [streamingText, setStreamingText] = useState("");
@@ -166,11 +195,70 @@ export default function DeepResearchPage() {
     }
   };
 
+  const searchGovInfo = async () => {
+    setSearching(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams({ query, pageSize: "20" });
+      const res = await fetch(`${GOVINFO_BASE}/search?${params}`, { headers: authHeader });
+      if (!res.ok) throw new Error(`GovInfo API ${res.status}`);
+      const data = await res.json() as { packages?: GovInfoDoc[] };
+      setGovInfoResults(data.packages ?? []);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const searchOpenStates = async () => {
+    setSearching(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams({ q: query, per_page: "20" });
+      const res = await fetch(`${OPENSTATES_BASE}/bills?${params}`, { headers: authHeader });
+      if (!res.ok) throw new Error(`OpenStates API ${res.status}`);
+      const data = await res.json() as { results?: OpenStatesBill[] };
+      setOpenStatesResults(data.results ?? []);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const searchPatents = async () => {
+    setSearching(true);
+    setError(null);
+    try {
+      const body = JSON.stringify({
+        q: { _text_any: { patent_title: query } },
+        f: ["patent_id", "patent_title", "patent_date", "assignee_organization"],
+        o: { per_page: 15 },
+      });
+      const res = await fetch(`${USPTO_BASE}/patents`, {
+        method: "POST",
+        headers: { ...authHeader, "Content-Type": "application/json" },
+        body,
+      });
+      if (!res.ok) throw new Error(`USPTO API ${res.status}`);
+      const data = await res.json() as { patents?: PatentResult[] };
+      setPatentResults(data.patents ?? []);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSearching(false);
+    }
+  };
+
   const handleSearch = () => {
     if (!query.trim() || searching || !matter) return;
     if (tab === "congress") searchCongress();
     else if (tab === "ecfr") searchEcfr();
     else if (tab === "edgar") searchEdgar();
+    else if (tab === "govinfo") searchGovInfo();
+    else if (tab === "openstates") searchOpenStates();
+    else if (tab === "patents") searchPatents();
     else searchOpinionResults();
   };
 
@@ -197,10 +285,22 @@ export default function DeepResearchPage() {
     savePrecedent({ id: `opinion-${op.id}`, source: "opinion", title: op.caseName, citation: op.citation, url: op.absoluteUrl, savedAt: Date.now() });
   };
 
-  const hasResults = opinionResults.length > 0 || congressResults.length > 0 || ecfrResults.length > 0 || edgarResults.length > 0;
+  const hasResults = opinionResults.length > 0 || congressResults.length > 0 || ecfrResults.length > 0 || edgarResults.length > 0 || govInfoResults.length > 0 || openStatesResults.length > 0 || patentResults.length > 0;
 
   const saveEdgarFiling = (f: EdgarFiling) => {
     savePrecedent({ id: `edgar-${f.id}`, source: "edgar", title: `${f.entityName} — ${f.formType}`, citation: `${f.formType}, ${f.entityName}${f.fileDate ? ` (${new Date(f.fileDate).getFullYear()})` : ""}`, savedAt: Date.now() });
+  };
+
+  const saveGovInfoDoc = (d: GovInfoDoc) => {
+    savePrecedent({ id: `govinfo-${d.packageId}`, source: "govinfo", title: d.title, citation: `${d.collectionCode ?? "Fed. Doc."}, ${d.packageId}${d.dateIssued ? ` (${new Date(d.dateIssued).getFullYear()})` : ""}`, url: d.packageLink, savedAt: Date.now() });
+  };
+
+  const saveOpenStatesBill = (b: OpenStatesBill) => {
+    savePrecedent({ id: `openstates-${b.id}`, source: "openstates", title: b.title, citation: `${b.identifier}${b.jurisdiction?.name ? `, ${b.jurisdiction.name}` : ""}${b.session?.identifier ? ` (${b.session.identifier})` : ""}`, url: b.openstates_url, savedAt: Date.now() });
+  };
+
+  const savePatent = (p: PatentResult) => {
+    savePrecedent({ id: `patent-${p.patent_id}`, source: "patent", title: p.patent_title, citation: `U.S. Patent No. ${p.patent_id}${p.patent_date ? ` (${new Date(p.patent_date).getFullYear()})` : ""}`, savedAt: Date.now() });
   };
 
   const synthesize = async () => {
@@ -222,6 +322,16 @@ export default function DeepResearchPage() {
         ? `\nSEC EDGAR FILINGS (${edgarResults.length}):\n${edgarResults.slice(0, 10).map((f, i) => `${i + 1}. ${f.formType} — ${f.entityName}${f.fileDate ? ` (${new Date(f.fileDate).getFullYear()})` : ""}${f.description ? `\n   ${f.description}` : ""}`).join("\n")}`
         : "";
 
+      const govInfoBlock = govInfoResults.length > 0
+        ? `\nGOVINFO FEDERAL DOCUMENTS (${govInfoResults.length}):\n${govInfoResults.slice(0, 8).map((d, i) => `${i + 1}. ${d.packageId} — ${d.title}${d.dateIssued ? ` (${new Date(d.dateIssued).getFullYear()})` : ""}${d.governmentAuthor1 ? `\n   Author: ${d.governmentAuthor1}` : ""}`).join("\n")}`
+        : "";
+      const openStatesBlock = openStatesResults.length > 0
+        ? `\nSTATE LEGISLATION (${openStatesResults.length}):\n${openStatesResults.slice(0, 8).map((b, i) => `${i + 1}. ${b.identifier}${b.jurisdiction?.name ? ` (${b.jurisdiction.name})` : ""} — ${b.title}${b.latest_action_date ? `\n   Last action: ${new Date(b.latest_action_date).toLocaleDateString()}` : ""}`).join("\n")}`
+        : "";
+      const patentBlock = patentResults.length > 0
+        ? `\nPATENTS (${patentResults.length}):\n${patentResults.slice(0, 8).map((p, i) => `${i + 1}. U.S. Patent No. ${p.patent_id} — ${p.patent_title}${p.patent_date ? ` (${new Date(p.patent_date).getFullYear()})` : ""}${p.assignees?.[0]?.assignee_organization ? `\n   Assignee: ${p.assignees[0].assignee_organization}` : ""}`).join("\n")}`
+        : "";
+
       const content = `Synthesize a comprehensive legal research memo for the following matter based on the retrieved sources.
 
 Matter: ${matter.title}
@@ -230,7 +340,7 @@ Case Type: ${matter.caseType ?? "N/A"}
 Jurisdiction: ${matter.jurisdiction ?? "N/A"}
 Key Facts: ${matter.facts ?? "N/A"}
 
-RETRIEVED SOURCES:${opBlock}${billBlock}${ecfrBlock}${edgarBlock}
+RETRIEVED SOURCES:${opBlock}${billBlock}${ecfrBlock}${edgarBlock}${govInfoBlock}${openStatesBlock}${patentBlock}
 
 Provide:
 ## RESEARCH SUMMARY
@@ -287,13 +397,19 @@ Be precise, cite sources by number, and flag any circuit splits or conflicting a
   };
 
   const SOURCE_BADGE: Record<string, { label: string; color: string }> = {
-    congress: { label: "Congress", color: "var(--verdict-amber)" },
-    ecfr:     { label: "eCFR",    color: "var(--verdict-neon)" },
-    opinion:  { label: "Opinion", color: "var(--verdict-violet)" },
-    edgar:    { label: "SEC",     color: "#0ea5e9" },
+    congress:   { label: "Congress",   color: "var(--verdict-amber)" },
+    ecfr:       { label: "eCFR",       color: "var(--verdict-neon)" },
+    opinion:    { label: "Opinion",    color: "var(--verdict-violet)" },
+    edgar:      { label: "SEC",        color: "#0ea5e9" },
+    govinfo:    { label: "GovInfo",    color: "#a78bfa" },
+    openstates: { label: "State Leg.", color: "#34d399" },
+    patent:     { label: "Patent",     color: "#fb923c" },
   };
 
-  const TAB_LABELS: Record<Tab, string> = { congress: "Congress Bills", ecfr: "eCFR Regs", opinions: "Case Opinions", edgar: "SEC EDGAR" };
+  const TAB_LABELS: Record<Tab, string> = {
+    congress: "Congress Bills", ecfr: "eCFR Regs", opinions: "Case Opinions",
+    edgar: "SEC EDGAR", govinfo: "GovInfo", openstates: "State Leg.", patents: "Patents",
+  };
 
   return (
     <>
@@ -312,7 +428,7 @@ Be precise, cite sources by number, and flag any circuit splits or conflicting a
     >
       {/* Source tabs */}
       <div className="flex gap-1 mb-4">
-        {(["opinions", "congress", "ecfr", "edgar"] as Tab[]).map((t) => (
+        {(["opinions", "congress", "ecfr", "edgar", "govinfo", "openstates", "patents"] as Tab[]).map((t) => (
           <button
             key={t}
             onClick={() => { setTab(t); setError(null); }}
@@ -338,9 +454,12 @@ Be precise, cite sources by number, and flag any circuit splits or conflicting a
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSearch()}
           placeholder={
-            tab === "congress" ? "Search bills — e.g. 'immigration reform'…"
-            : tab === "ecfr" ? "Search CFR — e.g. 'clean air emissions'…"
-            : tab === "edgar" ? "Search SEC filings — e.g. 'securities fraud disclosure'…"
+            tab === "congress"   ? "Search bills — e.g. 'immigration reform'…"
+            : tab === "ecfr"    ? "Search CFR — e.g. 'clean air emissions'…"
+            : tab === "edgar"   ? "Search SEC filings — e.g. 'securities fraud disclosure'…"
+            : tab === "govinfo" ? "Search federal documents — e.g. 'FDA rule 2024'…"
+            : tab === "openstates" ? "Search state bills — e.g. 'consumer privacy'…"
+            : tab === "patents" ? "Search patents — e.g. 'machine learning inference'…"
             : "Search case opinions — e.g. 'fourth amendment search'…"
           }
           className="flex-1 px-4 py-2.5 text-sm"
@@ -512,6 +631,91 @@ Be precise, cite sources by number, and flag any circuit splits or conflicting a
                   style={{ color: saved ? "var(--verdict-neon)" : "var(--fg-tertiary)" }}
                   title={saved ? "Saved" : "Save to precedents"}
                 >
+                  {saved ? <BookmarkCheck size={13} /> : <Bookmark size={13} />}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* GovInfo results */}
+      {tab === "govinfo" && govInfoResults.length > 0 && (
+        <div className="space-y-2 mb-6">
+          <p className="text-xs font-mono tracking-wider mb-2" style={{ color: "var(--fg-tertiary)" }}>
+            GOVINFO DOCUMENTS ({govInfoResults.length})
+          </p>
+          {govInfoResults.map((d) => {
+            const pid = `govinfo-${d.packageId}`;
+            const saved = savedIds.has(pid);
+            return (
+              <div key={pid} className="rounded p-3 flex items-start gap-3" style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold mb-0.5 line-clamp-2" style={{ color: "var(--fg-primary)" }}>{d.title}</p>
+                  <p className="text-xs font-mono" style={{ color: "#a78bfa" }}>{d.packageId}</p>
+                  {d.dateIssued && <p className="text-xs" style={{ color: "var(--fg-tertiary)" }}>{new Date(d.dateIssued).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}</p>}
+                  {d.governmentAuthor1 && <p className="text-xs" style={{ color: "var(--fg-tertiary)" }}>{d.governmentAuthor1}</p>}
+                </div>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  {d.packageLink && <a href={d.packageLink} target="_blank" rel="noreferrer" className="p-1.5 rounded-md cursor-pointer" style={{ color: "var(--fg-tertiary)" }}><ExternalLink size={13} /></a>}
+                  <button onClick={() => !saved && saveGovInfoDoc(d)} className="p-1.5 rounded-md cursor-pointer" style={{ color: saved ? "var(--verdict-neon)" : "var(--fg-tertiary)" }} title={saved ? "Saved" : "Save"}>
+                    {saved ? <BookmarkCheck size={13} /> : <Bookmark size={13} />}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* OpenStates results */}
+      {tab === "openstates" && openStatesResults.length > 0 && (
+        <div className="space-y-2 mb-6">
+          <p className="text-xs font-mono tracking-wider mb-2" style={{ color: "var(--fg-tertiary)" }}>
+            STATE BILLS ({openStatesResults.length})
+          </p>
+          {openStatesResults.map((b) => {
+            const pid = `openstates-${b.id}`;
+            const saved = savedIds.has(pid);
+            return (
+              <div key={pid} className="rounded p-3 flex items-start gap-3" style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold mb-0.5 line-clamp-2" style={{ color: "var(--fg-primary)" }}>{b.title}</p>
+                  <p className="text-xs font-mono" style={{ color: "#34d399" }}>{b.identifier}{b.jurisdiction?.name ? ` · ${b.jurisdiction.name}` : ""}</p>
+                  {b.latest_action_date && <p className="text-xs" style={{ color: "var(--fg-tertiary)" }}>Last action: {new Date(b.latest_action_date).toLocaleDateString()}</p>}
+                </div>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  {b.openstates_url && <a href={b.openstates_url} target="_blank" rel="noreferrer" className="p-1.5 rounded-md cursor-pointer" style={{ color: "var(--fg-tertiary)" }}><ExternalLink size={13} /></a>}
+                  <button onClick={() => !saved && saveOpenStatesBill(b)} className="p-1.5 rounded-md cursor-pointer" style={{ color: saved ? "var(--verdict-neon)" : "var(--fg-tertiary)" }} title={saved ? "Saved" : "Save"}>
+                    {saved ? <BookmarkCheck size={13} /> : <Bookmark size={13} />}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Patent results */}
+      {tab === "patents" && patentResults.length > 0 && (
+        <div className="space-y-2 mb-6">
+          <p className="text-xs font-mono tracking-wider mb-2" style={{ color: "var(--fg-tertiary)" }}>
+            PATENTS ({patentResults.length})
+          </p>
+          {patentResults.map((p) => {
+            const pid = `patent-${p.patent_id}`;
+            const saved = savedIds.has(pid);
+            const assignee = p.assignees?.[0]?.assignee_organization;
+            return (
+              <div key={pid} className="rounded p-3 flex items-start gap-3" style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold mb-0.5 line-clamp-2" style={{ color: "var(--fg-primary)" }}>{p.patent_title}</p>
+                  <p className="text-xs font-mono" style={{ color: "#fb923c" }}>U.S. Patent No. {p.patent_id}</p>
+                  <p className="text-xs" style={{ color: "var(--fg-tertiary)" }}>
+                    {assignee ? `${assignee} · ` : ""}{p.patent_date ? new Date(p.patent_date).getFullYear() : ""}
+                  </p>
+                </div>
+                <button onClick={() => !saved && savePatent(p)} className="p-1.5 rounded-md cursor-pointer flex-shrink-0" style={{ color: saved ? "var(--verdict-neon)" : "var(--fg-tertiary)" }} title={saved ? "Saved" : "Save"}>
                   {saved ? <BookmarkCheck size={13} /> : <Bookmark size={13} />}
                 </button>
               </div>
