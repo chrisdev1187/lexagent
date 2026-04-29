@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAuth, type AuthErrorCode } from "@/lib/auth";
 import { supabase, supabaseReachable } from "@/lib/supabase";
@@ -23,6 +23,10 @@ const BRAND_FEATURES = [
 ];
 
 export default function LoginPage() {
+  return <Suspense><LoginPageInner /></Suspense>;
+}
+
+function LoginPageInner() {
   const { user, loading, signInWithEmail, signUpWithEmail, signInWithGoogle, resendConfirmation, resetPassword } = useAuth();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");

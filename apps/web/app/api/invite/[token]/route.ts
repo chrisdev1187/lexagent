@@ -12,12 +12,13 @@ function svc() {
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { token: string } }
+  { params }: { params: Promise<{ token: string }> }
 ) {
+  const { token } = await params;
   const { data, error } = await svc()
     .from("team_invites")
     .select("id, email, role, expires_at, accepted_at, teams(name)")
-    .eq("token", params.token)
+    .eq("token", token)
     .single();
 
   if (error || !data) return NextResponse.json({ error: "Invalid invite link" }, { status: 404 });
@@ -34,13 +35,13 @@ export async function GET(
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { token: string } }
+  { params }: { params: Promise<{ token: string }> }
 ) {
+  const { token } = await params;
   const authHeader = req.headers.get("authorization");
   const jwt = authHeader?.replace("Bearer ", "");
   if (!jwt) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  // Verify caller JWT
   const caller = createClient(SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
     auth: { autoRefreshToken: false, persistSession: false },
     global: { headers: { Authorization: `Bearer ${jwt}` } },
@@ -53,7 +54,7 @@ export async function POST(
   const { data: invite, error: invErr } = await db
     .from("team_invites")
     .select("id, team_id, email, role, expires_at, accepted_at")
-    .eq("token", params.token)
+    .eq("token", token)
     .single();
 
   if (invErr || !invite) return NextResponse.json({ error: "Invalid invite link" }, { status: 404 });
@@ -63,7 +64,6 @@ export async function POST(
     return NextResponse.json({ error: "This invite was sent to a different email address" }, { status: 403 });
   }
 
-  // Add to team
   const { error: memberErr } = await db
     .from("team_members")
     .upsert({ team_id: invite.team_id, user_id: user.id, role: invite.role }, { onConflict: "team_id,user_id" });
