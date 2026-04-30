@@ -903,9 +903,13 @@ function AresTab() {
     setEvalError(null);
     setEvalResult(null);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch("/api/ares-eval", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
         body: JSON.stringify({ maxQuestions: 16, concurrency: 2 }),
       });
       if (!res.ok) { const j = await res.json().catch(() => ({})) as {error?:string}; throw new Error(j.error ?? `HTTP ${res.status}`); }

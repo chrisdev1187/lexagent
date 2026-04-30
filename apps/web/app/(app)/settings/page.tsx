@@ -7,10 +7,11 @@ import { useSettings } from "@/providers/settings-provider";
 import { supabase } from "@/lib/supabase";
 import { getApiHeaders } from "@/lib/api";
 
+import { DEFAULT_SYSTEM, ARES_PROMPT_VERSION } from "@/lib/settings";
 import { useToast } from "@/hooks/useToast";
 import { LexTooltip } from "@/components/shared/LexTooltip";
 import {
-  CreditCard, ExternalLink, User, Palette, Cpu, ShieldCheck, Key, Building2, UsersRound, Lock,
+  CreditCard, ExternalLink, User, Palette, Cpu, ShieldCheck, FileText, Key, Building2, UsersRound, Lock,
   Smartphone, QrCode, CheckCircle2, XCircle, Loader2, Scale, Eye, EyeOff, Trash2,
 } from "lucide-react";
 import { FirmProfileTab } from "@/components/settings/FirmProfileTab";
@@ -31,7 +32,7 @@ const PLAN_COLOR: Record<string, string> = {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
-type Tab = "profile" | "billing" | "api-key" | "ui" | "model" | "shield" | "firm" | "teams" | "security" | "pacer";
+type Tab = "profile" | "billing" | "api-key" | "ui" | "model" | "shield" | "prompt" | "firm" | "teams" | "security" | "pacer";
 
 const TABS: { id: Tab; icon: React.ElementType; label: string }[] = [
   { id: "profile",  icon: User,        label: "Profile & Usage"     },
@@ -39,6 +40,7 @@ const TABS: { id: Tab; icon: React.ElementType; label: string }[] = [
   { id: "firm",     icon: Building2,   label: "Firm Profile"        },
   { id: "teams",    icon: UsersRound,  label: "Teams"               },
   { id: "api-key",  icon: Key,         label: "API Key (BYOK)"      },
+  { id: "prompt",   icon: FileText,    label: "System Prompt"       },
   { id: "security", icon: Lock,        label: "Security"            },
   { id: "pacer",    icon: Scale,       label: "PACER"               },
   { id: "ui",       icon: Palette,     label: "UI Preferences"      },
@@ -522,6 +524,33 @@ function ShieldTab({ settings, set }: { settings: any; set: (k: string, v: unkno
 }
 
 
+/* ── System Prompt tab (admin only) ────────────────────────────────────── */
+function PromptTab({ settings, set }: { settings: any; set: (k: string, v: unknown) => void }) {
+  const charCount = (settings.systemPrompt ?? "").length;
+  const tokEstimate = Math.round(charCount / 4);
+  return (
+    <div>
+      <SectionHeading>SYSTEM PROMPT — ARES v{ARES_PROMPT_VERSION}</SectionHeading>
+      <div className="flex items-center justify-between mb-3">
+        <span className="font-mono text-[10px]" style={{ color: "var(--fg-quaternary)" }}>
+          {charCount.toLocaleString()} chars · ~{tokEstimate.toLocaleString()} tokens
+        </span>
+        <button onClick={() => set("systemPrompt", DEFAULT_SYSTEM)} className="lex-btn lex-btn--secondary" style={{ fontSize: "0.7rem", padding: "4px 10px" }}>
+          Reset to v{ARES_PROMPT_VERSION}
+        </button>
+      </div>
+      <Field label={`ARES v${ARES_PROMPT_VERSION} SYSTEM PROMPT`} tooltip="Modify with care — affects all ARES responses.">
+        <textarea
+          className="lex-textarea"
+          style={{ minHeight: 340, fontFamily: "var(--font-mono)", fontSize: "0.75rem", lineHeight: 1.75 }}
+          value={settings.systemPrompt ?? DEFAULT_SYSTEM}
+          onChange={e => set("systemPrompt", e.target.value)}
+        />
+      </Field>
+    </div>
+  );
+}
+
 /* ── PACER tab ──────────────────────────────────────────────────────────── */
 function PacerTab({ userId }: { userId: string }) {
   const [connected, setConnected] = useState(false);
@@ -707,7 +736,7 @@ function PacerTab({ userId }: { userId: string }) {
   );
 }
 
-const ADMIN_ONLY_TABS: Tab[] = ["api-key", "teams"];
+const ADMIN_ONLY_TABS: Tab[] = ["api-key", "prompt", "teams"];
 
 /* ── Inner component ────────────────────────────────────────────────────── */
 function SettingsInner() {
@@ -780,6 +809,7 @@ function SettingsInner() {
       case "model":    return <ModelTab settings={settings} set={set} />;
       case "shield":   return <ShieldTab settings={settings} set={set} />;
       case "pacer":    return user?.id ? <PacerTab userId={user.id} /> : null;
+      case "prompt":   return isAdmin ? <PromptTab settings={settings} set={set} /> : null;
     }
   };
 
