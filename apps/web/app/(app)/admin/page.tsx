@@ -945,28 +945,8 @@ function AresTab() {
     load();
   }, []);
 
-  const promptTok = Math.round(settings.systemPrompt.length / 4);
-  const promptChars = settings.systemPrompt.length;
-
   return (
     <div>
-      <SectionHeading>ACTIVE SYSTEM PROMPT (ARES v3.0)</SectionHeading>
-      <div className="rounded p-4 mb-6" style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(0,255,195,0.14)" }}>
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-3">
-            <Brain size={14} style={{ color: "var(--verdict-neon)" }} />
-            <span className="text-xs font-mono" style={{ color: "var(--verdict-neon)" }}>ARES v3.0</span>
-          </div>
-          <div className="flex items-center gap-3 text-xs font-mono" style={{ color: "var(--fg-tertiary)" }}>
-            <span>{promptChars.toLocaleString()} chars</span>
-            <span>~{promptTok.toLocaleString()} tokens</span>
-          </div>
-        </div>
-        <pre className="text-xs overflow-auto max-h-48 whitespace-pre-wrap leading-relaxed" style={{ color: "var(--fg-secondary)", fontFamily: "var(--font-mono)" }}>
-          {settings.systemPrompt.slice(0, 800)}{settings.systemPrompt.length > 800 ? "\n…(truncated)" : ""}
-        </pre>
-      </div>
-
       {lexStats && (
         <>
           <SectionHeading>LEXMEMORY EFFICIENCY</SectionHeading>

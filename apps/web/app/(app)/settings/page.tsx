@@ -6,11 +6,11 @@ import { useAuth } from "@/lib/auth";
 import { useSettings } from "@/providers/settings-provider";
 import { supabase } from "@/lib/supabase";
 import { getApiHeaders } from "@/lib/api";
-import { DEFAULT_SYSTEM, ARES_PROMPT_VERSION } from "@/lib/settings";
+
 import { useToast } from "@/hooks/useToast";
 import { LexTooltip } from "@/components/shared/LexTooltip";
 import {
-  CreditCard, ExternalLink, User, Palette, Cpu, ShieldCheck, FileText, Key, Building2, UsersRound, Lock,
+  CreditCard, ExternalLink, User, Palette, Cpu, ShieldCheck, Key, Building2, UsersRound, Lock,
   Smartphone, QrCode, CheckCircle2, XCircle, Loader2, Scale, Eye, EyeOff, Trash2,
 } from "lucide-react";
 import { FirmProfileTab } from "@/components/settings/FirmProfileTab";
@@ -31,7 +31,7 @@ const PLAN_COLOR: Record<string, string> = {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
-type Tab = "profile" | "billing" | "api-key" | "ui" | "model" | "shield" | "prompt" | "firm" | "teams" | "security" | "pacer";
+type Tab = "profile" | "billing" | "api-key" | "ui" | "model" | "shield" | "firm" | "teams" | "security" | "pacer";
 
 const TABS: { id: Tab; icon: React.ElementType; label: string }[] = [
   { id: "profile",  icon: User,        label: "Profile & Usage"     },
@@ -44,7 +44,6 @@ const TABS: { id: Tab; icon: React.ElementType; label: string }[] = [
   { id: "ui",       icon: Palette,     label: "UI Preferences"      },
   { id: "model",    icon: Cpu,         label: "Model & AI"          },
   { id: "shield",   icon: ShieldCheck, label: "Hallucination Shield" },
-  { id: "prompt",   icon: FileText,    label: "System Prompt"       },
 ];
 
 /* ── Shared helpers ─────────────────────────────────────────────────────── */
@@ -522,41 +521,6 @@ function ShieldTab({ settings, set }: { settings: any; set: (k: string, v: unkno
   );
 }
 
-/* ── System Prompt tab ──────────────────────────────────────────────────── */
-function PromptTab({ settings, set }: { settings: any; set: (k: string, v: unknown) => void }) {
-  const charCount = (settings.systemPrompt ?? "").length;
-  const tokEstimate = Math.round(charCount / 4);
-  return (
-    <div>
-      <SectionHeading>SYSTEM PROMPT — ARES v{ARES_PROMPT_VERSION}</SectionHeading>
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-[10px] tracking-[0.1em] px-2 py-0.5 rounded" style={{ color: "var(--verdict-neon)", border: "1px solid var(--verdict-neon)", opacity: 0.85 }}>
-            v{ARES_PROMPT_VERSION}
-          </span>
-          <span className="font-mono text-[10px] tracking-[0.1em]" style={{ color: "var(--fg-quaternary)" }}>
-            {charCount.toLocaleString()} chars · ~{tokEstimate.toLocaleString()} tokens
-          </span>
-        </div>
-        <button
-          onClick={() => set("systemPrompt", DEFAULT_SYSTEM)}
-          className="lex-btn lex-btn--secondary"
-          style={{ fontSize: "0.7rem", padding: "4px 10px" }}
-        >
-          Reset to ARES v{ARES_PROMPT_VERSION}
-        </button>
-      </div>
-      <Field label="ACTIVE SYSTEM PROMPT" tooltip={`Read-only view of the ARES v${ARES_PROMPT_VERSION} system prompt. Use 'Reset to ARES v${ARES_PROMPT_VERSION}' to restore defaults.`}>
-        <textarea
-          readOnly
-          className="lex-textarea"
-          style={{ minHeight: 340, fontFamily: "var(--font-mono)", fontSize: "0.75rem", lineHeight: 1.75, cursor: "default", opacity: 0.85 }}
-          value={settings.systemPrompt}
-        />
-      </Field>
-    </div>
-  );
-}
 
 /* ── PACER tab ──────────────────────────────────────────────────────────── */
 function PacerTab({ userId }: { userId: string }) {
@@ -743,7 +707,7 @@ function PacerTab({ userId }: { userId: string }) {
   );
 }
 
-const ADMIN_ONLY_TABS: Tab[] = ["api-key", "prompt", "teams"];
+const ADMIN_ONLY_TABS: Tab[] = ["api-key", "teams"];
 
 /* ── Inner component ────────────────────────────────────────────────────── */
 function SettingsInner() {
@@ -815,7 +779,6 @@ function SettingsInner() {
       case "ui":       return <UiTab settings={settings} set={set} />;
       case "model":    return <ModelTab settings={settings} set={set} />;
       case "shield":   return <ShieldTab settings={settings} set={set} />;
-      case "prompt":   return <PromptTab settings={settings} set={set} />;
       case "pacer":    return user?.id ? <PacerTab userId={user.id} /> : null;
     }
   };
