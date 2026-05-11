@@ -7,7 +7,7 @@ import { SectionHeading } from "@/components/shared/AdminSettingsShared";
 import { Field } from "@/components/shared/AdminSettingsShared";
 import { SettingsToggle } from "@/components/shared/SettingsToggle";
 
-export function ApiKeyTab({ user }: { user: { id: string }; loading: boolean }) {
+export function ApiKeyTab({ user }: { user: { id: string } }) {
   const [byokActive, setByokActive] = useState(false);
   const [hasKey, setHasKey] = useState(false);
   const [keyInput, setKeyInput] = useState("");

@@ -379,3 +379,61 @@ export const PLAN_COLOR: Record<string, string> = {
   firm:         "var(--verdict-amber)",
   premium:      "var(--verdict-violet)",
 };
+
+export const DOC_TYPES = [
+  "Motion", "Brief", "Contract", "Evidence", "Discovery",
+  "Correspondence", "Pleading", "Order", "Other",
+];
+
+export const DOC_TEMPLATES: Record<string, string[]> = {
+  "Motion to Dismiss": [
+    "12(b)(6) failure to state a claim — Twombly/Iqbal plausibility standard; focus on facial insufficiency of factual allegations",
+    "12(b)(1) lack of subject matter jurisdiction — Article III standing, mootness arguments",
+    "12(b)(2) lack of personal jurisdiction — minimum contacts, purposeful availment analysis",
+  ],
+  "Motion for Summary Judgment": [
+    "No genuine dispute of material fact — Rule 56(a) standard; movant burden then nonmovant obligation to show specific facts",
+    "Qualified immunity — clearly established law prong under Pearson v. Callahan; no clearly established right",
+  ],
+  "Brief": [
+    "Appellate brief — standard of review first (de novo / abuse of discretion); preserve all preserved-error arguments; harmless error",
+    "Opposition brief — lead with applicable standard; distinguish adverse cases on facts; attack opponent's legal conclusions",
+  ],
+  "Demand Letter": [
+    "Pre-litigation demand — specific dollar amount, legal basis, 14-day cure period, litigation warning",
+    "FDCPA demand — 30-day debt validation period, cease-and-desist language under 15 U.S.C. § 1692c",
+  ],
+  "Settlement Agreement": [
+    "Full mutual release — representations and warranties, confidentiality clause, no admission of liability",
+    "Structured settlement — payment schedule, default clause, acceleration on missed payment",
+  ],
+  "Complaint": [
+    "Federal complaint — short plain statement per Rule 8(a); jurisdictional allegations first; demand jury trial",
+    "Class action — class definition, numerosity, commonality, typicality, adequacy under Rule 23",
+  ],
+  "Memo of Law": [
+    "IRAC format — Issue / Rule / Application / Conclusion for each argument heading",
+    "Office memo — Questions Presented, Brief Answer, Discussion (IRAC), Conclusion",
+  ],
+  "Client Letter": [
+    "Status update — matter summary, recent developments, next steps, client action items",
+    "Adverse outcome — plain language explanation of result, options going forward, timeline",
+  ],
+};
+
+export const DRAFT_DOC_TYPES = [
+  "Motion to Dismiss",
+  "Motion for Summary Judgment",
+  "Motion in Limine",
+  "Brief",
+  "Demand Letter",
+  "Settlement Agreement",
+  "Cease and Desist",
+  "Memo of Law",
+  "Client Letter",
+  "Subpoena",
+  "Complaint",
+  "Answer",
+  "Reply Brief",
+  "Notice of Appeal",
+];
