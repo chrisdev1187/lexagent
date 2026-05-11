@@ -17,11 +17,7 @@ import { anthropicFetch } from "@/lib/api";
 import { mergeMemory } from "@/lib/lex-memory/merge";
 import type { LexMemory, Level3Strategy } from "@/lib/lex-memory/types";
 import { DocCard, VaultDoc } from "@/components/vault/DocCard";
-
-const DOC_TYPES = [
-  "Motion", "Brief", "Contract", "Evidence", "Discovery",
-  "Correspondence", "Pleading", "Order", "Other",
-];
+import { DOC_TYPES } from "@/lib/settings";
 
 function redactText(text: string): string {
   return text
@@ -230,7 +226,6 @@ export default function VaultPage() {
       <div className="flex gap-6">
         <div className="flex-1 space-y-8">
 
-          {/* Context Section (Knowledge Base) */}
           <section>
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
@@ -254,7 +249,6 @@ export default function VaultPage() {
             )}
           </section>
 
-          {/* Confidential Section */}
           <section>
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
@@ -280,7 +274,6 @@ export default function VaultPage() {
           </section>
         </div>
 
-        {/* Quick View Sidebar */}
         {viewingUrl && (
           <div className="w-80 flex-shrink-0">
             <div className="sticky top-0 rounded-xl overflow-hidden border border-[rgba(224,224,224,0.14)]" style={{ height: "calc(100vh - 200px)", background: "var(--midnight-deep)" }}>
@@ -294,7 +287,6 @@ export default function VaultPage() {
         )}
       </div>
 
-      {/* Context Warning Modal */}
       {showContextWarning && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="max-w-md w-full bg-[var(--midnight-deep)] rounded-xl border border-[rgba(0,255,195,0.2)] shadow-2xl p-6">
@@ -327,7 +319,6 @@ export default function VaultPage() {
         </div>
       )}
 
-      {/* Upload/Add Form Modal */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="max-w-lg w-full bg-[var(--midnight-deep)] rounded-xl border border-[rgba(224,224,224,0.1)] shadow-2xl overflow-hidden">

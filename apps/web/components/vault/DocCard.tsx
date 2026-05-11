@@ -1,6 +1,7 @@
 "use client";
 
 import { ShieldCheck, Zap, Scissors, Loader2, ExternalLink, Archive, Trash2 } from "lucide-react";
+import { DOC_TYPES } from "@/lib/settings";
 
 export interface VaultDoc {
   id: string;
@@ -109,7 +110,7 @@ export function DocCard({ doc, enrichingId, onView, onDelete, onRedact }: DocCar
               </button>
             )}
             {!doc.redacted && (
-              <button onClick={() => onRedact(doc)} title="Create redacted copy" className="p-1.5 rounded-md hover:bg-white/5" style={{ color: "var(--fg-tertiary)" }}>
+              <button onClick={() => onRedact(doc)} title="Create redacted copy" className="p-1.5 rounded-md hover:bg-white/10" style={{ color: "var(--fg-tertiary)" }}>
                 <Scissors size={14} />
               </button>
             )}

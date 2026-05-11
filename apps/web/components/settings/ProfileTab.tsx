@@ -11,10 +11,8 @@ interface UsageEvent { tool_name: string; model: string; usd_cost: number; creat
 interface CreditStatus { used: number; limit: number; remaining: number; pct_used: number; plan_id: string; period_end: string; }
 
 export function ProfileTab({
-  role, events, loading,
+  events, loading,
 }: {
-  user: { email?: string };
-  role: UserRole | null;
   events: UsageEvent[];
   loading: boolean;
 }) {

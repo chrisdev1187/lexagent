@@ -91,11 +91,11 @@ function SettingsInner() {
   const renderContent = () => {
     if (!user) return null;
     switch (activeTab) {
-      case "profile":  return <ProfileTab user={user as any} role={role} events={events} loading={loading} />;
+      case "profile":  return <ProfileTab events={events} loading={loading} />;
       case "billing":  return <SettingsBillingTab role={role} plan={plan} loading={loading} />;
       case "firm":     return <FirmProfileTab isAdmin={isAdmin} />;
       case "teams":    return <TeamsTab isAdmin={isAdmin} />;
-      case "api-key":  return <ApiKeyTab user={user as any} loading={loading} />;
+      case "api-key":  return <ApiKeyTab user={user as any} />;
       case "security": return user?.id ? <SecurityTab userId={user.id} /> : null;
       case "ui":       return <UiTab />;
       case "model":    return <ModelTab />;

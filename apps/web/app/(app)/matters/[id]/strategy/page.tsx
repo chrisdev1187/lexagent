@@ -1,18 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { Target, RefreshCw, Zap, AlertTriangle, Copy, Check } from "lucide-react";
+import { Target, RefreshCw, Zap, Copy, Check, Loader2 } from "lucide-react";
 import { ExportButton } from "@/components/shared/ExportButton";
 import { useParams } from "next/navigation";
 import { useMatters } from "@/providers/matters-provider";
 import { useSettings } from "@/providers/settings-provider";
-import { anthropicFetch, QuotaExceededError, FreeTierExhaustedError, CreditExhaustedError } from "@/lib/api";
+import { QuotaExceededError, FreeTierExhaustedError, CreditExhaustedError } from "@/lib/api";
 import { withLexMemory } from "@/lib/lex-memory";
 import { postureDetect, aresDebate } from "@/lib/ares";
 import { UpgradeCTA } from "@/components/shared/UpgradeCTA";
 import { PanelShell } from "@/components/panels/PanelShell";
 import { Markdown } from "@/components/shared/Markdown";
 import { usePresence } from "@/hooks/usePresence";
+import { AvatarStack } from "@/components/shared/AvatarStack";
 
 export default function StrategyPage() {
   const { id } = useParams<{ id: string }>();
@@ -49,32 +50,8 @@ export default function StrategyPage() {
 Matter: ${matter.title}
 Case Type: ${matter.caseType ?? "N/A"}
 Jurisdiction: ${matter.jurisdiction ?? "N/A"}
-Court: ${matter.court ?? "N/A"}
-Judge: ${matter.judgeName ?? "Unknown"}
-Facts: ${matter.facts ?? "N/A"}
+Facts: ${matter.facts ?? "N/A"}`;
 
-Provide:
-## CASE ASSESSMENT
-Strengths and weaknesses (2-3 sentences each)
-
-## KEY LEGAL ARGUMENTS
-Top 3-5 arguments with supporting Bluebook citations. Lead with the strongest.
-
-## OPPOSING ARGUMENTS
-Anticipated counterarguments and specific rebuttals.
-
-## RECOMMENDED STRATEGY
-Concrete tactical recommendations with priority order.
-
-## RISK FACTORS
-What could go wrong and specific mitigation steps.
-
-## BOTTOM LINE
-Practical 2-3 sentence summary of the recommended approach.
-
-Use Bluebook citation format. Flag any circuit splits.`;
-
-      // Detect posture; if msj/appeal, prepend adversarial debate synthesis.
       let debatePrefix = "";
       const postureOut = await postureDetect({ matter_facts: matter.facts ?? "" }).catch(() => null);
       if (postureOut && (postureOut.posture === "msj" || postureOut.posture === "appeal") && postureOut.confidence >= 0.5) {
@@ -86,8 +63,7 @@ Use Bluebook citation format. Flag any circuit splits.`;
           matterId: matter.id,
         }).catch(() => null);
         if (debateOut && !debateOut.skipped && !debateOut.partial) {
-          const judge = debateOut.rounds.find(r => r.role === "judge");
-          debatePrefix = `## ADVERSARIAL DEBATE SYNTHESIS (${postureOut.posture.toUpperCase()})\nPredicted outcome: ${debateOut.predicted_outcome} (confidence ${Math.round(debateOut.confidence * 100)}%)\n${debateOut.reasoning}\n${judge ? `Key points:\n${judge.key_points.map(p => `- ${p}`).join("\n")}` : ""}\n\n`;
+          debatePrefix = `## ADVERSARIAL DEBATE SYNTHESIS (${postureOut.posture.toUpperCase()})\nPredicted outcome: ${debateOut.predicted_outcome}\n${debateOut.reasoning}\n`;
         }
       }
 
@@ -98,18 +74,14 @@ Use Bluebook citation format. Flag any circuit splits.`;
         undefined,
         { onChunk: chunk => setStreamingText(prev => prev + chunk) }
       );
-      const data = await res.json() as { content?: Array<{ type: string; text: string }> };
+      const data = await res.json() as { content?: Array<{ text: string }> };
       const text = data.content?.[0]?.text;
-      if (text) {
-        await updateMatter({ ...matter, strategy: text });
-      } else {
-        setError("No response from AI. Check API keys and try again.");
-      }
+      if (text) await updateMatter({ ...matter, strategy: text });
     } catch (e) {
-      if (e instanceof FreeTierExhaustedError) { setFreeTierMsg(e.message); }
-      else if (e instanceof CreditExhaustedError) { setCreditErr({ remaining: e.remaining, creditCost: e.creditCost }); }
-      else if (e instanceof QuotaExceededError) { setShowUpgrade(true); }
-      else { setError((e as Error).message); }
+      if (e instanceof FreeTierExhaustedError) setFreeTierMsg(e.message);
+      else if (e instanceof CreditExhaustedError) setCreditErr({ remaining: e.remaining, creditCost: e.creditCost });
+      else if (e instanceof QuotaExceededError) setShowUpgrade(true);
+      else setError((e as Error).message);
     } finally {
       setStreamingText("");
       setLoading(false);
@@ -120,107 +92,70 @@ Use Bluebook citation format. Flag any circuit splits.`;
     <>
       {(showUpgrade || creditErr) && (
         <UpgradeCTA
-          reason={creditErr ? "Monthly credits exhausted. Upgrade to continue generating strategies." : "You've used your monthly AI quota. Upgrade to continue."}
+          reason={creditErr ? "Monthly credits exhausted." : "AI quota exceeded."}
           creditsRemaining={creditErr?.remaining}
           creditCost={creditErr?.creditCost}
           onClose={() => { setShowUpgrade(false); setCreditErr(null); }}
         />
       )}
-      {freeTierMsg && (
-        <div className="rounded px-4 py-3 mb-4 flex items-start justify-between gap-3" style={{ background: "rgba(0,255,195,0.05)", border: "0.5px solid rgba(0,255,195,0.22)" }}>
-          <div>
-            <p className="text-sm font-medium mb-0.5" style={{ color: "var(--verdict-neon)" }}>Free plan limit reached</p>
-            <p className="text-xs" style={{ color: "var(--fg-tertiary)" }}>{freeTierMsg}</p>
-          </div>
-          <a href="/settings/billing" className="lex-btn lex-btn--primary text-xs flex-shrink-0">Upgrade</a>
-        </div>
-      )}
       <PanelShell
         icon={Target}
-        title="Case strategy"
-        description="AI-generated comprehensive case strategy and analysis"
+        title="Case Strategy"
+        description="AI-driven matter analysis and tactical roadmap"
         actions={
-          strategy ? (
-            <div className="flex items-center gap-2">
-              <ExportButton content={strategy ?? ""} filename={`strategy-${matter?.title ?? id}`} format="markdown" label="Export" />
-              <button
-                onClick={copyStrategy}
-                className="lex-btn lex-btn--secondary"
-                style={copied ? { color: "var(--verdict-neon)" } : {}}
-              >
-                {copied ? <Check size={12} /> : <Copy size={12} />}
-                {copied ? "Copied" : "Copy"}
-              </button>
-              <button
-                onClick={generate}
-                disabled={loading}
-                className="lex-btn lex-btn--secondary"
-              >
-                <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
-                Regenerate
-              </button>
-            </div>
-          ) : undefined
+          <div className="flex items-center gap-4">
+            <AvatarStack users={editingUsers} />
+            {strategy && (
+              <div className="flex items-center gap-2">
+                <ExportButton content={strategy} filename={`strategy-${matter?.title}`} format="markdown" label="Export" />
+                <button onClick={copyStrategy} className="lex-btn lex-btn--secondary">
+                  {copied ? <Check size={12} /> : <Copy size={12} />} {copied ? "Copied" : "Copy"}
+                </button>
+                <button onClick={generate} disabled={loading} className="lex-btn lex-btn--secondary">
+                  <RefreshCw size={12} className={loading ? "animate-spin" : ""} /> Regenerate
+                </button>
+              </div>
+            )}
+          </div>
         }
       >
-        {editingUsers.length > 0 && (
-          <div
-            className="rounded px-4 py-2.5 mb-4 flex items-center gap-2 text-xs"
-            style={{ background: "rgba(255,184,0,0.06)", border: "0.5px solid rgba(255,184,0,0.28)", color: "var(--verdict-amber)" }}
-          >
-            <AlertTriangle size={12} />
-            {editingUsers.map(u => u.email).join(", ")} {editingUsers.length === 1 ? "is" : "are"} also viewing this strategy — changes may conflict
-          </div>
-        )}
-
-        {error && (
-          <div
-            className="rounded px-4 py-3 mb-4 text-xs"
-            style={{ background: "rgba(255,51,85,0.08)", border: "0.5px solid rgba(255,51,85,0.3)", color: "var(--verdict-crimson)" }}
-          >
-            {error}
-          </div>
-        )}
-
-        {!strategy && !loading && (
-          <div className="lex-empty">
-            <div className="w-14 h-14 rounded flex items-center justify-center mx-auto mb-4" style={{ background: "rgba(0,255,195,0.06)", border: "0.5px solid rgba(0,255,195,0.22)" }}>
-              <Target size={28} style={{ color: "var(--verdict-neon)" }} />
+        <div className="space-y-6">
+          {freeTierMsg && (
+            <div className="rounded px-4 py-3 bg-[var(--verdict-crimson)]/10 border border-[var(--verdict-crimson)]/20 text-[var(--verdict-crimson)] text-xs">
+              {freeTierMsg}
             </div>
-            <p className="lex-empty__label">No strategy generated yet</p>
-            <p className="lex-empty__body">
-              Generate a comprehensive AI-powered case strategy including strengths, weaknesses, arguments, and tactical recommendations.
-            </p>
-            <button onClick={generate} className="lex-btn lex-btn--primary mt-4">
-              <Zap size={15} />
-              Generate strategy
-            </button>
-          </div>
-        )}
+          )}
 
-        {loading && (
-          streamingText ? (
-            <div className="lex-card overflow-auto" style={{ maxHeight: "720px" }}>
-              <Markdown text={streamingText} />
-              <span className="inline-block w-1.5 h-4 ml-0.5 align-middle animate-pulse" style={{ background: "var(--verdict-neon)", borderRadius: "1px" }} />
+          {!strategy && !loading && (
+            <div className="rounded-xl p-12 text-center bg-[rgba(17,17,20,0.7)] border border-dashed border-white/10">
+              <Zap size={32} className="mx-auto mb-4 text-[var(--verdict-neon)] opacity-40" />
+              <h3 className="text-sm font-semibold mb-2">No Strategy Generated</h3>
+              <p className="text-xs text-[var(--fg-tertiary)] mb-6 max-w-sm mx-auto">Analyze your matter facts and documents to produce a comprehensive legal strategy.</p>
+              <button onClick={generate} className="lex-btn lex-btn--primary px-8">Generate Strategy</button>
             </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-20 text-center">
-              <div className="flex gap-1.5 mb-4">
-                {[0, 1, 2].map(i => (
-                  <div key={i} className="w-2 h-2 rounded-full animate-pulse" style={{ background: "var(--verdict-neon)", animationDelay: `${i * 0.15}s` }} />
-                ))}
+          )}
+
+          {(loading || streamingText) && (
+            <div className="rounded-xl p-6 bg-[rgba(17,17,20,0.7)] border border-[rgba(0,255,195,0.14)]">
+              <div className="flex items-center gap-2 mb-4">
+                <Loader2 size={14} className="animate-spin text-[var(--verdict-neon)]" />
+                <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--fg-tertiary)]">ARES is analyzing...</span>
               </div>
-              <p className="text-sm" style={{ color: "var(--fg-tertiary)" }}>Generating strategy…</p>
+              <div className="prose prose-invert prose-sm max-w-none">
+                <Markdown text={streamingText || "Processing matter context..."} />
+                {loading && <span className="inline-block w-1.5 h-4 ml-0.5 align-middle animate-pulse bg-[var(--verdict-neon)]" />}
+              </div>
             </div>
-          )
-        )}
+          )}
 
-        {strategy && !loading && (
-          <div className="lex-card overflow-auto" style={{ maxHeight: "720px" }}>
-            <Markdown text={strategy} />
-          </div>
-        )}
+          {strategy && !loading && (
+            <div className="rounded-xl p-8 bg-[rgba(17,17,20,0.7)] border border-[rgba(224,224,224,0.08)] prose prose-invert prose-sm max-w-none">
+              <Markdown text={strategy} />
+            </div>
+          )}
+
+          {error && <p className="text-xs text-[var(--verdict-crimson)] font-mono">{error}</p>}
+        </div>
       </PanelShell>
     </>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Search, Send, RotateCcw, Copy, Check, BookOpen, FileText, Loader2, X } from "lucide-react";
+import { Search, Send, RotateCcw, FileText, Loader2, X } from "lucide-react";
 import { ExportButton } from "@/components/shared/ExportButton";
 import { useParams } from "next/navigation";
 import { useMatters } from "@/providers/matters-provider";
@@ -13,12 +13,7 @@ import { UpgradeCTA } from "@/components/shared/UpgradeCTA";
 import { PanelShell } from "@/components/panels/PanelShell";
 import { LexTooltip } from "@/components/shared/LexTooltip";
 import { Markdown } from "@/components/shared/Markdown";
-
-interface Message {
-  role: "user" | "assistant";
-  content: string;
-  sources?: CLOpinion[];
-}
+import { ChatMessage, Message } from "@/components/research/ChatMessage";
 
 const LOADING_LABELS = [
   "Searching case law…",
@@ -39,7 +34,6 @@ export default function ResearchPage() {
   const [loading, setLoading] = useState(false);
   const [streamingText, setStreamingText] = useState("");
   const [loadingPhase, setLoadingPhase] = useState(0);
-  const [showUpgrade, setShowUpgrade] = useState(false);
   const [creditErr, setCreditErr] = useState<{ remaining: number; creditCost: number } | null>(null);
   const [freeTierMsg, setFreeTierMsg] = useState<string | null>(null);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
@@ -54,7 +48,7 @@ export default function ResearchPage() {
     setInitialized(true);
     const saved = (matter.researchHistory as Message[] | undefined) ?? [];
     if (saved.length > 0) setMessages(saved);
-  }, [matter?.id]);
+  }, [matter?.id, matter?.researchHistory, initialized]);
 
   const copyMessage = async (content: string, idx: number) => {
     await navigator.clipboard.writeText(content);
@@ -71,7 +65,7 @@ export default function ResearchPage() {
   };
 
   const handleSend = async () => {
-    if (!query.trim() || loading) return;
+    if (!query.trim() || loading || !matter) return;
     const userMsg: Message = { role: "user", content: query };
     setMessages(prev => [...prev, userMsg]);
     const currentQuery = query;
@@ -84,344 +78,168 @@ export default function ResearchPage() {
     );
 
     try {
-      // Step 1: search CourtListener for grounding sources (fast)
       let sources: CLOpinion[] = [];
       try {
         sources = await searchOpinions(currentQuery, 5);
-      } catch {
-        // non-fatal — proceed without grounding
-      }
+      } catch { /* proceed without grounding */ }
 
-      // Step 2: build grounded system context
       const groundingBlock = sources.length > 0
         ? `\n\nRELEVANT CASE LAW FROM COURTLISTENER (use these as authoritative sources where applicable):\n${sources.map((s, i) =>
             `${i + 1}. ${s.caseName}${s.citation ? `, ${s.citation}` : ""} (${s.court}, ${s.dateFiled ? new Date(s.dateFiled).getFullYear() : "n.d."})\n   Snippet: ${s.snippet || "No excerpt available."}`
           ).join("\n")}`
         : "";
 
-      const systemWithGrounding = settings.systemPrompt + groundingBlock;
+      const historyBlock = messages.slice(-6).map(m => `${m.role.toUpperCase()}: ${m.content}`).join("\n\n");
 
-      // Step 3: call AI with grounded context
-      const history = messages.map(m => ({ role: m.role, content: m.content }));
-      const userContent = matter
-        ? `Matter: ${matter.title}${matter.facts ? `\nFacts: ${matter.facts}` : ""}${matter.jurisdiction ? `\nJurisdiction: ${matter.jurisdiction}` : ""}\n\nQuery: ${currentQuery}`
-        : currentQuery;
+      const prompt = `Previous Research context:\n${historyBlock}\n\nNew Query: ${currentQuery}${groundingBlock}`;
 
-      const lexFetch = matter ? withLexMemory(matter, updateMatter, { tab: "research" }) : anthropicFetch;
+      const lexFetch = withLexMemory(matter, updateMatter, { tab: "research" });
       setStreamingText("");
       const res = await lexFetch(
-        { model: settings.model, max_tokens: settings.maxTokens, system: systemWithGrounding, messages: [...history, { role: "user", content: userContent }] },
+        { model: settings.model, max_tokens: settings.maxTokens, system: settings.systemPrompt, messages: [{ role: "user", content: prompt }] },
         undefined,
         { onChunk: chunk => setStreamingText(prev => prev + chunk) }
       );
 
-      const data = await res.json() as { content?: Array<{ type: string; text: string }> };
-      const text = data.content?.[0]?.text ?? "No response.";
-      const aiMsg: Message = { role: "assistant", content: text, sources };
-      const updated = [...messages, userMsg, aiMsg].slice(-50);
-      setMessages(updated);
-      if (matter) updateMatter({ ...matter, researchHistory: updated });
+      const data = await res.json() as { content?: Array<{ text: string }> };
+      const assistantText = data.content?.[0]?.text ?? "No response received.";
+      const assistantMsg: Message = { role: "assistant", content: assistantText, sources: sources.length > 0 ? sources : undefined };
+
+      const nextHistory = [...messages, userMsg, assistantMsg];
+      setMessages(nextHistory);
+      updateMatter({ ...matter, researchHistory: nextHistory });
     } catch (e) {
-      if (e instanceof FreeTierExhaustedError) {
-        setFreeTierMsg(e.message);
-      } else if (e instanceof CreditExhaustedError) {
-        setCreditErr({ remaining: e.remaining, creditCost: e.creditCost });
-      } else if (e instanceof QuotaExceededError) {
-        setShowUpgrade(true);
-      } else {
-        setMessages(prev => [...prev, { role: "assistant", content: `Error: ${(e as Error).message}` }]);
-      }
+      if (e instanceof FreeTierExhaustedError) { setFreeTierMsg(e.message); }
+      else if (e instanceof CreditExhaustedError) { setCreditErr({ remaining: e.remaining, creditCost: e.creditCost }); }
+      else if (e instanceof QuotaExceededError) { setFreeTierMsg("AI quota exceeded — upgrade your plan."); }
+      else { setFreeTierMsg((e as Error).message); }
     } finally {
-      loadingTimers.current.forEach(clearTimeout);
-      loadingTimers.current = [];
-      setLoadingPhase(0);
       setStreamingText("");
       setLoading(false);
+      loadingTimers.current.forEach(clearTimeout);
     }
   };
 
   const generateMemo = async () => {
-    if (!matter || messages.length === 0 || memoLoading) return;
+    if (messages.length === 0 || memoLoading) return;
     setMemoLoading(true);
-    const convo = messages
-      .map(m => `${m.role === "user" ? "QUESTION" : "ANALYSIS"}:\n${m.content}`)
-      .join("\n\n---\n\n");
-    const today = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
-    const memoPrompt = `Draft a formal legal research memo from the research conversation below.\n\nMatter: ${matter.title}\nJurisdiction: ${matter.jurisdiction ?? "not specified"}\nDate: ${today}\n\nResearch:\n${convo}\n\nFormat:\n# RESEARCH MEMO\nTo: Attorney of Record\nRe: [concise description]\nDate: ${today}\n\n## Question(s) Presented\n## Brief Answer\n## Discussion\n## Conclusion\n\nPreserve all citations exactly. Write in formal legal prose.`;
+    setMemoContent(null);
     try {
-      const lexFetch = withLexMemory(matter, updateMatter, { tab: "research" });
-      const res = await lexFetch(
-        { model: settings.model, max_tokens: 3000, system: settings.systemPrompt, messages: [{ role: "user", content: memoPrompt }] },
-        undefined, {}
-      );
-      const data = await res.json() as { content?: Array<{ type: string; text: string }> };
-      setMemoContent(data.content?.[0]?.text ?? "No content returned.");
-    } catch (e) {
-      setMemoContent(`Error: ${(e as Error).message}`);
+      const res = await anthropicFetch({
+        model: settings.model,
+        max_tokens: 1500,
+        system: "You are a professional legal researcher. Summarize the research session below into a structured internal legal memorandum.",
+        messages: [{ role: "user", content: messages.map(m => `${m.role.toUpperCase()}: ${m.content}`).join("\n\n") }]
+      });
+      const data = await res.json() as { content?: Array<{ text: string }> };
+      setMemoContent(data.content?.[0]?.text ?? "Failed to generate memo.");
+    } catch {
+      setMemoContent("Error generating memorandum.");
     } finally {
       setMemoLoading(false);
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
+  const clearHistory = () => {
+    if (!matter || !window.confirm("Clear all research history for this matter?")) return;
+    setMessages([]);
+    updateMatter({ ...matter, researchHistory: [] });
   };
 
   return (
-    <>
-      {(showUpgrade || creditErr) && (
-        <UpgradeCTA
-          reason={creditErr ? creditErr.remaining === 0 ? "Monthly credits exhausted. Upgrade your plan to continue researching." : "Monthly credit allowance exhausted." : "You've used your monthly AI quota. Upgrade to continue researching."}
-          creditsRemaining={creditErr?.remaining}
-          creditCost={creditErr?.creditCost}
-          onClose={() => { setShowUpgrade(false); setCreditErr(null); }}
-        />
-      )}
-      {freeTierMsg && (
-        <div className="rounded px-4 py-3 mb-4 flex items-start justify-between gap-3" style={{ background: "rgba(0,255,195,0.05)", border: "0.5px solid rgba(0,255,195,0.22)" }}>
-          <div>
-            <p className="text-sm font-medium mb-0.5" style={{ color: "var(--verdict-neon)" }}>Free plan limit reached</p>
-            <p className="text-xs" style={{ color: "var(--fg-tertiary)" }}>{freeTierMsg}</p>
-          </div>
-          <a href="/settings/billing" className="lex-btn lex-btn--primary text-xs flex-shrink-0">Upgrade</a>
-        </div>
-      )}
-      <PanelShell
-        icon={Search}
-        title="Legal Research"
-        description="AI-powered research grounded in CourtListener (9M+ opinions)"
-      >
-        {/* Chat messages */}
-        <div className="space-y-5 mb-4 min-h-[200px]">
-          {messages.length === 0 && !loading && (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <div
-                className="w-12 h-12 rounded flex items-center justify-center mb-3"
-                style={{ background: "rgba(0,255,195,0.06)", border: "0.5px solid rgba(0,255,195,0.22)" }}
-              >
-                <Search size={20} style={{ color: "var(--verdict-neon)" }} />
-              </div>
-              <p className="text-sm font-medium mb-1" style={{ color: "var(--fg-primary)" }}>Ask ARES anything</p>
-              <p className="text-xs max-w-sm" style={{ color: "var(--fg-tertiary)" }}>
-                Research grounded in live CourtListener case law. All citations Bluebook-formatted.
-              </p>
+    <PanelShell icon={Search} title="Research Terminal" description="Direct AI grounding with live CourtListener case law">
+      {creditErr && <UpgradeCTA reason="Monthly credits exhausted." creditsRemaining={creditErr.remaining} creditCost={creditErr.creditCost} onClose={() => setCreditErr(null)} />}
+
+      <div className="flex flex-col h-full">
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto space-y-6 pb-6 scrollbar-hide">
+          {messages.length === 0 && (
+            <div className="h-full flex flex-col items-center justify-center text-center opacity-40 py-20">
+              <Search size={40} className="mb-4" />
+              <p className="text-sm font-medium">No research history yet</p>
+              <p className="text-xs max-w-[240px] mt-1">Ask ARES a legal question to begin grounding with 9M+ opinions.</p>
             </div>
           )}
-
-          {messages.map((msg, i) => (
-            <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-              {msg.role === "user" ? (
-                <div
-                  className="max-w-2xl rounded px-4 py-3 text-sm"
-                  style={{
-                    background: "rgba(0,255,195,0.06)",
-                    border: "0.5px solid rgba(0,255,195,0.22)",
-                    color: "var(--fg-primary)",
-                    lineHeight: 1.7,
-                  }}
-                >
-                  {msg.content}
-                </div>
-              ) : (
-                <div className="max-w-3xl w-full">
-                  {/* Sources panel */}
-                  {msg.sources && msg.sources.length > 0 && (
-                    <div className="mb-2">
-                      <button
-                        onClick={() => toggleSources(i)}
-                        className="flex items-center gap-1.5 text-xs font-mono tracking-wide mb-1"
-                        style={{ color: "var(--verdict-neon)", background: "none", border: "none", cursor: "pointer" }}
-                      >
-                        <BookOpen size={11} />
-                        {expandedSources.has(i) ? "Hide" : "Show"} {msg.sources.length} source{msg.sources.length !== 1 ? "s" : ""}
-                      </button>
-                      {expandedSources.has(i) && (
-                        <div className="space-y-1.5 mb-3">
-                          {msg.sources.map((s, si) => (
-                            <div
-                              key={si}
-                              className="rounded px-3 py-2 text-xs"
-                              style={{ background: "rgba(0,255,195,0.04)", border: "0.5px solid rgba(0,255,195,0.14)" }}
-                            >
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="min-w-0">
-                                  <span className="font-semibold" style={{ color: "var(--fg-primary)" }}>{s.caseName}</span>
-                                  {s.citation && (
-                                    <span className="ml-1.5 font-mono" style={{ color: "var(--verdict-neon)" }}>{s.citation}</span>
-                                  )}
-                                  <span className="ml-1.5" style={{ color: "var(--fg-tertiary)" }}>
-                                    {s.court}{s.dateFiled ? ` · ${new Date(s.dateFiled).getFullYear()}` : ""}
-                                  </span>
-                                </div>
-                                {s.absoluteUrl && (
-                                  <a
-                                    href={s.absoluteUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex-shrink-0 underline"
-                                    style={{ color: "var(--verdict-neon)" }}
-                                  >
-                                    View
-                                  </a>
-                                )}
-                              </div>
-                              {s.snippet && (
-                                <p className="mt-1 line-clamp-2" style={{ color: "var(--fg-tertiary)" }}>{s.snippet}</p>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* AI response */}
-                  <div
-                    className="rounded px-4 py-3"
-                    style={{
-                      background: "rgba(17,17,20,0.8)",
-                      border: "0.5px solid rgba(224,224,224,0.09)",
-                    }}
-                  >
-                    <Markdown text={msg.content} />
-                    <div className="flex justify-end mt-2 pt-2" style={{ borderTop: "0.5px solid rgba(224,224,224,0.06)" }}>
-                      <button
-                        onClick={() => copyMessage(msg.content, i)}
-                        className="flex items-center gap-1 text-xs"
-                        style={{ color: copiedIdx === i ? "var(--verdict-neon)" : "var(--fg-quaternary)", background: "none", border: "none", cursor: "pointer" }}
-                      >
-                        {copiedIdx === i ? <Check size={11} /> : <Copy size={11} />}
-                        {copiedIdx === i ? "Copied" : "Copy"}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
+          {messages.map((m, i) => (
+            <ChatMessage key={i} message={m} idx={i} isCopied={copiedIdx === i} onCopy={copyMessage} isExpanded={expandedSources.has(i)} onToggleSources={toggleSources} />
           ))}
-
-          {loading && (
-            <div className="flex justify-start">
-              {streamingText ? (
-                <div className="max-w-3xl w-full rounded px-4 py-3" style={{ background: "rgba(17,17,20,0.8)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
-                  <Markdown text={streamingText} />
-                  <span className="inline-block w-1.5 h-4 ml-0.5 align-middle animate-pulse" style={{ background: "var(--verdict-neon)", borderRadius: "1px" }} />
-                </div>
-              ) : (
-                <div
-                  className="rounded px-4 py-3 flex items-center gap-2"
-                  style={{ background: "rgba(17,17,20,0.8)", border: "0.5px solid rgba(224,224,224,0.09)" }}
-                >
-                  <div className="flex gap-1">
-                    {[0, 1, 2].map(i => (
-                      <div key={i} className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "var(--verdict-neon)", animationDelay: `${i * 0.15}s` }} />
-                    ))}
-                  </div>
-                  <span className="text-xs" style={{ color: "var(--fg-tertiary)" }}>
-                    {LOADING_LABELS[loadingPhase]}
-                  </span>
-                </div>
-              )}
+          {streamingText && (
+            <div className="flex flex-col items-start gap-2">
+              <div className="max-w-[85%] rounded-2xl px-4 py-3 text-sm bg-[var(--bg-raised)] text-[var(--fg-secondary)] border border-[rgba(0,255,195,0.14)]">
+                <Markdown text={streamingText} />
+                <span className="inline-block w-1.5 h-4 ml-0.5 align-middle animate-pulse bg-[var(--verdict-neon)]" />
+              </div>
             </div>
           )}
         </div>
 
-        {/* Input */}
-        <div
-          className="rounded overflow-hidden"
-          style={{ background: "rgba(17,17,20,0.8)", border: "0.5px solid rgba(0,255,195,0.14)" }}
-        >
-          <textarea
-            ref={inputRef}
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={matter ? `Research for ${matter.title}…` : "Ask a legal question…"}
-            rows={3}
-            className="w-full px-4 py-3 text-sm resize-none lex-focus"
-            style={{ background: "transparent", color: "var(--fg-primary)", outline: "none", border: "none" }}
-          />
-          <div
-            className="flex items-center justify-between px-3 py-2"
-            style={{ borderTop: "0.5px solid rgba(224,224,224,0.08)" }}
-          >
+        {/* Input & Actions */}
+        <div className="pt-4 border-t border-[rgba(224,224,224,0.08)] bg-[var(--midnight-deep)]">
+          {freeTierMsg && (
+            <div className="mb-3 p-3 rounded-lg bg-[var(--verdict-crimson)]/10 border border-[var(--verdict-crimson)]/20 text-[var(--verdict-crimson)] text-xs flex items-center justify-between">
+              <span>{freeTierMsg}</span>
+              <button onClick={() => setFreeTierMsg(null)}><X size={14} /></button>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between mb-3 px-1">
             <div className="flex items-center gap-2">
-              <LexTooltip content="Clear conversation">
-                <button
-                  onClick={() => { setMessages([]); if (matter) updateMatter({ ...matter, researchHistory: [] }); }}
-                  className="cursor-pointer p-1.5 rounded-md transition-all duration-150"
-                  style={{ color: "var(--fg-tertiary)", background: "none", border: "none" }}
-                >
-                  <RotateCcw size={13} />
+              <LexTooltip content="Generate structured internal memo from this session">
+                <button onClick={generateMemo} disabled={messages.length === 0 || memoLoading} className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-widest opacity-40 hover:opacity-100 disabled:opacity-20 transition-all">
+                  {memoLoading ? <Loader2 size={11} className="animate-spin" /> : <FileText size={11} />}
+                  Generate Memo
                 </button>
               </LexTooltip>
-              <ExportButton
-                content={messages.map(m => `**${m.role === "user" ? "You" : "ARES"}**: ${m.content}`).join("\n\n---\n\n")}
-                filename={`research-${matter?.title ?? id}`}
-                format="markdown"
-                label="Export"
-              />
-              {messages.length > 0 && (
-                <LexTooltip content="Generate formal research memo from this conversation">
-                  <button
-                    onClick={generateMemo}
-                    disabled={memoLoading}
-                    className="lex-btn lex-btn--secondary"
-                  >
-                    {memoLoading ? <Loader2 size={12} className="animate-spin" /> : <FileText size={12} />}
-                    {memoLoading ? "Generating…" : "Memo"}
-                  </button>
-                </LexTooltip>
-              )}
-              <span className="text-xs" style={{ color: "var(--fg-tertiary)" }}>
-                Enter to send · Shift+Enter for newline
-              </span>
-            </div>
-            <LexTooltip content="Send query (Enter)">
-              <button
-                onClick={handleSend}
-                disabled={!query.trim() || loading}
-                className="lex-btn lex-btn--primary"
-              >
-                <Send size={12} />
-                Research
+              <button onClick={clearHistory} disabled={messages.length === 0} className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-widest opacity-40 hover:opacity-100 disabled:opacity-20 transition-all ml-4">
+                <RotateCcw size={11} /> Clear
               </button>
-            </LexTooltip>
+            </div>
+            <div className="text-[10px] font-mono uppercase tracking-widest opacity-30">Grounded via CourtListener</div>
           </div>
+
+          <div className="relative group">
+            <textarea
+              ref={inputRef}
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+              placeholder="Ask ARES a research question..."
+              className="w-full bg-[var(--bg-raised)] border border-[rgba(224,224,224,0.12)] rounded-xl px-4 py-3.5 pr-14 text-sm focus:outline-none focus:border-[var(--verdict-neon)]/40 transition-all min-h-[56px] max-h-32 resize-none"
+            />
+            <button
+              onClick={handleSend}
+              disabled={!query.trim() || loading}
+              className="absolute right-3 bottom-3 p-2 rounded-lg bg-[var(--verdict-neon)] text-[var(--midnight-deep)] disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+            >
+              {loading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+            </button>
+          </div>
+
+          {loading && (
+            <div className="flex items-center gap-2 mt-3 px-1">
+              <span className="text-[10px] font-mono text-[var(--verdict-neon)] animate-pulse">{LOADING_LABELS[loadingPhase]}</span>
+            </div>
+          )}
         </div>
+      </div>
+
+      {/* Memo Modal */}
       {memoContent && (
-        <div
-          className="mt-4 rounded overflow-hidden"
-          style={{ border: "0.5px solid rgba(255,255,255,0.12)" }}
-        >
-          <div
-            className="flex items-center justify-between px-4 py-2"
-            style={{ background: "rgba(17,17,20,0.9)", borderBottom: "0.5px solid rgba(255,255,255,0.08)" }}
-          >
-            <span className="font-mono text-[9px] tracking-[0.2em] uppercase" style={{ color: "var(--fg-quaternary)" }}>
-              Research Memo
-            </span>
-            <div className="flex items-center gap-2">
-              <ExportButton content={memoContent} filename={`memo-${matter?.title ?? id}`} format="markdown" label="MD" />
-              <ExportButton content={memoContent} filename={`memo-${matter?.title ?? id}`} format="pdf" label="PDF" />
-              <button
-                onClick={() => setMemoContent(null)}
-                className="p-1 rounded"
-                style={{ color: "var(--fg-tertiary)", background: "none", border: "none", cursor: "pointer" }}
-              >
-                <X size={12} />
-              </button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-6">
+          <div className="max-w-4xl w-full max-h-[80vh] bg-[var(--midnight-deep)] rounded-2xl border border-[rgba(224,224,224,0.1)] shadow-2xl flex flex-col overflow-hidden">
+            <div className="p-4 border-b border-white/5 flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Research Memorandum</h3>
+              <div className="flex items-center gap-2">
+                <ExportButton content={memoContent} filename={`memo-${matter?.title}`} format="markdown" label="Export" />
+                <button onClick={() => setMemoContent(null)} className="p-1 rounded hover:bg-white/5 text-[var(--fg-tertiary)]"><X size={16} /></button>
+              </div>
             </div>
-          </div>
-          <div className="p-4" style={{ background: "rgba(10,10,12,0.8)" }}>
-            <Markdown text={memoContent} />
+            <div className="flex-1 overflow-y-auto p-8 prose prose-invert prose-sm max-w-none">
+              <Markdown text={memoContent} />
+            </div>
           </div>
         </div>
       )}
-      </PanelShell>
-    </>
+    </PanelShell>
   );
 }

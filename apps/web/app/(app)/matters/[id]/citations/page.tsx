@@ -1,23 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { ShieldCheck, CheckCircle, XCircle, ExternalLink, Loader2, Save, BookMarked, ChevronDown, ChevronUp, FileSearch, Sparkles, AlertTriangle, Clock } from "lucide-react";
+import {
+  ShieldCheck, Loader2, BookMarked,
+  FileSearch, Sparkles, AlertTriangle, X
+} from "lucide-react";
 import { useParams } from "next/navigation";
 import { useMatters } from "@/providers/matters-provider";
-import { citationLookup, CLLookupResult } from "@/lib/courtlistener";
+import { citationLookup } from "@/lib/courtlistener";
 import { PanelShell } from "@/components/panels/PanelShell";
-import { bootstrapMemory, mergeMemory, authorityFromVerified, LexMemory } from "@/lib/lex-memory";
-import { anthropicFetch } from "@/lib/api";
+import { mergeMemory, authorityFromVerified } from "@/lib/lex-memory";
+import { anthropicFetch, QuotaExceededError, FreeTierExhaustedError, CreditExhaustedError } from "@/lib/api";
 import { useSettings } from "@/providers/settings-provider";
+import { CitationResultCard, VerifiedEntry } from "@/components/citations/CitationResultCard";
+import { UpgradeCTA } from "@/components/shared/UpgradeCTA";
 
-interface VerifiedEntry extends CLLookupResult {
-  uid: string;
-  checkedAt: number;
-  savedToMatter: boolean;
-  bluebook?: string;
-}
-
-function buildBluebook(entry: CLLookupResult): string {
+function buildBluebook(entry: any): string {
   if (!entry.verified) return entry.input;
   const parts: string[] = [];
   if (entry.caseName) parts.push(entry.caseName);
@@ -25,10 +23,7 @@ function buildBluebook(entry: CLLookupResult): string {
   if (entry.dateFiled) {
     const year = new Date(entry.dateFiled).getFullYear();
     if (entry.reporter) {
-      // inject year into reporter paren if missing
-      parts[parts.length - 1] = entry.reporter.includes("(")
-        ? entry.reporter
-        : `${entry.reporter} (${year})`;
+      parts[parts.length - 1] = entry.reporter.includes("(") ? entry.reporter : `${entry.reporter} (${year})`;
     }
   }
   return parts.join(", ");
@@ -38,54 +33,24 @@ export default function CitationsPage() {
   const { id } = useParams<{ id: string }>();
   const { getMatter, updateMatter } = useMatters();
   const matter = getMatter(id);
-
   const { settings } = useSettings();
+
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<VerifiedEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [savedOpen, setSavedOpen] = useState(false);
   const [showScan, setShowScan] = useState(false);
   const [scanText, setScanText] = useState("");
   const [scanLoading, setScanLoading] = useState(false);
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [creditErr, setCreditErr] = useState<{ remaining: number; creditCost: number } | null>(null);
 
   const savedCitations = (matter?.verifiedCitations as string[] | undefined) ?? [];
-  const aresResults = ((matter?.metadata as Record<string, unknown> | undefined)?.["cite_results"] as Array<{
-    raw: string; ok: boolean; normalized?: string; confidence?: number;
-    subsequent_history?: string; source_url?: string;
-  }> | undefined) ?? [];
-  const [aresOpen, setAresOpen] = useState(aresResults.length > 0);
 
-  const scanDocument = async () => {
-    if (!scanText.trim() || scanLoading) return;
-    setScanLoading(true);
-    try {
-      const res = await anthropicFetch(
-        { model: settings.model, max_tokens: 1200, system: "You are a legal citation extractor. Extract all legal case citations, statute citations, and regulation citations from text.", messages: [{ role: "user", content: `Extract all legal citations from the text below. Return ONLY the citations, one per line, no numbering, no commentary. Include case citations, statutes (U.S.C., C.F.R.), and court rules. Skip short forms like Id. and supra.\n\n${scanText.slice(0, 8000)}` }] },
-        undefined, {}
-      );
-      const data = await res.json() as { content?: Array<{ type: string; text: string }> };
-      const extracted = (data.content?.[0]?.text ?? "").split("\n").map(l => l.trim()).filter(Boolean);
-      if (extracted.length > 0) {
-        setInput(prev => prev.trim() ? `${prev}\n${extracted.join("\n")}` : extracted.join("\n"));
-        setScanText("");
-        setShowScan(false);
-      }
-    } catch {
-      // non-fatal — leave scan text for user to retry
-    } finally {
-      setScanLoading(false);
-    }
-  };
-
-  const verify = async () => {
-    const lines = input
-      .split(/[\n;]+/)
-      .map(l => l.trim())
-      .filter(Boolean);
+  const handleVerify = async () => {
+    const lines = input.split(/[\n;]+/).map(l => l.trim()).filter(Boolean);
     if (!lines.length || loading) return;
-    setLoading(true);
-    setError(null);
+    setLoading(true); setError(null);
     try {
       const raw = await citationLookup(lines);
       const entries: VerifiedEntry[] = raw.map(r => ({
@@ -97,300 +62,135 @@ export default function CitationsPage() {
       }));
       setResults(prev => [...entries, ...prev]);
       setInput("");
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setLoading(false);
-    }
+    } catch (e) { setError((e as Error).message); } finally { setLoading(false); }
   };
 
-  const saveToMatter = async (entry: VerifiedEntry) => {
-    if (!matter || !entry.bluebook) return;
-    const existing = (matter.verifiedCitations as string[] | undefined) ?? [];
-    if (existing.includes(entry.bluebook)) return;
+  const saveToMatter = async (uid: string) => {
+    if (!matter) return;
+    const entry = results.find(r => r.uid === uid);
+    if (!entry || entry.savedToMatter) return;
+    setSavingId(uid);
+    try {
+      const citation = entry.bluebook || entry.input;
+      const nextCitations = [...savedCitations, citation];
+      const nextMemory = mergeMemory(matter.lexMemory as any, { nodes: [authorityFromVerified({ citation: entry.bluebook || entry.input, caseName: entry.caseName, tab: "citations" })] });
+      await updateMatter({ ...matter, verifiedCitations: nextCitations, lexMemory: nextMemory });
+      setResults(prev => prev.map(r => r.uid === uid ? { ...r, savedToMatter: true } : r));
+    } finally { setSavingId(null); }
+  };
 
-    const authority = authorityFromVerified({
-      citation: entry.bluebook,
-      caseName: entry.caseName,
-      court: entry.reporter,
-      tab: "citations",
-    });
-
-    await updateMatter((prev) => {
-      if (prev.id !== matter.id) return prev;
-      const current = (prev.lexMemory as LexMemory | undefined)?.version === 1
-        ? (prev.lexMemory as LexMemory)
-        : bootstrapMemory(prev);
-      const merged = mergeMemory(current, { nodes: [authority] });
-      const list = (prev.verifiedCitations as string[] | undefined) ?? [];
-      return {
-        ...prev,
-        verifiedCitations: list.includes(entry.bluebook!) ? list : [...list, entry.bluebook!],
-        lexMemory: merged,
-      };
-    });
-    setResults(prev =>
-      prev.map(r => r.uid === entry.uid ? { ...r, savedToMatter: true } : r)
-    );
+  const handleScan = async () => {
+    if (!scanText.trim() || scanLoading) return;
+    setScanLoading(true);
+    try {
+      const res = await anthropicFetch(
+        { model: settings.model, max_tokens: 1200, system: "Extract citations from text.", messages: [{ role: "user", content: scanText }] },
+        undefined, {}
+      );
+      const data = await res.json() as any;
+      const extracted = (data.content?.[0]?.text ?? "").split("\n").filter(Boolean);
+      if (extracted.length) {
+        setInput(prev => prev ? `${prev}\n${extracted.join("\n")}` : extracted.join("\n"));
+        setShowScan(false); setScanText("");
+      }
+    } catch (e) {
+      if (e instanceof CreditExhaustedError) setCreditErr({ remaining: e.remaining, creditCost: e.creditCost });
+      else setError((e as Error).message);
+    } finally { setScanLoading(false); }
   };
 
   return (
-    <PanelShell
-      icon={ShieldCheck}
-      title="Hallucination Shield"
-      description="Batch-verify citations against 18M+ CourtListener records"
-    >
-      {/* Scan Document */}
-      <div className="mb-4">
-        <button
-          onClick={() => setShowScan(p => !p)}
-          className="flex items-center gap-1.5 font-mono text-[9px] tracking-[0.18em] uppercase"
-          style={{ color: "var(--fg-tertiary)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
-        >
-          <FileSearch size={11} />
-          Scan Full Document
-          {showScan ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
-        </button>
-        {showScan && (
-          <div
-            className="mt-2 rounded overflow-hidden"
-            style={{ background: "rgba(17,17,20,0.8)", border: "0.5px solid rgba(0,255,195,0.14)" }}
-          >
+    <PanelShell icon={ShieldCheck} title="Hallucination Shield" description="Verify case law citations and ground ARES in binding authority">
+      {creditErr && <UpgradeCTA reason="Monthly credits exhausted." creditsRemaining={creditErr.remaining} creditCost={creditErr.creditCost} onClose={() => setCreditErr(null)} />}
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 space-y-6">
+          <div className="rounded-xl p-6 bg-[rgba(17,17,20,0.8)] border border-[rgba(0,255,195,0.14)] shadow-lg">
+            <h3 className="font-mono text-[11px] tracking-widest uppercase text-[var(--verdict-neon)] mb-4">Input Citations</h3>
             <textarea
-              value={scanText}
-              onChange={e => setScanText(e.target.value)}
-              placeholder="Paste a brief, motion, or any document. Citations will be auto-extracted and added to the verify queue."
-              rows={5}
-              className="w-full px-4 py-3 text-sm resize-none lex-focus"
-              style={{ background: "transparent", color: "var(--fg-primary)", outline: "none", border: "none" }}
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              placeholder="Enter citations (one per line)..."
+              className="lex-input w-full h-32 mb-4 font-mono text-sm"
             />
-            <div
-              className="flex justify-end px-3 py-2"
-              style={{ borderTop: "0.5px solid rgba(224,224,224,0.08)" }}
-            >
-              <button
-                onClick={scanDocument}
-                disabled={!scanText.trim() || scanLoading}
-                className="lex-btn lex-btn--secondary"
-              >
-                {scanLoading ? <Loader2 size={12} className="animate-spin" /> : <FileSearch size={12} />}
-                {scanLoading ? "Extracting…" : "Extract Citations"}
+            <div className="flex items-center justify-between">
+              <button onClick={() => setShowScan(true)} className="lex-btn lex-btn--ghost text-[10px] uppercase tracking-widest"><Sparkles size={12} /> Scan Document</button>
+              <button onClick={handleVerify} disabled={loading || !input.trim()} className="lex-btn lex-btn--primary px-8">
+                {loading ? <Loader2 size={14} className="animate-spin mr-2" /> : <ShieldCheck size={14} className="mr-2" />}
+                {loading ? "Verifying..." : "Verify Authority"}
               </button>
             </div>
           </div>
-        )}
-      </div>
 
-      {/* ARES Auto-Verified */}
-      {aresResults.length > 0 && (
-        <div className="mb-5">
-          <button
-            onClick={() => setAresOpen(o => !o)}
-            className="flex items-center gap-1.5 font-mono text-[9px] tracking-[0.18em] uppercase mb-2"
-            style={{ color: "var(--verdict-neon)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
-          >
-            <Sparkles size={11} />
-            ARES Auto-Verified ({aresResults.length})
-            {aresOpen ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
-          </button>
-          {aresOpen && (
-            <div className="space-y-2">
-              {aresResults.map((r, i) => (
-                <div key={i} className="rounded px-3 py-2.5 text-xs"
-                  style={{ background: r.ok ? "rgba(0,255,195,0.04)" : r.subsequent_history === "overruled" ? "rgba(255,51,85,0.05)" : "rgba(255,255,255,0.02)", border: `0.5px solid ${r.ok ? "rgba(0,255,195,0.2)" : r.subsequent_history === "overruled" ? "rgba(255,51,85,0.25)" : "rgba(224,224,224,0.08)"}` }}>
-                  <div className="flex items-start gap-2">
-                    <div className="flex-shrink-0 mt-0.5">
-                      {r.ok ? <CheckCircle size={13} style={{ color: "var(--verdict-neon)" }} />
-                        : r.subsequent_history === "overruled" ? <XCircle size={13} style={{ color: "var(--verdict-crimson)" }} />
-                        : <AlertTriangle size={13} style={{ color: "#f59e0b" }} />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-mono truncate" style={{ color: "var(--fg-secondary)" }}>{r.normalized ?? r.raw}</p>
-                      <div className="flex items-center gap-3 mt-1 flex-wrap">
-                        {r.subsequent_history && r.subsequent_history !== "unknown" && (
-                          <span className="flex items-center gap-1" style={{ color: r.subsequent_history === "overruled" ? "var(--verdict-crimson)" : r.subsequent_history === "distinguished" ? "#f59e0b" : "var(--fg-tertiary)" }}>
-                            <Clock size={10} />
-                            {r.subsequent_history}
-                          </span>
-                        )}
-                        {r.confidence !== undefined && (
-                          <span style={{ color: "var(--fg-quaternary)" }}>
-                            {Math.round(r.confidence * 100)}% conf
-                          </span>
-                        )}
-                        {r.source_url && (
-                          <a href={r.source_url} target="_blank" rel="noopener noreferrer"
-                            className="flex items-center gap-1" style={{ color: "var(--verdict-neon)" }}>
-                            CourtListener <ExternalLink size={10} />
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+          {error && <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/20 text-red-500 text-xs font-mono">{error}</div>}
 
-      {/* Input */}
-      <div
-        className="rounded overflow-hidden mb-6"
-        style={{ background: "rgba(17,17,20,0.8)", border: "0.5px solid rgba(0,255,195,0.14)" }}
-      >
-        <textarea
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={e => { if (e.key === "Enter" && e.ctrlKey) verify(); }}
-          placeholder={"Paste citations — one per line or separated by semicolons:\nUnited States v. Jones, 132 S. Ct. 945 (2012)\nNeder v. United States, 527 U.S. 1 (1999)"}
-          rows={4}
-          className="w-full px-4 py-3 text-sm resize-none lex-focus"
-          style={{ background: "transparent", color: "var(--fg-primary)", outline: "none", border: "none" }}
-        />
-        <div
-          className="flex items-center justify-between px-3 py-2"
-          style={{ borderTop: "0.5px solid rgba(224,224,224,0.08)" }}
-        >
-          <span className="text-xs" style={{ color: "var(--fg-tertiary)" }}>
-            Ctrl+Enter to verify · one citation per line
-          </span>
-          <button
-            onClick={verify}
-            disabled={!input.trim() || loading}
-            className="lex-btn lex-btn--primary"
-          >
-            {loading ? <Loader2 size={12} className="animate-spin" /> : <ShieldCheck size={12} />}
-            Verify
-          </button>
-        </div>
-      </div>
-
-      {error && (
-        <div
-          className="rounded px-4 py-3 mb-4 text-xs"
-          style={{ background: "rgba(255,51,85,0.08)", border: "0.5px solid rgba(255,51,85,0.3)", color: "var(--verdict-crimson)" }}
-        >
-          {error}
-        </div>
-      )}
-
-      {/* Saved citations */}
-      {savedCitations.length > 0 && (
-        <div className="mb-6">
-          <button
-            onClick={() => setSavedOpen(o => !o)}
-            className="flex items-center gap-1.5 text-xs font-mono tracking-wide mb-2"
-            style={{ color: "var(--verdict-neon)", background: "none", border: "none", cursor: "pointer" }}
-          >
-            <BookMarked size={11} />
-            {savedOpen ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
-            {savedCitations.length} saved to matter
-          </button>
-          {savedOpen && (
-            <div className="space-y-1.5">
-              {savedCitations.map((c, i) => (
-                <div
-                  key={i}
-                  className="rounded px-3 py-2 text-xs font-mono"
-                  style={{ background: "rgba(0,255,195,0.04)", border: "0.5px solid rgba(0,255,195,0.14)", color: "var(--fg-secondary)" }}
-                >
-                  {c}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Results */}
-      {results.length === 0 && !loading && (
-        <div className="lex-empty">
-          <div
-            className="w-14 h-14 rounded flex items-center justify-center mx-auto mb-4"
-            style={{ background: "rgba(0,255,195,0.06)", border: "0.5px solid rgba(0,255,195,0.22)" }}
-          >
-            <ShieldCheck size={20} style={{ color: "var(--verdict-neon)" }} />
+          <div className="space-y-3">
+            {results.map(r => (
+              <CitationResultCard key={r.uid} result={r} onSave={saveToMatter} isSaving={savingId === r.uid} />
+            ))}
           </div>
-          <p className="lex-empty__label">No citations verified yet</p>
-          <p className="lex-empty__body">
-            Paste one or more citations above and click Verify to check against CourtListener
-          </p>
-        </div>
-      )}
 
-      {results.length > 0 && (
-        <div className="space-y-3">
-          <p className="lex-micro lex-micro--neon mb-2">Results ({results.length})</p>
-          {results.map(entry => (
-            <div
-              key={entry.uid}
-              className="lex-card"
-              style={{ borderColor: entry.verified ? "rgba(0,255,195,0.25)" : "rgba(255,51,85,0.25)" }}
-            >
-              <div className="flex items-start gap-3">
-                <div className="flex-shrink-0 mt-0.5">
-                  {entry.verified
-                    ? <CheckCircle size={16} style={{ color: "var(--verdict-neon)" }} />
-                    : <XCircle size={16} style={{ color: "var(--verdict-crimson)" }} />}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <span className={`lex-chip lex-chip--${entry.verified ? "neon" : "crimson"}`}>
-                      {entry.verified ? "Verified" : "Not found"}
-                    </span>
-                    {entry.savedToMatter && (
-                      <span className="lex-chip lex-chip--neon">Saved</span>
-                    )}
+          {results.length === 0 && (
+            <div className="py-20 text-center opacity-30">
+              <FileSearch size={40} className="mx-auto mb-4" />
+              <p className="text-sm font-medium">No verifications in this session</p>
+              <p className="text-xs mt-1">Verify citations to ensure ARES is using valid legal authority.</p>
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-6">
+          <div className="rounded-xl p-5 bg-[rgba(17,17,20,0.7)] border border-[rgba(224,224,224,0.08)]">
+            <h3 className="font-mono text-[11px] tracking-widest uppercase text-[var(--fg-tertiary)] mb-4">Saved Authority ({savedCitations.length})</h3>
+            {savedCitations.length === 0 ? (
+              <p className="text-[10px] text-center py-4 opacity-40 uppercase tracking-widest">No binding authority saved</p>
+            ) : (
+              <div className="space-y-2">
+                {savedCitations.map((c, i) => (
+                  <div key={i} className="p-2.5 rounded bg-white/5 border border-white/5 flex items-center gap-2">
+                    <BookMarked size={12} className="text-[var(--verdict-neon)] flex-shrink-0" />
+                    <span className="text-[11px] font-mono truncate">{c}</span>
                   </div>
-                  <p className="text-xs mb-1" style={{ color: "var(--fg-tertiary)" }}>
-                    Input: {entry.input}
-                  </p>
-                  {entry.verified && entry.bluebook && (
-                    <p
-                      className="text-sm font-medium font-mono mb-2"
-                      style={{ color: "var(--verdict-neon)" }}
-                    >
-                      {entry.bluebook}
-                    </p>
-                  )}
-                  {entry.verified && (
-                    <div className="text-xs space-y-0.5" style={{ color: "var(--fg-tertiary)" }}>
-                      {entry.caseName && <p>Case: {entry.caseName}</p>}
-                      {entry.reporter && <p>Reporter: {entry.reporter}</p>}
-                      {entry.dateFiled && <p>Filed: {new Date(entry.dateFiled).toLocaleDateString()}</p>}
-                      {entry.absoluteUrl && (
-                        <a
-                          href={entry.absoluteUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1 mt-1"
-                          style={{ color: "var(--verdict-neon)" }}
-                        >
-                          View on CourtListener <ExternalLink size={11} />
-                        </a>
-                      )}
-                    </div>
-                  )}
-                  <div className="flex items-center justify-between mt-2 pt-2" style={{ borderTop: "0.5px solid rgba(224,224,224,0.06)" }}>
-                    <span className="font-mono text-[10px]" style={{ color: "var(--fg-quaternary)" }}>
-                      {new Date(entry.checkedAt).toLocaleString()}
-                    </span>
-                    {entry.verified && matter && !entry.savedToMatter && (
-                      <button
-                        onClick={() => saveToMatter(entry)}
-                        className="flex items-center gap-1 text-xs"
-                        style={{ color: "var(--verdict-neon)", background: "none", border: "none", cursor: "pointer" }}
-                      >
-                        <Save size={11} />
-                        Save to matter
-                      </button>
-                    )}
-                  </div>
-                </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-xl p-5 bg-[rgba(255,163,0,0.03)] border border-[rgba(255,163,0,0.14)]">
+            <div className="flex items-center gap-2 mb-3">
+              <AlertTriangle size={14} className="text-[var(--verdict-amber)]" />
+              <h3 className="font-mono text-[10px] tracking-widest uppercase text-[var(--verdict-amber)]">Shield Policy</h3>
+            </div>
+            <p className="text-[11px] text-[var(--fg-tertiary)] leading-relaxed">
+              ARES automatically flags citations with low confidence. Verifying them here permanently adds them to the Matter's binding authority record, reducing hallucination risk in future drafting and research tasks.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {showScan && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="max-w-2xl w-full bg-[var(--midnight-deep)] rounded-xl border border-[rgba(224,224,224,0.1)] shadow-2xl overflow-hidden">
+            <div className="p-4 border-b border-white/5 flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Extract Citations</h3>
+              <button onClick={() => setShowScan(false)}><X size={16} /></button>
+            </div>
+            <div className="p-6">
+              <p className="text-xs text-[var(--fg-secondary)] mb-4">Paste text from a brief or motion. ARES will extract all legal citations for verification.</p>
+              <textarea
+                value={scanText}
+                onChange={e => setScanText(e.target.value)}
+                placeholder="Paste text here..."
+                className="lex-input w-full h-64 mb-4 text-xs font-mono"
+              />
+              <div className="flex justify-end gap-3">
+                <button onClick={() => setShowScan(false)} className="lex-btn lex-btn--ghost">Cancel</button>
+                <button onClick={handleScan} disabled={scanLoading || !scanText.trim()} className="lex-btn lex-btn--primary px-8">
+                  {scanLoading ? <Loader2 size={14} className="animate-spin" /> : "Run Scan"}
+                </button>
               </div>
             </div>
-          ))}
+          </div>
         </div>
       )}
     </PanelShell>
