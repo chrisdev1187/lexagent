@@ -12,6 +12,7 @@ import { citeLookup } from "./cite-lookup";
 import { postureDetect } from "./posture-detect";
 import { ethicsCheck } from "./ethics-check";
 import { planCheck } from "./plan-check";
+import { retrievalQuery } from "./retrieval-query";
 import type {
   ToolDefinition,
   ToolName,
@@ -20,6 +21,7 @@ import type {
   PostureDetectInput,
   EthicsCheckInput,
   PlanCheckInput,
+  RetrievalQueryInput,
 } from "./types";
 
 export const ARES_TOOLS: Record<ToolName, ToolDefinition> = {
@@ -126,7 +128,7 @@ export const ARES_TOOLS: Record<ToolName, ToolDefinition> = {
       },
       required: ["query"],
     },
-    handler: async () => { throw new Error("retrieval_query: pending v6 wave B"); },
+    handler: (input: unknown) => retrievalQuery(input as RetrievalQueryInput),
   },
 };
 
