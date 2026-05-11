@@ -25,6 +25,7 @@ export interface Level3Authority {
   shortCite: string;      // e.g. "Neder, 527 U.S. 1"
   authorityKind: AuthorityKind;
   courtTier: CourtTier;
+  jurisdiction?: string;
   proposition?: string;   // one-line holding relevant to this matter
   verified: boolean;      // confirmed by citations page
   confirmedBy: TabId[];

@@ -10,9 +10,9 @@ const COURT_TIER_WEIGHT: Record<string, number> = {
 };
 
 // Importance score formula:
-// recency × confirmation × relevance × authority × verified × tabAffin × supersede
-export function scoreNode(node: Level3Node, opts: { currentTab: TabId; now: number }): number {
-  const { currentTab, now } = opts;
+// recency × confirmation × relevance × authority × verified × tabAffin × jurisdictionMatch × confidence
+export function scoreNode(node: Level3Node, opts: { currentTab: TabId; now: number; matterJurisdiction?: string }): number {
+  const { currentTab, now, matterJurisdiction } = opts;
 
   // recency: half-life of 7 days
   const ageMs = now - ("lastRefAt" in node ? node.lastRefAt : ("raisedAt" in node ? node.raisedAt : now));
@@ -31,13 +31,26 @@ export function scoreNode(node: Level3Node, opts: { currentTab: TabId; now: numb
   // verified boost
   const verified = node.kind === "authority" && node.verified ? 1.2 : 1.0;
 
+  // jurisdiction match: binding authority gets a massive boost
+  let jMatch = 1.0;
+  if (node.kind === "authority" && matterJurisdiction && node.jurisdiction) {
+    if (node.jurisdiction.toLowerCase() === matterJurisdiction.toLowerCase()) {
+      jMatch = 1.5; // Strong boost for same jurisdiction
+    } else if (node.courtTier === "scotus") {
+      jMatch = 1.3; // SCOTUS is always highly relevant
+    }
+  }
+
   // tab affinity: higher if the current tab typically uses this kind of node
   const tabAffin = getTabAffinity(node, currentTab);
+
+  // blocking boost for open questions
+  const blockingBoost = node.kind === "open" && node.blocking ? 2.5 : 1.0;
 
   // confidence
   const confidence = "confidence" in node ? node.confidence / 3 : 0.6;
 
-  return recency * confirmation * authority * verified * tabAffin * confidence;
+  return recency * confirmation * authority * verified * jMatch * tabAffin * blockingBoost * confidence;
 }
 
 function getTabAffinity(node: Level3Node, tab: TabId): number {
@@ -57,9 +70,9 @@ function getTabAffinity(node: Level3Node, tab: TabId): number {
   return 0.6;
 }
 
-export function rankNodes(nodes: Level3Node[], currentTab: TabId): Level3Node[] {
+export function rankNodes(nodes: Level3Node[], currentTab: TabId, matterJurisdiction?: string): Level3Node[] {
   const now = Date.now();
   return nodes
-    .map(n => ({ ...n, score: scoreNode(n, { currentTab, now }) }))
+    .map(n => ({ ...n, score: scoreNode(n, { currentTab, now, matterJurisdiction }) }))
     .sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
 }

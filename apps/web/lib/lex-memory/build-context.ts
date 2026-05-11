@@ -6,6 +6,7 @@ import { BUDGET_DEFAULT } from "./tokens";
 export interface BuildContextOpts {
   budget?: number;
   currentTab?: TabId;
+  matterJurisdiction?: string;
 }
 
 export function buildContext(mem: LexMemory, opts: BuildContextOpts = {}): { text: string; tokensUsed: number } {
@@ -14,7 +15,7 @@ export function buildContext(mem: LexMemory, opts: BuildContextOpts = {}): { tex
   // Rank all nodes before passing to serializer
   const rankedMem: LexMemory = {
     ...mem,
-    nodes: rankNodes(mem.nodes, opts.currentTab ?? "research"),
+    nodes: rankNodes(mem.nodes, opts.currentTab ?? "research", opts.matterJurisdiction),
   };
 
   return buildContextBlock(rankedMem, { budget, currentTab: opts.currentTab });
