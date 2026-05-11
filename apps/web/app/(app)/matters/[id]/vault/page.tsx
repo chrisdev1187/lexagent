@@ -16,46 +16,12 @@ import { adjustStorageUsage } from "@/lib/quota";
 import { anthropicFetch } from "@/lib/api";
 import { mergeMemory } from "@/lib/lex-memory/merge";
 import type { LexMemory, Level3Strategy } from "@/lib/lex-memory/types";
-
-interface VaultDoc {
-  id: string;
-  title: string;
-  docType: string;
-  section: "confidential" | "context";
-  url?: string;
-  storagePath?: string;
-  fileSize?: number;
-  fileType?: string;
-  notes?: string;
-  acp?: boolean;
-  aresEnriched?: boolean;
-  aresContext?: string;
-  redacted?: boolean;
-  createdAt: number;
-}
+import { DocCard, VaultDoc } from "@/components/vault/DocCard";
 
 const DOC_TYPES = [
   "Motion", "Brief", "Contract", "Evidence", "Discovery",
   "Correspondence", "Pleading", "Order", "Other",
 ];
-
-const TYPE_COLORS: Record<string, string> = {
-  Motion: "var(--verdict-amber)",
-  Brief: "var(--verdict-neon)",
-  Contract: "var(--verdict-violet)",
-  Evidence: "var(--verdict-crimson)",
-  Discovery: "#0ea5e9",
-  Correspondence: "var(--fg-secondary)",
-  Pleading: "var(--verdict-amber)",
-  Order: "var(--verdict-crimson)",
-  Other: "var(--fg-tertiary)",
-};
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / 1048576).toFixed(1)} MB`;
-}
 
 function redactText(text: string): string {
   return text
@@ -74,7 +40,6 @@ export default function VaultPage() {
 
   const [addSection, setAddSection] = useState<"confidential" | "context">("confidential");
   const [showContextWarning, setShowContextWarning] = useState(false);
-  const [contextWarningAcked, setContextWarningAcked] = useState(false);
   const [title, setTitle] = useState("");
   const [docType, setDocType] = useState("Motion");
   const [url, setUrl] = useState("");
@@ -107,7 +72,6 @@ export default function VaultPage() {
 
   const openContextForm = () => {
     setAddSection("context");
-    setContextWarningAcked(false);
     setShowContextWarning(true);
   };
 
@@ -257,295 +221,197 @@ export default function VaultPage() {
     await updateMatter({ ...matter, vaultDocs: [redactedDoc, ...docs] });
   };
 
-  const DocCard = ({ doc }: { doc: VaultDoc }) => (
-    <div key={doc.id}>
-      <div className={`lex-card${doc.acp ? " lex-card--sealed" : ""}`}>
-        <div className="flex items-start justify-between gap-2 mb-2">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <span
-                className="lex-chip"
-                style={{
-                  background: `${TYPE_COLORS[doc.docType] ?? "var(--fg-tertiary)"}22`,
-                  color: TYPE_COLORS[doc.docType] ?? "var(--fg-tertiary)",
-                  borderColor: `${TYPE_COLORS[doc.docType] ?? "var(--fg-tertiary)"}44`,
-                }}
-              >
-                {doc.docType}
-              </span>
-              {doc.storagePath && (
-                <span className="lex-chip lex-chip--neutral">
-                  {doc.fileType?.split("/")[1]?.toUpperCase() ?? "FILE"} · {formatBytes(doc.fileSize ?? 0)}
-                </span>
-              )}
-              {doc.acp && (
-                <span className="lex-chip lex-chip--violet" title="Attorney-Client Privilege">
-                  <ShieldCheck size={9} />
-                  ACP
-                </span>
-              )}
-              {doc.redacted && (
-                <span className="lex-chip" style={{ background: "rgba(255,163,0,0.08)", color: "var(--verdict-amber)", borderColor: "rgba(255,163,0,0.28)" }}>
-                  <Scissors size={9} />
-                  Redacted copy
-                </span>
-              )}
-              {doc.aresEnriched && (
-                <span className="lex-chip" style={{ background: "rgba(0,255,195,0.06)", color: "var(--verdict-neon)", borderColor: "rgba(0,255,195,0.28)" }}>
-                  <Zap size={9} />
-                  ARES Enriched
-                </span>
-              )}
-              {enrichingId === doc.id && (
-                <span className="lex-chip" style={{ color: "var(--fg-tertiary)" }}>
-                  <Loader2 size={9} className="animate-spin" />
-                  Enriching…
-                </span>
-              )}
-              {doc.url && (
-                <a href={doc.url} target="_blank" rel="noopener noreferrer" style={{ color: "var(--verdict-neon)", display: "flex", alignItems: "center" }}>
-                  <ExternalLink size={12} />
-                </a>
-              )}
-            </div>
-            <p className="text-sm font-medium" style={{ color: "var(--fg-primary)" }}>{doc.title}</p>
-            {doc.notes && (
-              <p className="text-xs mt-1 line-clamp-2" style={{ color: "var(--fg-tertiary)" }}>{doc.notes}</p>
-            )}
-            {doc.aresContext && (
-              <p className="text-xs mt-1 line-clamp-3" style={{ color: "rgba(0,255,195,0.6)", fontStyle: "italic" }}>{doc.aresContext}</p>
-            )}
-          </div>
-          <div className="flex items-center gap-1 flex-shrink-0">
-            {doc.storagePath && (
-              <button
-                onClick={() => viewFile(doc)}
-                className="lex-btn lex-btn--icon lex-btn--ghost"
-                style={{ color: viewingDocId === doc.id ? "var(--verdict-neon)" : "var(--fg-tertiary)" }}
-                title="View file"
-              >
-                <FileText size={13} />
-              </button>
-            )}
-            {!doc.redacted && (
-              <button
-                onClick={() => createRedactedCopy(doc)}
-                className="lex-btn lex-btn--icon lex-btn--ghost"
-                title="Create redacted copy"
-              >
-                <Scissors size={13} />
-              </button>
-            )}
-            <button onClick={() => deleteDoc(doc)} className="lex-btn lex-btn--icon lex-btn--ghost">
-              <Trash2 size={13} />
-            </button>
-          </div>
-        </div>
-        <p className="font-mono text-[10px] mt-2" style={{ color: "var(--fg-tertiary)" }}>
-          {new Date(doc.createdAt).toLocaleDateString()}
-        </p>
-      </div>
-      {viewingDocId === doc.id && viewingUrl && (
-        <div className="rounded mt-2 overflow-hidden" style={{ border: "0.5px solid var(--border-hair)", height: 500 }}>
-          {doc.fileType?.startsWith("image/") ? (
-            <img src={viewingUrl} alt={doc.title} className="w-full h-full object-contain" style={{ background: "var(--bg-raised)" }} />
-          ) : (
-            <iframe src={viewingUrl} title={doc.title} className="w-full h-full" style={{ border: "none" }} />
-          )}
-        </div>
-      )}
-    </div>
-  );
-
   return (
-    <>
-      {/* Attorney warning modal */}
-      {showContextWarning && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }}>
-          <div className="rounded-xl p-6 max-w-md w-full" style={{ background: "var(--bg-surface)", border: "0.5px solid rgba(224,224,224,0.12)" }}>
-            <div className="flex items-center gap-2 mb-3">
-              <BookOpen size={16} style={{ color: "var(--verdict-amber)" }} />
-              <p className="text-sm font-semibold" style={{ color: "var(--fg-primary)" }}>Context Library — Attorney Notice</p>
-            </div>
-            <p className="text-sm mb-4" style={{ color: "var(--fg-secondary)", lineHeight: 1.6 }}>
-              Documents in the Context Library are <strong>not protected by attorney-client privilege</strong> and will be used as reference material to improve ARES AI responses within this matter. Do not upload privileged, confidential, or ACP-protected documents here.
-            </p>
-            <label className="flex items-start gap-2.5 cursor-pointer mb-5">
-              <input
-                type="checkbox"
-                checked={contextWarningAcked}
-                onChange={e => setContextWarningAcked(e.target.checked)}
-                className="mt-0.5"
-              />
-              <span className="text-xs" style={{ color: "var(--fg-tertiary)" }}>
-                I understand this document is non-confidential and may be used to inform AI analysis in this matter.
-              </span>
-            </label>
-            <div className="flex gap-2 justify-end">
-              <button className="lex-btn lex-btn--ghost" onClick={() => setShowContextWarning(false)}>Cancel</button>
-              <button
-                className="lex-btn lex-btn--primary"
-                disabled={!contextWarningAcked}
-                onClick={() => { setShowContextWarning(false); setShowForm(true); }}
-              >
-                Continue
+    <PanelShell
+      icon={Archive}
+      title="Matter Vault"
+      description="Secure discovery repository and research context"
+    >
+      <div className="flex gap-6">
+        <div className="flex-1 space-y-8">
+
+          {/* Context Section (Knowledge Base) */}
+          <section>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <BookOpen size={16} className="text-[var(--verdict-neon)]" />
+                <h3 className="font-mono text-[11px] tracking-widest uppercase" style={{ color: "var(--fg-tertiary)" }}>Research Context</h3>
+              </div>
+              <button onClick={openContextForm} className="lex-btn lex-btn--ghost py-1 px-2 text-[10px]">
+                <Plus size={12} /> Add Context
               </button>
             </div>
-          </div>
-        </div>
-      )}
+            {contextDocs.length === 0 ? (
+              <div className="rounded p-10 text-center border border-dashed border-[rgba(224,224,224,0.1)]">
+                <p className="text-xs text-[var(--fg-quaternary)]">No research context documents added. ARES will use these to ground research in matter facts.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                {contextDocs.map(doc => (
+                  <DocCard key={doc.id} doc={doc} enrichingId={enrichingId} onView={viewFile} onDelete={deleteDoc} onRedact={createRedactedCopy} />
+                ))}
+              </div>
+            )}
+          </section>
 
-      <PanelShell
-        icon={Archive}
-        title={`Document vault${docs.length > 0 ? ` (${docs.length})` : ""}`}
-        description="Confidential case documents and non-confidential ARES context library"
-        actions={
-          <div className="flex gap-2">
-            <button onClick={openConfidentialForm} className="lex-btn lex-btn--secondary">
-              <ShieldCheck size={12} />
-              Add confidential
-            </button>
-            <button onClick={openContextForm} className="lex-btn lex-btn--primary">
-              <BookOpen size={12} />
-              Add to context library
-            </button>
-          </div>
-        }
-      >
-        {/* Add form */}
-        {showForm && (
-          <div
-            className="lex-card mb-6"
-            style={{ borderColor: addSection === "context" ? "rgba(255,163,0,0.3)" : "var(--border-neon)" }}
-          >
-            <div className="flex items-center gap-2 mb-3">
-              {addSection === "context"
-                ? <><BookOpen size={13} style={{ color: "var(--verdict-amber)" }} /><span className="text-xs font-medium" style={{ color: "var(--verdict-amber)" }}>Adding to Context Library</span></>
-                : <><ShieldCheck size={13} style={{ color: "var(--verdict-neon)" }} /><span className="text-xs font-medium" style={{ color: "var(--verdict-neon)" }}>Adding to Confidential Vault</span></>
-              }
+          {/* Confidential Section */}
+          <section>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <ShieldCheck size={16} className="text-[var(--verdict-violet)]" />
+                <h3 className="font-mono text-[11px] tracking-widest uppercase" style={{ color: "var(--fg-tertiary)" }}>Confidential Repository</h3>
+              </div>
+              <button onClick={openConfidentialForm} className="lex-btn lex-btn--primary py-1 px-3 text-[10px]">
+                <Upload size={12} /> Upload Discovery
+              </button>
             </div>
-            <div className="space-y-3">
-              <div className="flex gap-3">
-                <div style={{ flex: "1 1 auto" }}>
-                  <label className="text-xs mb-1 block" style={{ color: "var(--fg-tertiary)" }}>Title *</label>
-                  <input type="text" value={title} onChange={e => setTitle(e.target.value)} placeholder="Document title…" className="lex-input" />
-                </div>
-                <div style={{ flex: "0 0 140px" }}>
-                  <label className="text-xs mb-1 block" style={{ color: "var(--fg-tertiary)" }}>Type</label>
-                  <select value={docType} onChange={e => setDocType(e.target.value)} className="lex-input">
-                    {DOC_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                </div>
+            {confidentialDocs.length === 0 ? (
+              <div className="rounded p-10 text-center bg-white/5 border border-white/5">
+                <FileText size={24} className="mx-auto mb-2 opacity-20" />
+                <p className="text-xs text-[var(--fg-quaternary)]">Discovery repository is empty.</p>
               </div>
-
-              <div>
-                <label className="text-xs mb-1 block" style={{ color: "var(--fg-tertiary)" }}>Upload file (optional)</label>
-                <div
-                  className="flex items-center gap-2 rounded px-3 py-2 cursor-pointer"
-                  style={{ border: "0.5px solid var(--border-hair)", background: "var(--bg-raised)" }}
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <Upload size={13} style={{ color: "var(--fg-tertiary)" }} />
-                  <span className="text-xs" style={{ color: "var(--fg-tertiary)" }}>
-                    {selectedFile ? selectedFile.name : "Click to upload PDF, Word, image…"}
-                  </span>
-                  {selectedFile && (
-                    <span className="ml-auto text-xs" style={{ color: "var(--fg-tertiary)" }}>
-                      {formatBytes(selectedFile.size)}
-                    </span>
-                  )}
-                </div>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.txt"
-                  onChange={handleFileChange}
-                  className="hidden"
-                />
+            ) : (
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                {confidentialDocs.map(doc => (
+                  <DocCard key={doc.id} doc={doc} enrichingId={enrichingId} onView={viewFile} onDelete={deleteDoc} onRedact={createRedactedCopy} />
+                ))}
               </div>
+            )}
+          </section>
+        </div>
 
-              <div>
-                <label className="text-xs mb-1 block" style={{ color: "var(--fg-tertiary)" }}>URL (optional)</label>
-                <input type="url" value={url} onChange={e => setUrl(e.target.value)} placeholder="https://…" className="lex-input" />
+        {/* Quick View Sidebar */}
+        {viewingUrl && (
+          <div className="w-80 flex-shrink-0">
+            <div className="sticky top-0 rounded-xl overflow-hidden border border-[rgba(224,224,224,0.14)]" style={{ height: "calc(100vh - 200px)", background: "var(--midnight-deep)" }}>
+              <div className="flex items-center justify-between p-3 bg-white/5 border-b border-white/5">
+                <span className="text-[10px] font-mono text-[var(--fg-tertiary)] uppercase tracking-widest">Preview</span>
+                <button onClick={() => { setViewingUrl(null); setViewingDocId(null); }} className="p-1 rounded hover:bg-white/10 text-[var(--fg-tertiary)]">✕</button>
               </div>
-              <div>
-                <label className="text-xs mb-1 block" style={{ color: "var(--fg-tertiary)" }}>Notes (optional)</label>
-                <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Brief description or notes…" rows={2} className="lex-textarea" style={{ resize: "none" }} />
-              </div>
-
-              {addSection === "confidential" && (
-                <button
-                  type="button"
-                  onClick={() => setAcp(v => !v)}
-                  className="flex items-center gap-2 text-xs px-3 py-2 rounded w-full"
-                  style={{
-                    background: acp ? "rgba(106,0,255,0.08)" : "var(--bg-raised)",
-                    color: acp ? "var(--verdict-violet)" : "var(--fg-tertiary)",
-                    border: `0.5px solid ${acp ? "var(--border-violet)" : "var(--border-hair)"}`,
-                    cursor: "pointer",
-                  }}
-                >
-                  <ShieldCheck size={13} />
-                  Attorney-client privilege (ACP) — {acp ? "Protected" : "Not tagged"}
-                </button>
-              )}
-
-              {addSection === "context" && (
-                <div className="rounded px-3 py-2 text-xs" style={{ background: "rgba(255,163,0,0.04)", border: "0.5px solid rgba(255,163,0,0.2)", color: "var(--verdict-amber)" }}>
-                  <Zap size={11} className="inline mr-1" />
-                  ARES will automatically summarize this document and inject it as context into all AI analyses for this matter.
-                </div>
-              )}
-
-              {uploadError && <p className="text-xs" style={{ color: "var(--verdict-crimson)" }}>{uploadError}</p>}
-
-              <div className="flex gap-2 justify-end">
-                <button onClick={() => { setShowForm(false); resetForm(); }} className="lex-btn lex-btn--ghost">Cancel</button>
-                <button onClick={addDoc} disabled={!title.trim() || uploading} className="lex-btn lex-btn--primary">
-                  {uploading ? <><Loader2 size={12} className="animate-spin" /> Uploading…</> : <><Plus size={12} /> Save document</>}
-                </button>
-              </div>
+              <iframe src={viewingUrl} className="w-full h-full border-none" title="Vault Document Preview" />
             </div>
           </div>
         )}
+      </div>
 
-        {/* ── Confidential Vault ─────────────────────────────── */}
-        <div className="mb-8">
-          <div className="flex items-center gap-2 mb-3">
-            <ShieldCheck size={14} style={{ color: "var(--verdict-violet)" }} />
-            <p className="text-sm font-semibold" style={{ color: "var(--fg-primary)" }}>Confidential Vault</p>
-            <span className="lex-chip lex-chip--violet">{confidentialDocs.length}</span>
+      {/* Context Warning Modal */}
+      {showContextWarning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="max-w-md w-full bg-[var(--midnight-deep)] rounded-xl border border-[rgba(0,255,195,0.2)] shadow-2xl p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center bg-[rgba(0,255,195,0.08)] border border-[rgba(0,255,195,0.3)]">
+                <Zap size={20} className="text-[var(--verdict-neon)]" />
+              </div>
+              <h3 className="text-lg font-semibold text-[var(--fg-primary)]">Research Context</h3>
+            </div>
+            <p className="text-sm text-[var(--fg-secondary)] leading-relaxed mb-6">
+              Documents added as <strong>Research Context</strong> are shared with AI models to improve research accuracy and ground ARES in your matter's specific facts.
+              <br /><br />
+              <span className="text-[var(--verdict-amber)]">⚠️ Do not include extremely sensitive or privileged information you do not want processed by LLM sub-processors.</span>
+            </p>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => { setShowContextWarning(false); setShowForm(true); }}
+                className="lex-btn lex-btn--primary w-full justify-center"
+              >
+                I understand, proceed
+              </button>
+              <button
+                onClick={() => setShowContextWarning(false)}
+                className="lex-btn lex-btn--ghost w-full justify-center"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
-          {confidentialDocs.length === 0 ? (
-            <div className="rounded px-4 py-5 text-center" style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
-              <p className="text-xs" style={{ color: "var(--fg-quaternary)" }}>No confidential documents. ACP-tagged documents will appear here.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {confidentialDocs.map(doc => <DocCard key={doc.id} doc={doc} />)}
-            </div>
-          )}
         </div>
+      )}
 
-        {/* ── Context Library ────────────────────────────────── */}
-        <div>
-          <div className="flex items-center gap-2 mb-3">
-            <BookOpen size={14} style={{ color: "var(--verdict-amber)" }} />
-            <p className="text-sm font-semibold" style={{ color: "var(--fg-primary)" }}>Context Library</p>
-            <span className="lex-chip" style={{ background: "rgba(255,163,0,0.08)", color: "var(--verdict-amber)", borderColor: "rgba(255,163,0,0.28)" }}>{contextDocs.length}</span>
-            <span className="text-xs ml-1" style={{ color: "var(--fg-quaternary)" }}>Non-confidential · Used to enrich ARES responses</span>
+      {/* Upload/Add Form Modal */}
+      {showForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="max-w-lg w-full bg-[var(--midnight-deep)] rounded-xl border border-[rgba(224,224,224,0.1)] shadow-2xl overflow-hidden">
+            <div className="p-6 border-b border-white/5 flex items-center justify-between">
+              <h3 className="text-base font-semibold text-[var(--fg-primary)]">
+                {addSection === "context" ? "Add Research Context" : "Upload Discovery"}
+              </h3>
+              <button onClick={() => { setShowForm(false); resetForm(); }} className="text-[var(--fg-tertiary)] hover:text-white">✕</button>
+            </div>
+            <div className="p-6 space-y-4">
+              {uploadError && <div className="p-3 rounded bg-red-500/10 border border-red-500/30 text-red-500 text-xs">{uploadError}</div>}
+
+              <div>
+                <label className="block text-[10px] font-mono uppercase tracking-widest text-[var(--fg-tertiary)] mb-1.5">Document Title</label>
+                <input
+                  value={title}
+                  onChange={e => setTitle(e.target.value)}
+                  className="lex-input w-full"
+                  placeholder="e.g. Complaint, MSJ Opposition, Exhibit A..."
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-mono uppercase tracking-widest text-[var(--fg-tertiary)] mb-1.5">Type</label>
+                  <select
+                    value={docType}
+                    onChange={e => setDocType(e.target.value)}
+                    className="lex-input w-full"
+                  >
+                    {DOC_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                {addSection === "confidential" && (
+                  <div className="flex items-center gap-2 pt-6">
+                    <input
+                      type="checkbox"
+                      id="acp-check"
+                      checked={acp}
+                      onChange={e => setAcp(e.target.checked)}
+                      className="w-4 h-4 rounded border-white/10 bg-white/5 text-[var(--verdict-neon)]"
+                    />
+                    <label htmlFor="acp-check" className="text-xs text-[var(--fg-secondary)] cursor-pointer">Privileged (ACP)</label>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-mono uppercase tracking-widest text-[var(--fg-tertiary)] mb-1.5">Source File</label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="lex-btn lex-btn--secondary flex-1 justify-center"
+                  >
+                    <Upload size={14} /> {selectedFile ? selectedFile.name : "Select File"}
+                  </button>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-mono uppercase tracking-widest text-[var(--fg-tertiary)] mb-1.5">Internal Notes (Optional)</label>
+                <textarea
+                  value={notes}
+                  onChange={e => setNotes(e.target.value)}
+                  className="lex-input w-full h-24 resize-none text-xs"
+                  placeholder="Summary, Bates range, or importance..."
+                />
+              </div>
+            </div>
+            <div className="p-6 bg-white/5 border-t border-white/5 flex justify-end gap-3">
+              <button onClick={() => { setShowForm(false); resetForm(); }} className="lex-btn lex-btn--ghost">Cancel</button>
+              <button onClick={addDoc} disabled={uploading || (!selectedFile && !url)} className="lex-btn lex-btn--primary px-8">
+                {uploading ? <Loader2 size={14} className="animate-spin" /> : "Save Document"}
+              </button>
+            </div>
           </div>
-          {contextDocs.length === 0 ? (
-            <div className="rounded px-4 py-5 text-center" style={{ background: "rgba(17,17,20,0.7)", border: "0.5px solid rgba(224,224,224,0.09)" }}>
-              <p className="text-xs" style={{ color: "var(--fg-quaternary)" }}>Add non-confidential documents (statutes, public filings, reference material) to enrich ARES with case-specific knowledge.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {contextDocs.map(doc => <DocCard key={doc.id} doc={doc} />)}
-            </div>
-          )}
         </div>
-      </PanelShell>
-    </>
+      )}
+    </PanelShell>
   );
 }

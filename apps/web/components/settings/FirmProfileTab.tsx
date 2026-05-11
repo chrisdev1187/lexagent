@@ -2,35 +2,8 @@
 
 import { useSettings } from "@/providers/settings-provider";
 import { PRACTICE_AREAS } from "@/lib/settings";
-import { LexTooltip } from "@/components/shared/LexTooltip";
 import { Letterhead } from "@/components/shared/Letterhead";
-
-function SectionHeading({ children }: { children: React.ReactNode }) {
-  return (
-    <h3 className="font-mono text-[10px] tracking-widest mb-3 mt-6 first:mt-0" style={{ color: "var(--fg-tertiary)" }}>
-      {children}
-    </h3>
-  );
-}
-
-function Field({ label, tooltip, children }: { label: string; tooltip?: string; children: React.ReactNode }) {
-  return (
-    <div className="mb-4">
-      <div className="flex items-center gap-1.5 mb-1.5">
-        <label className="font-mono text-[11px] tracking-wider" style={{ color: "var(--fg-tertiary)" }}>{label}</label>
-        {tooltip && (
-          <LexTooltip content={tooltip} side="right">
-            <span className="w-3.5 h-3.5 rounded-full text-[9px] flex items-center justify-center cursor-help flex-shrink-0"
-              style={{ background: "var(--bg-raised)", border: "0.5px solid rgba(0,255,195,0.14)", color: "var(--fg-tertiary)" }}>
-              ?
-            </span>
-          </LexTooltip>
-        )}
-      </div>
-      {children}
-    </div>
-  );
-}
+import { SectionHeading, Field } from "@/components/shared/AdminSettingsShared";
 
 const inputCls = "w-full rounded px-3.5 py-2.5 text-sm lex-focus transition-all";
 const inputStyle = {
@@ -47,7 +20,7 @@ export function FirmProfileTab({ isAdmin }: { isAdmin: boolean }) {
   if (!isAdmin) {
     return (
       <div>
-        <SectionHeading>FIRM LOGO</SectionHeading>
+        <SectionHeading variant="settings">FIRM LOGO</SectionHeading>
         <div className="flex items-center gap-4 mb-6">
           <div
             className="w-16 h-16 rounded flex items-center justify-center flex-shrink-0 overflow-hidden"
@@ -64,7 +37,7 @@ export function FirmProfileTab({ isAdmin }: { isAdmin: boolean }) {
           </div>
         </div>
 
-        <SectionHeading>FIRM INFORMATION</SectionHeading>
+        <SectionHeading variant="settings">FIRM INFORMATION</SectionHeading>
         <div className="grid grid-cols-2 gap-3 text-sm mb-4">
           {[
             ["Email", settings.firmEmail],
@@ -82,7 +55,7 @@ export function FirmProfileTab({ isAdmin }: { isAdmin: boolean }) {
 
         {(settings.practiceAreas ?? []).length > 0 && (
           <>
-            <SectionHeading>PRACTICE AREAS</SectionHeading>
+            <SectionHeading variant="settings">PRACTICE AREAS</SectionHeading>
             <div className="flex flex-wrap gap-2">
               {(settings.practiceAreas ?? []).map((area: string) => (
                 <span key={area} className="px-3 py-1.5 rounded text-xs font-mono tracking-wide"
@@ -101,7 +74,7 @@ export function FirmProfileTab({ isAdmin }: { isAdmin: boolean }) {
 
   return (
     <div>
-      <SectionHeading>FIRM LOGO</SectionHeading>
+      <SectionHeading variant="settings">FIRM LOGO</SectionHeading>
       <div className="flex items-center gap-4 mb-4">
         <div
           className="w-16 h-16 rounded flex items-center justify-center flex-shrink-0 overflow-hidden"
@@ -165,47 +138,47 @@ export function FirmProfileTab({ isAdmin }: { isAdmin: boolean }) {
         </div>
       </div>
 
-      <SectionHeading>FIRM INFORMATION</SectionHeading>
+      <SectionHeading variant="settings">FIRM INFORMATION</SectionHeading>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
-        <Field label="FIRM NAME">
+        <Field variant="settings" label="FIRM NAME">
           <input className={inputCls} style={inputStyle} value={settings.firmName} onChange={e => set("firmName", e.target.value)} placeholder="Acme Law Group" />
         </Field>
-        <Field label="FIRM EMAIL">
+        <Field variant="settings" label="FIRM EMAIL">
           <input className={inputCls} style={inputStyle} value={settings.firmEmail} onChange={e => set("firmEmail", e.target.value)} placeholder="info@lawfirm.com" />
         </Field>
-        <Field label="PHONE">
+        <Field variant="settings" label="PHONE">
           <input className={inputCls} style={inputStyle} value={settings.firmPhone} onChange={e => set("firmPhone", e.target.value)} placeholder="(555) 000-0000" />
         </Field>
-        <Field label="WEBSITE">
+        <Field variant="settings" label="WEBSITE">
           <input className={inputCls} style={inputStyle} value={settings.firmWebsite} onChange={e => set("firmWebsite", e.target.value)} placeholder="https://lawfirm.com" />
         </Field>
       </div>
-      <Field label="STREET ADDRESS">
+      <Field variant="settings" label="STREET ADDRESS">
         <input className={inputCls} style={inputStyle} value={settings.firmAddress} onChange={e => set("firmAddress", e.target.value)} placeholder="123 Main St, Suite 400" />
       </Field>
       <div className="grid grid-cols-3 gap-x-4">
-        <Field label="CITY">
+        <Field variant="settings" label="CITY">
           <input className={inputCls} style={inputStyle} value={settings.firmCity} onChange={e => set("firmCity", e.target.value)} />
         </Field>
-        <Field label="STATE">
+        <Field variant="settings" label="STATE">
           <input className={inputCls} style={inputStyle} value={settings.firmState} onChange={e => set("firmState", e.target.value)} placeholder="CA" />
         </Field>
-        <Field label="ZIP">
+        <Field variant="settings" label="ZIP">
           <input className={inputCls} style={inputStyle} value={settings.firmZip} onChange={e => set("firmZip", e.target.value)} />
         </Field>
       </div>
 
-      <SectionHeading>BAR & CREDENTIALS</SectionHeading>
+      <SectionHeading variant="settings">BAR & CREDENTIALS</SectionHeading>
       <div className="grid grid-cols-2 gap-x-4">
-        <Field label="BAR NUMBER" tooltip="Your state bar admission number">
+        <Field variant="settings" label="BAR NUMBER" tooltip="Your state bar admission number">
           <input className={inputCls} style={inputStyle} value={settings.barNumber} onChange={e => set("barNumber", e.target.value)} />
         </Field>
-        <Field label="BAR JURISDICTION">
+        <Field variant="settings" label="BAR JURISDICTION">
           <input className={inputCls} style={inputStyle} value={settings.barJurisdiction} onChange={e => set("barJurisdiction", e.target.value)} placeholder="State Bar of California" />
         </Field>
       </div>
 
-      <Field label="PRACTICE AREAS" tooltip="Select all areas your firm practices">
+      <Field variant="settings" label="PRACTICE AREAS" tooltip="Select all areas your firm practices">
         <div className="flex flex-wrap gap-2 mt-1">
           {PRACTICE_AREAS.map(area => {
             const selected = (settings.practiceAreas ?? []).includes(area);
@@ -232,7 +205,7 @@ export function FirmProfileTab({ isAdmin }: { isAdmin: boolean }) {
         </div>
       </Field>
 
-      <Field label="LETTERHEAD TEXT" tooltip="Appears on generated documents">
+      <Field variant="settings" label="LETTERHEAD TEXT" tooltip="Appears on generated documents">
         <textarea
           className={inputCls}
           style={{ ...inputStyle, resize: "none", minHeight: 80 }}
@@ -242,7 +215,7 @@ export function FirmProfileTab({ isAdmin }: { isAdmin: boolean }) {
         />
       </Field>
 
-      <Field label="LETTERHEAD LAYOUT" tooltip="Controls how logo and firm info appear on exported documents">
+      <Field variant="settings" label="LETTERHEAD LAYOUT" tooltip="Controls how logo and firm info appear on exported documents">
         <div className="flex gap-2 mt-1">
           {(["left", "center", "text"] as const).map(layout => {
             const labels = { left: "Logo Left", center: "Logo Center", text: "Text Only" };
@@ -282,8 +255,8 @@ export function FirmProfileTab({ isAdmin }: { isAdmin: boolean }) {
         </div>
       )}
 
-      <SectionHeading>BILLING</SectionHeading>
-      <Field label="DEFAULT HOURLY RATE ($)" tooltip="Used to calculate invoice totals in the Billing tab">
+      <SectionHeading variant="settings">BILLING</SectionHeading>
+      <Field variant="settings" label="DEFAULT HOURLY RATE ($)" tooltip="Used to calculate invoice totals in the Billing tab">
         <input
           className={inputCls}
           style={inputStyle}

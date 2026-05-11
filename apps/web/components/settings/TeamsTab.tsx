@@ -4,14 +4,7 @@ import { useState, useEffect } from "react";
 import { Plus, Trash2, UserPlus, Copy, Check, Clock } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
-
-function SectionHeading({ children }: { children: React.ReactNode }) {
-  return (
-    <h3 className="font-mono text-[10px] tracking-widest mb-3 mt-6 first:mt-0" style={{ color: "var(--fg-tertiary)" }}>
-      {children}
-    </h3>
-  );
-}
+import { SectionHeading } from "@/components/shared/AdminSettingsShared";
 
 const inputCls = "w-full rounded px-3.5 py-2.5 text-sm lex-focus transition-all";
 const inputStyle = {
@@ -35,7 +28,7 @@ const SITE_URL =
     ? window.location.origin
     : process.env.NEXT_PUBLIC_SITE_URL || "https://lexagent-ochre.vercel.app";
 
-export function TeamsTab() {
+export function TeamsTab({ isAdmin }: { isAdmin: boolean }) {
   const [teams, setTeams] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -138,7 +131,7 @@ export function TeamsTab() {
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <SectionHeading>ALL TEAMS</SectionHeading>
+        <SectionHeading variant="settings">ALL TEAMS</SectionHeading>
         <button onClick={() => setCreating(true)} className="lex-btn lex-btn--primary">
           <Plus size={12} /> New Team
         </button>

@@ -363,3 +363,19 @@ export const TABS = [
 ] as const;
 
 export type TabId = typeof TABS[number]["id"];
+
+export const ROLES = ["member", "admin"] as const;
+
+export const PLAN_DETAILS: Record<string, { name: string; usd_budget: number; matter_limit: number | null; seat_limit: number | null; price_usd: number | null; features: string[] }> = {
+  starter:      { name: "Starter",      usd_budget: 8,   matter_limit: 10, seat_limit: 1,    price_usd: 45,   features: ["Research","Draft","Citations"] },
+  professional: { name: "Professional", usd_budget: 20,  matter_limit: 25, seat_limit: 3,    price_usd: 95,   features: ["Research","Draft","Citations","Strategy","Judge Intel"] },
+  firm:         { name: "Firm",         usd_budget: 35,  matter_limit: 60, seat_limit: 10,   price_usd: 200,  features: ["Research","Draft","Citations","Strategy","Judge Intel","Conflict","Timeline"] },
+  premium:      { name: "Premium",      usd_budget: 150, matter_limit: null, seat_limit: null, price_usd: 2000, features: ["All features","Custom development","Dedicated support","Personal onboarding"] },
+};
+
+export const PLAN_COLOR: Record<string, string> = {
+  starter:      "var(--fg-tertiary)",
+  professional: "var(--verdict-neon)",
+  firm:         "var(--verdict-amber)",
+  premium:      "var(--verdict-violet)",
+};
