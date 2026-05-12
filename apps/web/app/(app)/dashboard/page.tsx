@@ -11,6 +11,8 @@ import { NewMatterModal } from "@/components/shared/NewMatterModal";
 import { LexTooltip } from "@/components/shared/LexTooltip";
 import { DeadlineAlert } from "@/components/shared/DeadlineAlert";
 import { FirstMatterWizard } from "@/components/shared/FirstMatterWizard";
+import { FirmOnboarding } from "@/components/onboarding/FirmOnboarding";
+import { useSettings } from "@/providers/settings-provider";
 import { supabase } from "@/lib/supabase";
 
 interface RecentCall {
@@ -275,10 +277,21 @@ function MatterCard({ matter }: { matter: Matter }) {
 
 export default function DashboardPage() {
   const { matters, loaded } = useMatters();
+  const { settings, updateSettings } = useSettings();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("All");
   const [showNewMatter, setShowNewMatter] = useState(false);
-  const showWizard = false;
+
+  // Track onboarding completion in localStorage or settings
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  useEffect(() => {
+    if (loaded && !settings.firmName) {
+      setShowOnboarding(true);
+    }
+  }, [loaded, settings.firmName]);
+
+  const showWizard = matters.length === 0 && loaded && !showOnboarding;
 
   const today = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
   const statusFilters = ["All", "Active", "Pending", "Urgent", "Closed"];
@@ -483,6 +496,7 @@ export default function DashboardPage() {
 
           {showNewMatter && <NewMatterModal onClose={() => setShowNewMatter(false)} />}
           {showWizard && <FirstMatterWizard onDismiss={() => {}} />}
+          {showOnboarding && <FirmOnboarding onComplete={() => setShowOnboarding(false)} />}
         </div>
       </div>
     </div>

@@ -54,12 +54,36 @@ export default function MatterOverviewPage() {
   const episodeCount = memory?.episodes?.length || 0;
   const efficiency = memory ? Math.min(94, 60 + (nodeCount * 2) + (episodeCount * 5)) : 0;
 
+  const PHASES = [
+    { id: "intake",   label: "Intake",    status: matter.facts ? "complete" : "current", icon: Users },
+    { id: "research", label: "Research",  status: docsCount > 0 ? "complete" : matter.facts ? "current" : "pending", icon: Search },
+    { id: "strategy", label: "Strategy",  status: (matter.timeEntries as any[])?.length > 0 ? "complete" : "pending", icon: Target },
+    { id: "draft",    label: "Drafting",  status: "pending", icon: FileEdit },
+  ];
+
   return (
     <PanelShell
       icon={LayoutDashboard}
       title="Matter Overview"
-      description="Executive summary and quick actions"
+      description="Executive summary and phase-based workflow"
     >
+      {/* Phase Tracker */}
+      <div className="mb-8 grid grid-cols-4 gap-4">
+        {PHASES.map((p, i) => (
+          <div key={p.id} className="relative">
+            <div className="flex flex-col items-center">
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all ${p.status === "complete" ? "bg-[var(--verdict-neon)]/10 border-[var(--verdict-neon)] text-[var(--verdict-neon)]" : p.status === "current" ? "bg-white/5 border-[var(--verdict-amber)] text-[var(--verdict-amber)] animate-pulse" : "bg-white/5 border-white/10 text-[var(--fg-quaternary)]"}`}>
+                <p.icon size={18} />
+              </div>
+              <span className={`mt-2 text-[10px] font-mono uppercase tracking-widest ${p.status === "pending" ? "text-[var(--fg-quaternary)]" : "text-[var(--fg-primary)]"}`}>{p.label}</span>
+            </div>
+            {i < PHASES.length - 1 && (
+              <div className="absolute top-5 left-[calc(50%+24px)] right-[calc(-50%+24px)] h-0.5 bg-white/5" />
+            )}
+          </div>
+        ))}
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         <div className="lg:col-span-2 space-y-6">

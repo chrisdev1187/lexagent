@@ -87,6 +87,14 @@
   --radius-lg:   10px;
   --radius-xl:   16px;
 
+  /* ── Enterprise Soft Theme Tokens ─────────────────────────────────────── */
+  --color-enterprise-bg:      #f8f9fa;
+  --color-enterprise-panel:   #ffffff;
+  --color-enterprise-border:  #e9ecef;
+  --color-enterprise-text:    #212529;
+  --color-enterprise-muted:   #6c757d;
+  --color-enterprise-accent:  #3b82f6;
+
   /* ── Easing / motion ─────────────────────────────────────────────────── */
   --ease-terminal: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-crisp:    cubic-bezier(0.2, 0.6, 0.2, 1);
@@ -232,6 +240,47 @@
   --input:             #17171c;
   --ring:              #00ffc3;
   --radius:            0.375rem;
+}
+
+.theme-professional {
+  --midnight-court:    #f8f9fa;
+  --midnight-deep:     #ffffff;
+  --midnight-raised:   #f1f3f5;
+  --midnight-elev:     #e9ecef;
+  --midnight-line:     #dee2e6;
+  --midnight-mute:     #adb5bd;
+
+  --gavel-chrome:      #212529;
+  --gavel-silver:      #495057;
+  --gavel-steel:       #6c757d;
+  --gavel-graphite:    #adb5bd;
+
+  --verdict-neon:      #3b82f6; /* Enterprise Blue */
+  --verdict-neon-dim:  #2563eb;
+  --verdict-violet:    #8b5cf6;
+  --verdict-violet-dim:#7c3aed;
+  --verdict-amber:     #f59e0b;
+  --verdict-crimson:   #ef4444;
+
+  --bg-base:           #f8f9fa;
+  --bg-panel:          #ffffff;
+  --bg-raised:         #f1f3f5;
+  --bg-elev:           #e9ecef;
+
+  --fg-primary:        #212529;
+  --fg-secondary:      #495057;
+  --fg-tertiary:       #6c757d;
+  --fg-quaternary:     #adb5bd;
+
+  --border-hair:       #e9ecef;
+  --border-line:       #dee2e6;
+  --border-neon:       rgba(59,130,246,0.2);
+
+  --glass-bg:          rgba(255,255,255,0.8);
+  --glass-border:      #e9ecef;
+
+  --bg:                #f8f9fa;
+  --text:              #212529;
 }
 
 /* ========================================================================== */
