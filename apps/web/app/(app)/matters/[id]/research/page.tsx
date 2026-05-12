@@ -7,7 +7,7 @@ import { useParams } from "next/navigation";
 import { useMatters } from "@/providers/matters-provider";
 import { useSettings } from "@/providers/settings-provider";
 import { anthropicFetch, QuotaExceededError, FreeTierExhaustedError, CreditExhaustedError } from "@/lib/api";
-import { withLexMemory } from "@/lib/lex-memory";
+import { withLexMemory, type AresStatusEvent } from "@/lib/lex-memory";
 import { searchOpinions, CLOpinion } from "@/lib/courtlistener";
 import { UpgradeCTA } from "@/components/shared/UpgradeCTA";
 import { PanelShell } from "@/components/panels/PanelShell";
@@ -34,6 +34,7 @@ export default function ResearchPage() {
   const [loading, setLoading] = useState(false);
   const [streamingText, setStreamingText] = useState("");
   const [loadingPhase, setLoadingPhase] = useState(0);
+  const [thoughtTrace, setThoughtTrace] = useState<AresStatusEvent[]>([]);
   const [creditErr, setCreditErr] = useState<{ remaining: number; creditCost: number } | null>(null);
   const [freeTierMsg, setFreeTierMsg] = useState<string | null>(null);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
@@ -72,6 +73,7 @@ export default function ResearchPage() {
     setQuery("");
     setLoading(true);
     setLoadingPhase(0);
+    setThoughtTrace([]);
 
     loadingTimers.current = LOADING_LABELS.map((_, i) =>
       setTimeout(() => setLoadingPhase(i), i * 4000)
@@ -93,7 +95,10 @@ export default function ResearchPage() {
 
       const prompt = `Previous Research context:\n${historyBlock}\n\nNew Query: ${currentQuery}${groundingBlock}`;
 
-      const lexFetch = withLexMemory(matter, updateMatter, { tab: "research" });
+      const lexFetch = withLexMemory(matter, updateMatter, {
+        tab: "research",
+        onStatus: (ev) => setThoughtTrace(prev => [...prev, ev])
+      });
       setStreamingText("");
       const res = await lexFetch(
         { model: settings.model, max_tokens: settings.maxTokens, system: settings.systemPrompt, messages: [{ role: "user", content: prompt }] },
@@ -216,8 +221,26 @@ export default function ResearchPage() {
           </div>
 
           {loading && (
-            <div className="flex items-center gap-2 mt-3 px-1">
-              <span className="text-[10px] font-mono text-[var(--verdict-neon)] animate-pulse">{LOADING_LABELS[loadingPhase]}</span>
+            <div className="mt-4 space-y-2 px-1">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-mono text-[var(--verdict-neon)] animate-pulse">{LOADING_LABELS[loadingPhase]}</span>
+              </div>
+
+              <div className="max-h-32 overflow-y-auto space-y-1.5 border-l border-white/5 pl-3 py-1">
+                {thoughtTrace.map((t, i) => (
+                  <div key={i} className="text-[9px] font-mono text-[var(--fg-quaternary)] flex gap-2">
+                    <span className="text-[var(--verdict-neon)] opacity-60">→</span>
+                    <span>
+                      {t.type === "thinking" && t.message}
+                      {t.type === "tool_start" && `Calling ${t.tool}...`}
+                      {t.type === "tool_end" && `Tool ${t.tool} returned.`}
+                      {t.type === "critic_start" && "Running accuracy critic..."}
+                      {t.type === "critic_end" && `Critic: ${(t.score * 100).toFixed(0)}% accuracy.`}
+                      {t.type === "correction_start" && "Correcting hallucinations..."}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>

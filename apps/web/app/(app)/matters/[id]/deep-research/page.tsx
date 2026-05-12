@@ -12,7 +12,7 @@ import {
   QuotaExceededError, FreeTierExhaustedError, CreditExhaustedError
 } from "@/lib/api";
 import { UpgradeCTA } from "@/components/shared/UpgradeCTA";
-import { withLexMemory } from "@/lib/lex-memory";
+import { withLexMemory, AresStatusEvent } from "@/lib/lex-memory";
 import { postureDetect, aresDebate } from "@/lib/ares";
 import { Markdown } from "@/components/shared/Markdown";
 
@@ -23,7 +23,8 @@ import { EdgarResult } from "@/components/deep-research/EdgarResult";
 import { GovInfoResult } from "@/components/deep-research/GovInfoResult";
 import { OpenStatesResult } from "@/components/deep-research/OpenStatesResult";
 import { PatentResultItem } from "@/components/deep-research/PatentResult";
-import { SavedPrecedent } from "@/types/research"; import { SavedPrecedentsList } from "@/components/deep-research/SavedPrecedentsList";
+import { SavedPrecedent } from "@/types/research";
+import { SavedPrecedentsList } from "@/components/deep-research/SavedPrecedentsList";
 import { useDeepResearchSearch } from "@/hooks/deep-research/useDeepResearchSearch";
 
 type Tab = "congress" | "ecfr" | "opinions" | "edgar" | "govinfo" | "openstates" | "patents";
@@ -45,6 +46,7 @@ export default function DeepResearchPage() {
   const [streamingText, setStreamingText] = useState("");
   const [synthesis, setSynthesis] = useState("");
   const [synthError, setSynthError] = useState<string | null>(null);
+  const [thoughtTrace, setThoughtTrace] = useState<AresStatusEvent[]>([]);
   const [creditErr, setCreditErr] = useState<{ remaining: number; creditCost: number } | null>(null);
 
   useEffect(() => {
@@ -77,6 +79,7 @@ export default function DeepResearchPage() {
     if (!matter || !hasResults) return;
     setSynthesizing(true);
     setSynthError(null);
+    setThoughtTrace([]);
     try {
       const opBlock = results.opinions.length > 0 ? `\nCASE OPINIONS (${results.opinions.length}):\n${results.opinions.slice(0, 10).map((op, i) => `${i + 1}. ${op.caseName}${op.citation ? `, ${op.citation}` : ""} (${op.court})${op.snippet ? `\n   "${op.snippet}"` : ""}`).join("\n")}` : "";
       const billBlock = results.congress.length > 0 ? `\nCONGRESS BILLS (${results.congress.length}):\n${results.congress.slice(0, 10).map((b, i) => `${i + 1}. ${formatBillCitation(b)} — ${b.title}${b.latestAction ? `\n   Status: ${b.latestAction.text}` : ""}`).join("\n")}` : "";
@@ -118,7 +121,10 @@ Provide:
         }
       }
 
-      const lexFetch = withLexMemory(matter, updateMatter, { tab: "deep-research" });
+      const lexFetch = withLexMemory(matter, updateMatter, {
+        tab: "deep-research",
+        onStatus: (ev) => setThoughtTrace(prev => [...prev, ev])
+      });
       setStreamingText("");
       const res = await lexFetch(
         { model: settings.model, max_tokens: settings.maxTokens, system: settings.systemPrompt, messages: [{ role: "user", content: debatePrefix + content }] },
@@ -253,6 +259,27 @@ Provide:
           {synthError && (
             <div className="rounded px-4 py-2 mb-3 text-xs" style={{ background: "rgba(255,51,85,0.08)", border: "0.5px solid rgba(255,51,85,0.3)", color: "var(--verdict-crimson)" }}>
               {synthError}
+            </div>
+          )}
+
+          {synthesizing && (
+            <div className="mb-4 space-y-2 border-l border-white/5 pl-4 py-1">
+              <p className="text-[10px] font-mono text-[var(--verdict-neon)] animate-pulse uppercase tracking-widest mb-2">Analyzing retrieval context...</p>
+              <div className="max-h-40 overflow-y-auto space-y-1.5 scrollbar-hide">
+                {thoughtTrace.map((t, i) => (
+                  <div key={i} className="text-[9px] font-mono text-[var(--fg-quaternary)] flex gap-2">
+                    <span className="text-[var(--verdict-neon)] opacity-60">→</span>
+                    <span>
+                      {t.type === "thinking" && t.message}
+                      {t.type === "tool_start" && `Calling ${t.tool}...`}
+                      {t.type === "tool_end" && `Tool ${t.tool} returned.`}
+                      {t.type === "critic_start" && "Running accuracy critic..."}
+                      {t.type === "critic_end" && `Critic: ${(t.score * 100).toFixed(0)}% accuracy.`}
+                      {t.type === "correction_start" && "Correcting hallucinations..."}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
           {(synthesis || streamingText) && (
