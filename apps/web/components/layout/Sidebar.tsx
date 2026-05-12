@@ -115,10 +115,10 @@ export function Sidebar({ onNewMatter }: SidebarProps) {
   useEffect(() => () => { if (intervalRef.current) clearInterval(intervalRef.current); }, []);
 
   const navItems = [
-    { href: "/dashboard",      icon: LayoutDashboard, label: "Dashboard"      },
-    { href: "/clients",        icon: Users,           label: "Clients"        },
-    { href: "/settings",       icon: Settings,        label: "Settings"       },
-    ...(isAdmin ? [{ href: "/admin", icon: Building2, label: "Administration" }] : []),
+    { href: "/dashboard",      icon: LayoutDashboard, label: "Overview"      },
+    { href: "/clients",        icon: Users,           label: "Client List"        },
+    { href: "/settings",       icon: Settings,        label: "Preferences"       },
+    ...(isAdmin ? [{ href: "/admin", icon: Building2, label: "Firm Admin" }] : []),
   ];
 
   const fmtElapsed = (s: number) =>
@@ -257,13 +257,13 @@ export function Sidebar({ onNewMatter }: SidebarProps) {
 
       {/* Matters list */}
       <div
-        className="flex-1 overflow-y-auto px-2 pt-3"
+        className="flex-1 overflow-y-auto px-2 pt-3 border-t border-white/5 mt-2"
         style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(224,224,224,0.06) transparent" }}
       >
         {!collapsed && matters.length > 0 && (
-          <div className="px-2.5 pb-2 flex items-center justify-between">
+          <div className="px-2.5 pb-2 pt-2 flex items-center justify-between">
             <span className="font-mono text-[9px] tracking-[0.22em] uppercase" style={{ color: "var(--fg-quaternary)" }}>
-              Matters
+              Recent Matters
             </span>
             <span
               className="font-mono text-[9px] px-1.5 py-0.5 rounded-full"

@@ -1,3 +1,5 @@
+"use client";
+
 export default function DesignShowcase() {
   return (
     <div className="doc" style={{ maxWidth: 1080, margin: "0 auto", padding: "40px 32px 80px", position: "relative", zIndex: 1 }}>

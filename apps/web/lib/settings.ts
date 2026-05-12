@@ -38,6 +38,7 @@ export interface AppSettings {
   tooltipsEnabled: boolean;
   animationsEnabled: boolean;
   sidebarCollapsed: boolean;
+  theme: "midnight" | "professional";
 }
 
 export const ARES_PROMPT_VERSION = "5.0";
@@ -324,6 +325,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   tooltipsEnabled: true,
   animationsEnabled: true,
   sidebarCollapsed: false,
+  theme: "midnight",
 };
 
 export const PRACTICE_AREAS = [
