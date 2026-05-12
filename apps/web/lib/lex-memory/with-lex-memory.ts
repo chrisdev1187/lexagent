@@ -12,9 +12,18 @@ import { aresCritic, ARES_TOOLS, listTools, toolToAnthropicWire } from "@/lib/ar
 import { parseToolRequests, dispatchTool } from "@/lib/ares/tools/registry";
 import type { CiteVerifyOutput } from "@/lib/ares/tools/types";
 
+export type AresStatusEvent =
+  | { type: "thinking"; message: string }
+  | { type: "tool_start"; tool: string; args: any }
+  | { type: "tool_end"; tool: string; output: any }
+  | { type: "critic_start" }
+  | { type: "critic_end"; score: number; passed: boolean }
+  | { type: "correction_start"; reason: string };
+
 export interface LexMemoryOpts {
   tab: TabId;
   budget?: number;
+  onStatus?: (event: AresStatusEvent) => void;
 }
 
 export type UpdateMatterFn = (updated: Matter | ((prev: Matter) => Matter)) => Promise<void>;
@@ -56,17 +65,13 @@ export function withLexMemory(
   updateMatter: UpdateMatterFn,
   opts: LexMemoryOpts
 ) {
+  const emit = (event: AresStatusEvent) => opts.onStatus?.(event);
+
   return async function lexFetch(
     body: Record<string, unknown>,
     extraHeaders?: Record<string, string>,
     options?: AnthropicFetchOptions
   ): Promise<Response> {
-    const MAX_TURNS = 2;
-    let turn = 0;
-    let currentBody = { ...body };
-
-    // Placeholder for recursive loop logic if needed in the future
-    // For now, we enhance the single-turn with better verification
     const mem = getOrBootstrap(matter);
     const { text: ctxBlock, tokensUsed: memInjected } = buildContext(mem, {
       budget: opts.budget ?? BUDGET_DEFAULT,
@@ -80,75 +85,146 @@ export function withLexMemory(
 
     // Phase 12 Slice A — usage attribution. Backend reads these to write
     // usage_events.matter_id and usage_events.tool_name.
+    emit({ type: "thinking", message: `ARES is initializing (${opts.tab})...` });
     const tools = listTools().map(toolToAnthropicWire);
-    const patchedBody = {
+    const initialBody = {
       ...baseBody,
       matter_id: matter.id,
       tool_name: opts.tab,
       tools,
     };
 
-    let res = await anthropicFetch(patchedBody, extraHeaders, options);
+    let res = await anthropicFetch(initialBody, extraHeaders, options);
+    emit({ type: "thinking", message: "Turn 1 complete. Analyzing response..." });
 
-    // Turn 1 complete. Now check if we need Turn 2 (Correction)
-    const clone = res.clone();
-    void (async () => {
-      try {
-        if (!clone.ok) return;
-        let json = await clone.json() as unknown;
-        let text = extractText(json);
-        let shadow = text ? parseAresShadow(text) : null;
+    // --- AGENTIC LOOP: Recursive Tool Handling ---
+    const MAX_TURNS = 5;
+    let turn = 1;
+    let currentRes = res;
+    let currentBody = { ...initialBody } as Record<string, unknown>;
 
-        // --- PHASE 14: Agentic Loop (Turn 2) ---
-        // If the response is poor or has issues, we do an internal correction turn.
-        if (text) {
-          // 1. Check for Cite Verification failures
-          const toolReqs = parseToolRequests(text).filter((r) => r.name === "cite_verify");
-          let citeFailed = false;
-          if (toolReqs.length > 0) {
-            const results = await Promise.allSettled(
-              toolReqs.map((r) => dispatchTool<Record<string, unknown>, CiteVerifyOutput>("cite_verify", { ...r.args }))
-            );
-            citeFailed = results.some(r => r.status === "fulfilled" && !r.value.ok);
-          }
+    while (turn < MAX_TURNS) {
+      const clone = currentRes.clone();
+      const json = await clone.json() as any;
+      const text = extractText(json);
 
-          const criticOut = await aresCritic({
-            draft: text,
-            shadow,
-            mode: shadow?.mode ?? null,
-            posture: shadow?.posture ?? null,
-            matterId: matter.id,
-          }).catch(() => null);
+      // Check for tool requests (v5 syntax or v6 native tools)
+      const toolReqs = parseToolRequests(text ?? "");
+      if (toolReqs.length === 0) break;
 
-          // If score is low or cites failed, we trigger a "Correction" turn
-          const lowScore = criticOut && criticOut.persisted_score !== null && criticOut.persisted_score < 0.7;
-          if (lowScore || citeFailed) {
-            console.log("[lex-memory] Critic or Cites flagged issues, triggering correction turn...");
-            const feedback = citeFailed ? "One or more of your citations could not be verified. " : "";
-            const criticNotes = criticOut?.score?.notes?.join(" | ") ?? "General accuracy review required.";
-            const correctionPrompt = `CRITIC FEEDBACK: ${feedback}${criticNotes}\n\nPlease revise your previous response.`;
+      turn++;
+      emit({ type: "thinking", message: `Executing recursive tools (Turn ${turn})...` });
 
-            const correctionBody = {
-              ...patchedBody,
-              messages: [
-                ...((body.messages as any[]) || []),
-                { role: "assistant", content: text },
-                { role: "user", content: correctionPrompt }
-              ]
-            } as Record<string, unknown>;
+      const toolResults = await Promise.all(
+        toolReqs.map(async (r) => {
+          emit({ type: "tool_start", tool: r.name, args: r.args });
+          const out = await dispatchTool(r.name, r.args);
+          emit({ type: "tool_end", tool: r.name, output: out });
+          return `TOOL_RESULT: ${r.name}\n${JSON.stringify(out)}`;
+        })
+      );
 
-            const correctionRes = await anthropicFetch(correctionBody, extraHeaders);
-            if (correctionRes.ok) {
-              const corrJson = await correctionRes.json();
-              const corrText = extractText(corrJson);
-              if (corrText) {
-                text = corrText;
-                json = corrJson;
-                shadow = parseAresShadow(corrText);
-              }
-            }
+      currentBody = {
+        ...currentBody,
+        messages: [
+          ...(currentBody.messages as any[]),
+          { role: "assistant", content: text },
+          { role: "user", content: toolResults.join("\n\n") }
+        ]
+      };
+
+      currentRes = await anthropicFetch(currentBody, extraHeaders);
+    }
+
+    res = currentRes;
+
+    // --- PHASE 14: Agentic Loop (Turn 2 — Correction & Refinement) ---
+    const finalClone = res.clone();
+    const finalJson = await finalClone.json() as any;
+    let text = extractText(finalJson);
+    let shadow = text ? parseAresShadow(text) : null;
+    let json = finalJson;
+
+    if (text) {
+      // 1. Check for Cite Verification failures
+      const toolReqs = parseToolRequests(text).filter((r) => r.name === "cite_verify");
+      let citeFailed = false;
+      if (toolReqs.length > 0) {
+        emit({ type: "thinking", message: `Verifying ${toolReqs.length} citations...` });
+        const results = await Promise.allSettled(
+          toolReqs.map((r) => {
+            emit({ type: "tool_start", tool: "cite_verify", args: r.args });
+            return dispatchTool<Record<string, unknown>, CiteVerifyOutput>("cite_verify", { ...r.args })
+              .then(out => {
+                emit({ type: "tool_end", tool: "cite_verify", output: out });
+                return out;
+              });
+          })
+        );
+        citeFailed = results.some(r => r.status === "fulfilled" && !r.value.ok);
+      }
+
+      // 2. Neuro-symbolic Statutory Alignment
+      const statutes = mem.theme?.statuteRefs || [];
+      let statuteMissing = false;
+      if (statutes.length > 0) {
+        emit({ type: "thinking", message: `Checking alignment with ${statutes.length} primary statutes...` });
+        statuteMissing = !statutes.some(s => text?.includes(s));
+      }
+
+      // 3. Accuracy Critic
+      emit({ type: "critic_start" });
+      const criticOut = await aresCritic({
+        draft: text,
+        shadow,
+        mode: shadow?.mode ?? null,
+        posture: shadow?.posture ?? null,
+        matterId: matter.id,
+      }).catch(() => null);
+
+      const lowScore = criticOut && criticOut.persisted_score !== null && criticOut.persisted_score < 0.7;
+      emit({ type: "critic_end", score: criticOut?.persisted_score ?? 1, passed: !citeFailed && !statuteMissing && !lowScore });
+
+      // TRIGGER CORRECTION TURN
+      if (lowScore || citeFailed || statuteMissing) {
+        const feedback = citeFailed ? "One or more of your citations could not be verified. " : "";
+        const statuteFeedback = statuteMissing ? `Your response failed to reference primary matter statutes: ${statutes.join(", ")}. ` : "";
+        const criticNotes = criticOut?.score?.notes?.join(" | ") ?? "General accuracy review required.";
+
+        emit({ type: "correction_start", reason: `${feedback}${statuteFeedback}${criticNotes}` });
+
+        const correctionPrompt = `CRITIC FEEDBACK: ${feedback}${statuteFeedback}${criticNotes}\n\nPlease revise your previous response. Ensure all primary statutes are addressed. Maintain structured shadow JSON.`;
+
+        const correctionBody = {
+          ...currentBody,
+          messages: [
+            ...((currentBody.messages as any[]) || []),
+            { role: "assistant", content: text },
+            { role: "user", content: correctionPrompt }
+          ]
+        } as Record<string, unknown>;
+
+        const correctionRes = await anthropicFetch(correctionBody, extraHeaders);
+        if (correctionRes.ok) {
+          const corrJson = await correctionRes.json();
+          const corrText = extractText(corrJson);
+          if (corrText) {
+            text = corrText;
+            json = corrJson;
+            shadow = parseAresShadow(corrText);
+            // Replace the response returned to the user with the corrected version
+            res = new Response(JSON.stringify(corrJson), {
+              status: correctionRes.status,
+              headers: correctionRes.headers,
+            });
           }
         }
+      }
+    }
+
+    // --- BACKGROUND: Memory Extraction & Usage Logging ---
+    void (async () => {
+      try {
         if (text) {
           const delta = extractDelta(text, opts.tab);
           // Functional update: re-reads fresh matter from state, avoids clobbering
