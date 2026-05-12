@@ -2,6 +2,8 @@ import { setBudgetState, getBudgetState, BudgetStatus } from "@/lib/budget-store
 import { log } from "@/lib/logger";
 import { getSessionId } from "@/lib/session-id";
 import { getCachedFingerprint } from "@/hooks/useFingerprint";
+import { calculatePredictedCost } from "./credits";
+import { getQuotaStatus } from "./quota";
 
 let _sessionSignOutCallback: (() => void) | null = null;
 export function registerSessionSignOut(cb: () => void) { _sessionSignOutCallback = cb; }
@@ -29,6 +31,17 @@ log.info("api", "API_URL resolved", { API_URL: API_URL || "(empty — direct Ant
 
 export class QuotaExceededError extends Error {
   constructor() { super("AI quota exceeded — upgrade your plan to continue."); this.name = "QuotaExceededError"; }
+}
+
+export class BudgetExhaustedError extends Error {
+  remaining: number;
+  required: number;
+  constructor(remaining: number, required: number) {
+    super(`Insufficient credits. Remaining: ${remaining}, Predicted: ${required}. Upgrade to continue.`);
+    this.name = "BudgetExhaustedError";
+    this.remaining = remaining;
+    this.required = required;
+  }
 }
 
 export class FreeTierExhaustedError extends Error {
@@ -138,6 +151,22 @@ export async function anthropicFetch(
 ): Promise<Response> {
   const { onChunk, signal } = options ?? {};
   const model = (body.model as string) ?? "unknown";
+  const toolName = (body.tool_name as string) ?? "default";
+
+  // --- PRE-FLIGHT BUDGET ENFORCEMENT ---
+  const systemText = (body.system as string) ?? "";
+  const messagesText = (body.messages as any[])?.map(m => m.content).join(" ") ?? "";
+  const inputChars = systemText.length + messagesText.length;
+
+  const estimate = calculatePredictedCost(model, toolName, inputChars);
+  const quota = await getQuotaStatus();
+
+  if (quota) {
+    const remainingCredits = Math.max(0, Math.floor((quota.ai_budget - quota.ai_spent) / 0.05));
+    if (remainingCredits < estimate.credits && quota.plan_id !== "premium") {
+      throw new BudgetExhaustedError(remainingCredits, estimate.credits);
+    }
+  }
   const hasToken = !!_authToken;
   log.info("anthropic", `→ POST ${ANTHROPIC_ENDPOINT}`, { model, hasToken, hasApiUrl: !!API_URL, streaming: !!onChunk });
 
