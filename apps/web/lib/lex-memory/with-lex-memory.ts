@@ -18,7 +18,8 @@ export type AresStatusEvent =
   | { type: "tool_end"; tool: string; output: any }
   | { type: "critic_start" }
   | { type: "critic_end"; score: number; passed: boolean }
-  | { type: "correction_start"; reason: string };
+  | { type: "correction_start"; reason: string }
+  | { type: "budget_update"; sessionCredits: number };
 
 export interface LexMemoryOpts {
   tab: TabId;
@@ -59,7 +60,6 @@ function extractUsage(json: unknown): { input_tokens: number; output_tokens: num
   }
   return null;
 }
-
 export function withLexMemory(
   matter: Matter,
   updateMatter: UpdateMatterFn,
@@ -102,6 +102,7 @@ export function withLexMemory(
     let turn = 1;
     let currentRes = res;
     let currentBody = { ...initialBody } as Record<string, unknown>;
+    let sessionCredits = 0;
 
     while (turn < MAX_TURNS) {
       const clone = currentRes.clone();
@@ -134,6 +135,12 @@ export function withLexMemory(
       };
 
       currentRes = await anthropicFetch(currentBody, extraHeaders);
+      const turnUsage = extractUsage(await currentRes.clone().json());
+      if (turnUsage) {
+        const turnCost = (turnUsage.input_tokens * 3.0 + turnUsage.output_tokens * 15.0) / 1000 / 0.05;
+        sessionCredits += Math.ceil(turnCost);
+        emit({ type: "budget_update", sessionCredits });
+      }
     }
 
     res = currentRes;

@@ -12,7 +12,7 @@ import { useAuth } from "@/lib/auth";
 import { useSettings } from "@/providers/settings-provider";
 import { useMatters, Matter } from "@/providers/matters-provider";
 import { LexTooltip } from "@/components/shared/LexTooltip";
-import { UsagePill } from "@/components/shared/UsagePill";
+import { EconomyGauge } from "@/components/economy/EconomyGauge";
 import { VersionPill } from "@/components/shared/VersionPill";
 import { AlertBell } from "@/components/shared/AlertBell";
 import { ScanlineWipe } from "@/components/brand/ScanlineWipe";
@@ -387,7 +387,12 @@ export function Sidebar({ onNewMatter }: SidebarProps) {
                 </span>
               </button>
             </LexTooltip>
-            <UsagePill />
+          </div>
+        )}
+
+        {!collapsed && (
+          <div className="mx-2 mb-2 rounded-xl bg-white/[0.02] border border-white/5 overflow-hidden">
+            <EconomyGauge />
           </div>
         )}
 

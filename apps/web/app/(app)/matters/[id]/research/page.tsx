@@ -237,6 +237,7 @@ export default function ResearchPage() {
                       {t.type === "critic_start" && "Running accuracy critic..."}
                       {t.type === "critic_end" && `Critic: ${(t.score * 100).toFixed(0)}% accuracy.`}
                       {t.type === "correction_start" && "Correcting hallucinations..."}
+                      {t.type === "budget_update" && `Recursive turn cost: ${t.sessionCredits} credits.`}
                     </span>
                   </div>
                 ))}
