@@ -33,8 +33,8 @@ export default function DocketWatchPage() {
   const [addingId, setAddingId] = useState<number | null>(null);
   const [searchTab, setSearchTab] = useState<"cl" | "pacer">("cl");
   const [pacerConnected, setPacerConnected] = useState(false);
-  const [pacerResults] = useState<Array<{ caseId: string; court: string; caseTitle: string; dateFiled: string; caseNumber: string }>>([]);
-  const [pacerSearching] = useState(false);
+  const [pacerResults, setPacerResults] = useState<Array<{ caseId: string; courtId: string; caseTitle: string; dateFiled: string; caseNumber: string }>>([]);
+  const [pacerSearching, setPacerSearching] = useState(false);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
   const authHeaders = useCallback(() => session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : ({} as Record<string, string>), [session]);
@@ -84,7 +84,35 @@ export default function DocketWatchPage() {
   };
 
   const handlePacerSearch = async () => {
-    // Basic stub for now, as pacer logic was complex in original
+    if (!searchQ.trim()) return;
+    setPacerSearching(true);
+    try {
+      const res = await fetch(`${API_URL}/api/pacer/search?q=${encodeURIComponent(searchQ)}`, { headers: authHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        setPacerResults(data.cases ?? []);
+      }
+    } finally { setPacerSearching(false); }
+  };
+
+  const watchPacerDocket = async (d: any) => {
+    setAddingId(Number(d.caseId) || 9999);
+    await fetch(`${API_URL}/api/dockets/watch`, {
+      method: "POST",
+      headers: { ...authHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify({
+        matter_id: matterId,
+        source: "pacer",
+        external_id: String(d.caseId),
+        case_name: d.caseTitle,
+        court: d.courtId,
+        docket_number: d.caseNumber
+      })
+    });
+    setAddingId(null);
+    setSearchQ("");
+    setPacerResults([]);
+    await load();
   };
 
   const watchClDocket = async (d: CLDocketResult) => {
@@ -188,11 +216,27 @@ export default function DocketWatchPage() {
               </div>
             )}
 
-            {searchTab === "pacer" && !pacerConnected && (
-              <div className="mt-4 p-4 rounded-lg bg-[var(--verdict-amber)]/5 border border-[var(--verdict-amber)]/20">
-                <p className="text-xs text-[var(--verdict-amber)] mb-2">PACER credentials required to search the National Index.</p>
-                <a href="/settings?tab=pacer" className="text-[10px] font-mono uppercase tracking-widest underline opacity-80 hover:opacity-100">Configure PACER</a>
-              </div>
+            {searchTab === "pacer" && (
+              pacerConnected ? (
+                pacerResults.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-white/5 space-y-2 max-h-[400px] overflow-y-auto pr-1">
+                    {pacerResults.map(r => (
+                      <div key={r.caseId} className="p-3 rounded-lg bg-white/5 border border-white/5 hover:border-[var(--verdict-neon)]/30 transition-all">
+                        <p className="text-xs font-semibold text-[var(--fg-primary)] line-clamp-1 mb-1">{r.caseTitle}</p>
+                        <p className="text-[10px] font-mono text-[var(--fg-tertiary)] mb-2 uppercase">{r.courtId} · {r.caseNumber}</p>
+                        <button onClick={() => watchPacerDocket(r)} disabled={addingId === Number(r.caseId)} className="lex-btn lex-btn--ghost w-full py-1 text-[10px] uppercase tracking-widest border-white/10 hover:bg-[var(--verdict-neon)]/10 hover:text-[var(--verdict-neon)]">
+                          {addingId === Number(r.caseId) ? "Adding..." : "Watch Docket"}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )
+              ) : (
+                <div className="mt-4 p-4 rounded-lg bg-[var(--verdict-amber)]/5 border border-[var(--verdict-amber)]/20">
+                  <p className="text-xs text-[var(--verdict-amber)] mb-2">PACER credentials required to search the National Index.</p>
+                  <a href="/settings?tab=pacer" className="text-[10px] font-mono uppercase tracking-widest underline opacity-80 hover:opacity-100">Configure PACER</a>
+                </div>
+              )
             )}
           </div>
         </div>

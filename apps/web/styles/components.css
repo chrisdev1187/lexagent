@@ -267,6 +267,7 @@
 .lex-card:hover {
   border-color: var(--border-line);
   box-shadow: var(--shadow-2), inset 0 0 0 0.5px rgba(0,255,195,0.04);
+  transform: translateY(-1px);
 }
 
 /* Blueprint grid overlay — fades in on top-right corner */
@@ -607,12 +608,13 @@
   background: var(--bg-raised);
   border: 0.5px solid var(--border-hair);
   border-radius: var(--radius-md);
-  padding: 14px;
+  padding: 18px 18px 14px 20px;
   box-shadow: var(--shadow-2);
   overflow: hidden;
   cursor: pointer;
-  transition: border-color var(--dur-fast) var(--ease-out),
-              box-shadow var(--dur-fast) var(--ease-out);
+  transition: border-color 0.15s var(--ease-terminal),
+              box-shadow 0.15s var(--ease-terminal),
+              transform 0.15s var(--ease-terminal);
 }
 .lex-matter-card::before {
   content: "";
@@ -624,7 +626,9 @@
   mask-image: radial-gradient(ellipse at top right, black, transparent 60%);
 }
 .lex-matter-card:hover {
-  border-color: var(--border-line);
+  border-color: rgba(0,255,195,0.25);
+  box-shadow: var(--shadow-3), 0 0 20px rgba(0,255,195,0.06);
+  transform: translateY(-2px);
 }
 .lex-matter-card.is-active {
   border-color: var(--border-neon);
@@ -1154,6 +1158,51 @@
 ::-webkit-scrollbar-thumb:hover { background: rgba(0,255,195,0.40); }
 
 /* ============================================================
+   STANDALONE INPUTS / TEXTAREAS
+   ============================================================ */
+
+.lex-input,
+.lex-select {
+  width: 100%;
+  background: var(--bg-raised);
+  border: 0.5px solid var(--border-hair);
+  border-radius: var(--radius-sm);
+  color: var(--fg-primary);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  padding: 8px 12px;
+  outline: none;
+  transition: border-color var(--dur-fast) var(--ease-out),
+              box-shadow var(--dur-fast) var(--ease-out);
+}
+.lex-input:focus,
+.lex-select:focus {
+  border-color: rgba(0,255,195,0.45);
+  box-shadow: 0 0 0 3px rgba(0,255,195,0.08);
+}
+.lex-input::placeholder { color: var(--fg-quaternary); }
+
+.lex-textarea {
+  width: 100%;
+  background: var(--bg-raised);
+  border: 0.5px solid var(--border-hair);
+  border-radius: var(--radius-sm);
+  color: var(--fg-primary);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  padding: 8px 12px;
+  outline: none;
+  resize: vertical;
+  transition: border-color var(--dur-fast) var(--ease-out),
+              box-shadow var(--dur-fast) var(--ease-out);
+}
+.lex-textarea:focus {
+  border-color: rgba(0,255,195,0.45);
+  box-shadow: 0 0 0 3px rgba(0,255,195,0.08);
+}
+.lex-textarea::placeholder { color: var(--fg-quaternary); }
+
+/* ============================================================
    DIVIDERS
    ============================================================ */
 
@@ -1162,3 +1211,140 @@
   margin: 0;
 }
 .lex-divider--neon { border-top-color: var(--border-neon); }
+
+/* ============================================================
+   STAT CARD — dashboard hero metric cards
+   ============================================================ */
+
+.lex-stat-card {
+  position: relative;
+  border-radius: var(--radius-md);
+  background: var(--bg-raised);
+  border: 0.5px solid var(--border-hair);
+  padding: 20px;
+  overflow: hidden;
+  transition: border-color 0.15s var(--ease-terminal),
+              box-shadow 0.15s var(--ease-terminal),
+              transform 0.15s var(--ease-terminal);
+}
+.lex-stat-card::before {
+  content: "";
+  position: absolute; inset: 0; pointer-events: none;
+  background-image:
+    linear-gradient(to right, rgba(0,255,195,0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0,255,195,0.03) 1px, transparent 1px);
+  background-size: 24px 24px;
+  mask-image: radial-gradient(ellipse at top right, black, transparent 60%);
+  opacity: 0.6;
+}
+.lex-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-3);
+  border-color: var(--border-line);
+}
+.lex-stat-card__accent {
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+.lex-stat-card__body {
+  display: flex; align-items: flex-start; gap: 14px;
+  position: relative; z-index: 1;
+}
+.lex-stat-card__icon {
+  width: 38px; height: 38px; border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.lex-stat-card__meta { flex: 1; min-width: 0; }
+.lex-stat-card__label {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--fg-tertiary);
+}
+.lex-stat-card__number {
+  font-family: var(--font-serif); font-size: 44px; font-weight: 400;
+  letter-spacing: -0.03em; line-height: 1; color: var(--fg-primary);
+  margin-top: 4px;
+}
+.lex-stat-card__sub {
+  font-family: var(--font-mono); font-size: 10px;
+  letter-spacing: 0.12em; margin-top: 4px;
+}
+
+/* ============================================================
+   NAV ITEM — settings sidebar / any vertical nav
+   ============================================================ */
+
+.lex-nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: var(--radius-sm);
+  cursor: pointer; width: 100%; text-align: left;
+  border: none; border-left: 2px solid transparent;
+  background: transparent;
+  font-family: var(--font-sans); font-size: 13px;
+  color: var(--fg-tertiary);
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.lex-nav-item:hover {
+  background: rgba(224,224,224,0.04);
+  color: var(--fg-primary);
+}
+.lex-nav-item.is-active {
+  background: rgba(0,255,195,0.06);
+  border-left-color: var(--verdict-neon);
+  color: var(--verdict-neon);
+}
+.lex-nav-item__icon { flex-shrink: 0; }
+.lex-nav-item__label { flex: 1; }
+
+/* ============================================================
+   MOBILE BOTTOM NAV
+   ============================================================ */
+
+.lex-mobile-nav {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  z-index: 40;
+  background: rgba(4,4,7,0.94);
+  backdrop-filter: blur(24px) saturate(200%);
+  -webkit-backdrop-filter: blur(24px) saturate(200%);
+  border-top: 0.5px solid rgba(224,224,224,0.09);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  height: 60px;
+}
+
+.lex-mobile-nav__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-width: 48px;
+  min-height: 44px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: color 0.15s;
+  text-decoration: none;
+  color: var(--fg-tertiary);
+}
+.lex-mobile-nav__item--active { color: var(--verdict-neon); }
+
+.lex-mobile-nav__fab {
+  width: 50px; height: 50px;
+  border-radius: 50%;
+  background: var(--verdict-neon);
+  color: var(--midnight-court);
+  display: flex; align-items: center; justify-content: center;
+  border: none; cursor: pointer;
+  box-shadow: 0 0 22px rgba(0,255,195,0.50), 0 4px 12px rgba(0,0,0,0.45);
+  flex-shrink: 0;
+  transition: transform 0.15s, box-shadow 0.15s;
+  margin-bottom: 6px;
+}
+.lex-mobile-nav__fab:active { transform: scale(0.96); }
+
+/* Bottom offset so content doesn't hide behind mobile nav */
+@media (max-width: 767px) {
+  .mobile-nav-offset { padding-bottom: 60px; }
+}
