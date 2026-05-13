@@ -8,7 +8,6 @@ import {
 import { useAuth } from "@/lib/auth";
 import { AdminBillingTab } from "@/components/admin/AdminBillingTab";
 import { useSettings } from "@/providers/settings-provider";
-import { SectionHeading, Field } from "@/components/shared/AdminSettingsShared";
 import { UserManagementTab } from "@/components/admin/UserManagementTab";
 import { AuditLogTab } from "@/components/admin/AuditLogTab";
 import { QuotaTab } from "@/components/admin/QuotaTab";
@@ -45,12 +44,11 @@ const ADMIN_TABS: { id: TabKey; icon: React.ElementType; label: string }[] = [
 const ADMIN_ONLY_TABS: TabKey[] = ["apikeys", "prompt", "telemetry", "ares", "livefeed", "users", "teams", "auditlog", "feedback"];
 
 export default function AdminPage() {
-  const { isAdmin } = useAuth();
-  const { settings, saveSettings } = useSettings();
+  const { isAdmin } = useAuth(); const { settings, saveSettings } = useSettings();
   const [tab, setTab] = useState<TabKey>("firm");
   const [saved, setSaved] = useState(false);
-  const save = async () => {
-    await saveSettings(settings);
+
+  const save = async () => { await saveSettings(settings);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };

@@ -29,37 +29,10 @@ export interface LexMemoryOpts {
 
 export type UpdateMatterFn = (updated: Matter | ((prev: Matter) => Matter)) => Promise<void>;
 
-function getOrBootstrap(matter: Matter): LexMemory {
-  const stored = matter.lexMemory as LexMemory | undefined;
   if (stored?.version === 1) return stored;
   return bootstrapMemory(matter);
 }
 
-function extractText(json: unknown): string | null {
-  if (!json || typeof json !== "object") return null;
-  const j = json as Record<string, unknown>;
-  const content = j["content"];
-  if (Array.isArray(content) && content[0] && typeof (content[0] as Record<string, unknown>)["text"] === "string") {
-    return (content[0] as { text: string }).text;
-  }
-  return null;
-}
-
-function extractUsage(json: unknown): { input_tokens: number; output_tokens: number } | null {
-  if (!json || typeof json !== "object") return null;
-  const j = json as Record<string, unknown>;
-  const usage = j["usage"] as Record<string, unknown> | undefined;
-  if (usage && typeof usage["input_tokens"] === "number" && typeof usage["output_tokens"] === "number") {
-    return { input_tokens: usage["input_tokens"] as number, output_tokens: usage["output_tokens"] as number };
-  }
-  if (usage && typeof usage["prompt_tokens"] === "number") {
-    return {
-      input_tokens: usage["prompt_tokens"] as number,
-      output_tokens: (usage["completion_tokens"] as number) ?? 0,
-    };
-  }
-  return null;
-}
 export function withLexMemory(
   matter: Matter,
   updateMatter: UpdateMatterFn,
