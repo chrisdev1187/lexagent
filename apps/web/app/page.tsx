@@ -35,7 +35,7 @@ const TRUST_ITEMS = [
   { icon: Lock,       label: "TLS Encrypted"    },
   { icon: ShieldCheck, label: "SOC 2 Ready"     },
   { icon: Scale,      label: "Courtroom-tested" },
-  { icon: Zap,        label: "Claude Opus 4.7" },
+  { icon: Zap,        label: "ARES v6 Agentic" },
 ];
 
 /* ── Dashboard mockup (right-side hero element) ─────────────────────────── */
@@ -181,7 +181,7 @@ export default function Home() {
             <div className="fade-in" style={{ maxWidth: 560 }}>
               <div className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 mb-7" style={{ background: "rgba(0,255,195,0.06)", border: "0.5px solid rgba(0,255,195,0.22)" }}>
                 <Zap size={10} style={{ color: "var(--verdict-neon)" }} />
-                <span className="font-mono text-[10px] tracking-[0.18em] uppercase" style={{ color: "var(--verdict-neon)" }}>Powered by Claude Opus 4.7</span>
+                <span className="font-mono text-[10px] tracking-[0.18em] uppercase" style={{ color: "var(--verdict-neon)" }}>Powered by ARES v6 Orchestration</span>
               </div>
 
               <h1 style={{ fontFamily: "var(--font-serif)", fontSize: "clamp(36px, 5.5vw, 60px)", fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.08, color: "var(--fg-primary)", marginBottom: 24 }}>

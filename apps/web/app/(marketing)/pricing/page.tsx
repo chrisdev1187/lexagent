@@ -179,7 +179,7 @@ export default function PricingPage() {
           Legal AI that pays for itself
         </h1>
         <p className="text-lg max-w-xl mx-auto" style={{ color: "var(--fg-tertiary)" }}>
-          Powered by Claude Opus 4.7. All paid plans include full AI access — higher tiers unlock more actions, seats, and features.
+          Powered by ARES v6 Orchestration. All paid plans include full AI access — higher tiers unlock more actions, seats, and features.
         </p>
         {region.currency !== "USD" && (
           <p className="font-mono text-[10px] tracking-[0.1em] uppercase mt-3" style={{ color: "var(--fg-quaternary)" }}>

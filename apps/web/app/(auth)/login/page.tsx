@@ -401,7 +401,7 @@ function LoginPageInner() {
                 className="font-mono text-[10px] tracking-[0.22em] uppercase"
                 style={{ color: "var(--fg-quaternary)" }}
               >
-                SECURE ACCESS · ARES v5
+                SECURE ACCESS · ARES v6
               </div>
             </div>
 
