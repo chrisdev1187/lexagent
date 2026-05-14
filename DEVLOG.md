@@ -745,3 +745,16 @@ Sprint 10 (v1.9 — document assembly): COMPLETE 2026-04-28
 | Per-matter ACL editor | Complex, low priority | Phase 10+ |
 | LexMemory for non-case contexts | Wait for audit score threshold | Overall ≥94 |
 | Patent filing | Needs legal review | After IP research |
+
+---
+
+## v2.0.1 hardening & Modularization (2026-05-15)
+
+### Final Refactor & Stability Pass
+- **Enterprise Modularization:** refactored 10+ monolithic pages (Admin, Settings, Matter tabs) into 30+ standalone components in `apps/web/components/`.
+- **ARES v6 Brain (SOTA):** Upgraded AI orchestrator to foreground recursive **Agentic Loop** (5 turns). Supports native Anthropic tool-calling and real-time **Thought Traces**.
+- **Neuro-symbolic Guardrail:** Implemented statutory alignment check that forces ARES self-correction if binding statutes are ignored.
+- **Monetization & Economy:** Unified high-precision **Token-to-Credit model**. Implemented pre-flight budget enforcement in `lib/api.ts` and real-time `EconomyGauge`.
+- **UI/UX Rework:** Implemented 3-step `FirmOnboarding` wizard, global **Cmd+K Command Bar**, and "Professional Soft" theme variant.
+- **Integrity Fixes:** Resolved "AUTHENTICATING" hang, restored Google Sign-In and Forgot Password flows, and exhaustively wired all 15 Admin tabs.
+- **Build stability:** Corrected syntax regressions in `with-lex-memory.ts` and restored RootLayout as a Server Component for full Metadata/SEO support.
