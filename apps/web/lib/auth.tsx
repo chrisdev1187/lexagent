@@ -193,9 +193,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithGoogle = async () => {
     try {
+      // Vercel previews and different environments need an explicit base URL
+      const baseUrl =
+        process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
+        (typeof window !== "undefined" ? window.location.origin : "");
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: typeof window !== "undefined" ? window.location.origin : "" },
+        options: { redirectTo: baseUrl },
       });
       return { error: error ? classifyError(error) : null };
     } catch (err) {

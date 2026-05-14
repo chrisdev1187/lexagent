@@ -452,9 +452,28 @@ function LoginPageInner() {
               </div>
 
               <div>
-                <label className="block font-mono text-[10px] tracking-[0.18em] uppercase mb-1.5" style={{ color: "var(--fg-tertiary)" }}>
-                  Password
-                </label>
+                <div className="flex justify-between items-center mb-1.5">
+                  <label className="block font-mono text-[10px] tracking-[0.18em] uppercase" style={{ color: "var(--fg-tertiary)" }}>
+                    Password
+                  </label>
+                  {mode === "signin" && (
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      onClick={async () => {
+                        if (!email) { setErrorCode("invalid_credentials"); return; }
+                        setForgotLoading(true);
+                        await resetPassword(email);
+                        setForgotLoading(false);
+                        setForgotSent(true);
+                      }}
+                      className="text-[9px] font-mono tracking-wider uppercase underline opacity-60 hover:opacity-100 transition-opacity"
+                      style={{ color: "var(--fg-tertiary)", background: "none", border: "none", padding: 0 }}
+                    >
+                      {forgotSent ? "Email Sent ✓" : forgotLoading ? "Sending..." : "Forgot?"}
+                    </button>
+                  )}
+                </div>
                 <input
                   type="password"
                   value={password}
@@ -496,23 +515,8 @@ function LoginPageInner() {
                     </button>
                   )}
                   {errorCode === "invalid_credentials" && (
-                    <div className="mt-2 flex items-center gap-2">
-                      <p className="opacity-60">If you just signed up, confirm your email first.</p>
-                      <button
-                        type="button"
-                        disabled={forgotLoading || forgotSent || !email}
-                        onClick={async () => {
-                          if (!email) return;
-                          setForgotLoading(true);
-                          await resetPassword(email);
-                          setForgotLoading(false);
-                          setForgotSent(true);
-                        }}
-                        className="underline cursor-pointer shrink-0"
-                        style={{ background: "none", border: "none", color: "inherit", padding: 0 }}
-                      >
-                        {forgotSent ? "Reset email sent ✓" : forgotLoading ? "Sending…" : "Forgot password?"}
-                      </button>
+                    <div className="mt-2 text-[10px] opacity-70">
+                      If you just signed up, confirm your email first.
                     </div>
                   )}
                 </div>
